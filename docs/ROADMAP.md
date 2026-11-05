@@ -21,3 +21,8 @@
 ## 1.0: public release
 - [ ] Hardware testing (Intel/AMD/NVIDIA, laptops), UEFI + BIOS (+ Secure Boot decision)
 - [ ] Website, docs, issue templates, mirror for downloads
+
+## Later
+- [ ] XlinOS Advanced edition (scope after 1.0)
+- [ ] Performance budget checks in CI (ISO size, idle RAM, boot time)
+- [ ] ARM build, if there is demand

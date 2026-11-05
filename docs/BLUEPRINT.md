@@ -3,6 +3,24 @@
 ## What XlinOS is
 An Arch-based Linux distribution whose desktop is Xlin-soft (Hyprland). You boot a USB stick, try the desktop live, and install it to a disk. It is a rolling release that uses Arch's packages and Arch's package manager.
 
+## Vision
+**XlinOS: a clean, professional, lightweight, smooth, fast and useful OS that works on any device.**
+
+Editions:
+- **XlinOS**: the main edition for everyone. Sensible defaults, graphical installer, few choices to make.
+- **XlinOS Advanced** (later): for advanced users, with developer tools, more control and less hand-holding. Scope to be decided after XlinOS 1.0.
+
+What "any device" means, in steps:
+1. x86_64 PCs and laptops, UEFI and BIOS (the first release target)
+2. Virtual machines (QEMU/KVM, VirtualBox, VMware)
+3. Later and only if there is demand: ARM boards and tablets (needs an ARM Arch port, so a separate build)
+
+## Quality goals (measured, not just claimed)
+- Lightweight: idle RAM under ~700 MB on the live desktop; ISO as small as possible (drop unneeded packages)
+- Fast: boot to desktop in under 20 s on an SSD
+- Smooth: no frame drops in the desktop animations on integrated graphics
+- Clean: one look, one set of apps, no leftover Arch branding
+
 ## Principles
 1. **Reuse, don't rebuild.** Arch provides kernel, packages and tools. XlinOS adds the desktop, installer, branding and defaults.
 2. **Xlin-soft stays its own project.** XlinOS pulls it in; Xlin-soft still installs on plain Arch.
