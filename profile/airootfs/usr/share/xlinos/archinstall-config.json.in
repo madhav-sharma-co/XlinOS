@@ -2,7 +2,7 @@
   "hostname": "xlinos",
   "kernels": ["linux"],
   "ntp": true,
-  "services": ["NetworkManager", "bluetooth", "power-profiles-daemon"],
+  "services": ["NetworkManager", "bluetooth", "power-profiles-daemon", "fstrim.timer"],
   "packages": [
     "hyprland", "waybar", "swaync", "jq", "socat", "libnotify", "brightnessctl", "networkmanager",
     "network-manager-applet", "pipewire", "pipewire-alsa", "pipewire-pulse", "wireplumber", "pavucontrol",
@@ -11,7 +11,7 @@
     "hyprlock", "hypridle", "hyprsunset", "vte4", "polkit", "hyprpolkitagent", "rofi", "udisks2", "gvfs",
     "gvfs-smb", "grim", "slurp", "wl-clipboard", "cliphist", "playerctl", "xdg-desktop-portal-hyprland",
     "xdg-desktop-portal-gtk", "gst-plugins-base", "gst-plugins-good", "gst-plugins-bad", "gst-libav",
-    "gst-plugin-gtk4", "gtksourceview5", "poppler-glib", "kitty", "hyprpaper", "sudo", "git", "base-devel",
+    "gst-plugin-gtk4", "gtksourceview5", "poppler-glib", "kitty", "hyprpaper", "nwg-dock-hyprland", "zram-generator", "sudo", "git",
     "firefox", "mesa", "vulkan-icd-loader", "sof-firmware", "nano"
   ],
   "custom_commands": [

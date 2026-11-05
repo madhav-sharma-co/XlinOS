@@ -56,10 +56,11 @@ hyprpaper
 # --- base tools and the installer
 sudo
 git
-base-devel
 archinstall
 firefox
 mesa
 vulkan-icd-loader
 sof-firmware
 qemu-guest-agent
+nwg-dock-hyprland
+zram-generator

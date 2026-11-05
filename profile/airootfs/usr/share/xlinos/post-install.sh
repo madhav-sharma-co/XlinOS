@@ -38,6 +38,12 @@ if [[ -z "${WAYLAND_DISPLAY:-}" && -z "${DISPLAY:-}" && "$(tty)" == /dev/tty1 ]]
   exec /usr/local/bin/xlinos-session
 fi
 EOT
+# Layers 2-4: lean and fast defaults (zram swap, small journal, no boot wait for the network)
+mkdir -p /etc/systemd/journald.conf.d /etc/sysctl.d
+printf '[zram0]\nzram-size = min(ram / 2, 4096)\ncompression-algorithm = zstd\n' >/etc/systemd/zram-generator.conf
+printf '[Journal]\nSystemMaxUse=100M\n' >/etc/systemd/journald.conf.d/xlinos.conf
+printf 'vm.swappiness = 100\nvm.page-cluster = 0\n' >/etc/sysctl.d/99-xlinos.conf
+ln -sf /dev/null /etc/systemd/system/NetworkManager-wait-online.service
 # members of wheel may use sudo (with a password)
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 for u in $(awk -F: '$3>=1000 && $3<60000 {print $1}' /etc/passwd); do

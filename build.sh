@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Build the XlinOS live ISO. Run on Arch Linux (or in an Arch container) as root:  sudo ./build.sh [--no-aur]
+# Build the XlinOS live ISO. Run on Arch Linux (or in an Arch container) as root:  sudo ./build.sh [--aur]
 # It starts from archiso's own "releng" profile and adds XlinOS on top, so the boot menus and the base stay current.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 ROOT="$PWD"
-USE_AUR=1; [[ "${1:-}" == "--no-aur" ]] && USE_AUR=0
+USE_AUR=0; [[ "${1:-}" == "--aur" ]] && USE_AUR=1   # the dock is in the official repo now; --aur only for AUR extras
 XLIN_SOFT_REPO="${XLIN_SOFT_REPO:-https://github.com/madhav-sharma-co/XLIN-Soft.git}"
 XLIN_SOFT_REF="${XLIN_SOFT_REF:-main}"
 RELENG=/usr/share/archiso/configs/releng

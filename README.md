@@ -24,7 +24,7 @@ You need an Arch Linux machine (or an Arch container) and root:
 
     sudo pacman -S --needed archiso git base-devel
     sudo ./build.sh                 # the ISO is written to ./out/
-    sudo ./build.sh --no-aur        # skip the AUR packages (the Run Bar will be missing)
+    sudo ./build.sh --aur          # also build AUR packages into a local repo (not needed by default)
 
 Build with a given Xlin-soft tag or branch (default `main`): `sudo XLIN_SOFT_REF=v0.1.1 ./build.sh`
 
