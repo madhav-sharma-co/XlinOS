@@ -1,0 +1,23 @@
+name: Build ISO
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+jobs:
+  iso:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+      options: --privileged
+    steps:
+      - name: Install build tools
+        run: pacman -Syu --noconfirm archiso git base-devel sudo python
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          ./build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xlinos-iso
+          path: out/*.iso

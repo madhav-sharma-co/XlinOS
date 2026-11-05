@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Install XlinOS to a disk. Uses archinstall with the XlinOS settings preset (packages, services, Xlin-soft).
+# archinstall asks for the rest: disk, user name and password, language, time zone.
+set -euo pipefail
+[[ $EUID -eq 0 ]] || exec sudo "$0" "$@"
+cfg=/usr/share/xlinos/archinstall-config.json
+[[ -f "$cfg" ]] || { echo "Missing $cfg"; exit 1; }
+ping -c1 -W3 archlinux.org >/dev/null 2>&1 || {
+  echo "No internet connection. The installer needs it (packages are downloaded)."
+  echo "Connect first (Wi-Fi: nmtui), then run: sudo xlinos-install"; exit 1; }
+echo "XlinOS installer"
+echo "This will use archinstall. Choose the disk and a user in the menus, then press 'Install'."
+echo "Everything on the disk you choose can be erased."
+read -rp "Continue? [y/N] " a; [[ "$a" =~ ^[Yy] ]] || exit 0
+archinstall --config "$cfg"
+echo
+echo "Done. Remove the USB stick and restart: sudo reboot"

@@ -1,0 +1,12 @@
+NAME="XlinOS"
+PRETTY_NAME="XlinOS @VERSION@"
+ID=xlinos
+ID_LIKE=arch
+BUILD_ID=rolling
+VERSION_ID=@VERSION@
+ANSI_COLOR="38;2;23;147;209"
+HOME_URL="https://github.com/madhav-sharma-co/XlinOS"
+DOCUMENTATION_URL="https://github.com/madhav-sharma-co/XlinOS"
+SUPPORT_URL="https://github.com/madhav-sharma-co/XlinOS/issues"
+BUG_REPORT_URL="https://github.com/madhav-sharma-co/XlinOS/issues"
+LOGO=xlin-soft

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Starts the Xlin-soft desktop. The first time, Xlin-soft is set up for this user.
+if [[ ! -f "$HOME/.config/xlin/state/source" && -d /opt/xlin-soft ]]; then
+  echo "XlinOS: setting up the desktop for $USER (first start, about a minute)..."
+  # the folder is read-only on the live ISO, so set up from a copy; remember where updates should come from
+  src="$HOME/.Xlin-soft"
+  [[ -d "$src" ]] || cp -r /opt/xlin-soft "$src"
+  ( cd "$src" && XLIN_NO_UPGRADE=1 bash install.sh </dev/null ) || echo "(setup had a problem: run 'xlin doctor' inside the desktop)"
+  mkdir -p "$HOME/.config/xlin/state"; echo "$src" >"$HOME/.config/xlin/state/source"
+fi
+export XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=Hyprland
+exec Hyprland
