@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# XlinOS does not ship a browser (keeps the system small). This installs one you choose.
+set -euo pipefail
+echo "Choose a web browser to install:"
+echo "  1) Firefox   2) Chromium   3) Epiphany (small, GNOME Web)"
+read -rp "Number [1]: " n
+case "${n:-1}" in 2) pkg=chromium;; 3) pkg=epiphany;; *) pkg=firefox;; esac
+sudo pacman -S --needed --noconfirm "$pkg"
+echo "Installed $pkg. Find it in the app launcher."

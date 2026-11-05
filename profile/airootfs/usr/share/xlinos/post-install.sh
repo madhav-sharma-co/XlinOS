@@ -44,6 +44,17 @@ printf '[zram0]\nzram-size = min(ram / 2, 4096)\ncompression-algorithm = zstd\n'
 printf '[Journal]\nSystemMaxUse=100M\n' >/etc/systemd/journald.conf.d/xlinos.conf
 printf 'vm.swappiness = 100\nvm.page-cluster = 0\n' >/etc/sysctl.d/99-xlinos.conf
 ln -sf /dev/null /etc/systemd/system/NetworkManager-wait-online.service
+# no browser is bundled: a small helper installs one
+cat >/usr/local/bin/xlinos-browser <<'EOT'
+#!/usr/bin/env bash
+echo "Choose a web browser to install:"
+echo "  1) Firefox   2) Chromium   3) Epiphany (small, GNOME Web)"
+read -rp "Number [1]: " n
+case "${n:-1}" in 2) pkg=chromium;; 3) pkg=epiphany;; *) pkg=firefox;; esac
+sudo pacman -S --needed --noconfirm "$pkg" && echo "Installed $pkg. Find it in the app launcher."
+EOT
+chmod 755 /usr/local/bin/xlinos-browser
+printf '[Desktop Entry]\nType=Application\nName=Get a Web Browser\nExec=kitty -e xlinos-browser\nIcon=web-browser\nTerminal=false\nCategories=Network;\n' >/usr/share/applications/xlinos-browser.desktop
 # members of wheel may use sudo (with a password)
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 for u in $(awk -F: '$3>=1000 && $3<60000 {print $1}' /etc/passwd); do

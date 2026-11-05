@@ -79,6 +79,7 @@ file_permissions+=(
   ["/home/xlin"]="1000:1000:750"
   ["/usr/local/bin/xlinos-session"]="0:0:755"
   ["/usr/local/bin/xlinos-install"]="0:0:755"
+  ["/usr/local/bin/xlinos-browser"]="0:0:755"
   ["/usr/share/xlinos/post-install.sh"]="0:0:755"
 )
 EOT

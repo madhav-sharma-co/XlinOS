@@ -14,5 +14,7 @@
 
 Files: `profile/airootfs/etc/` (live ISO) and `profile/airootfs/usr/share/xlinos/post-install.sh` (installed system).
 
-## Decisions (CEO)
-See the roadmap file; open questions: kernel, browser, filesystem.
+## Decisions (CEO, 2026-11-05)
+1. **Kernel:** `linux` only. Smallest and newest.
+2. **Browser:** not bundled. `xlinos-browser` ("Get a Web Browser") installs Firefox, Chromium or Epiphany on request. Keeps the ISO small.
+3. **Disk format:** `ext4`. Simple and fast. Note: with archinstall the filesystem is picked in its menu (choose ext4); Calamares will preset it later.

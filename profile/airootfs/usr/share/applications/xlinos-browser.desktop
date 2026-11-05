@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Get a Web Browser
+Comment=Install Firefox, Chromium or Epiphany
+Exec=kitty -e xlinos-browser
+Icon=web-browser
+Terminal=false
+Categories=Network;

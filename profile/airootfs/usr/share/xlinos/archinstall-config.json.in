@@ -12,7 +12,7 @@
     "gvfs-smb", "grim", "slurp", "wl-clipboard", "cliphist", "playerctl", "xdg-desktop-portal-hyprland",
     "xdg-desktop-portal-gtk", "gst-plugins-base", "gst-plugins-good", "gst-plugins-bad", "gst-libav",
     "gst-plugin-gtk4", "gtksourceview5", "poppler-glib", "kitty", "hyprpaper", "nwg-dock-hyprland", "zram-generator", "sudo", "git",
-    "firefox", "mesa", "vulkan-icd-loader", "sof-firmware", "nano"
+    "mesa", "vulkan-icd-loader", "sof-firmware", "nano"
   ],
   "custom_commands": [
     "echo @POST_B64@ | base64 -d | bash"
