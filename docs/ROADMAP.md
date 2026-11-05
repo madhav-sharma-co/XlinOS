@@ -2,6 +2,7 @@
 
 ## 0.1 alpha: boots and installs (now)
 - [x] Repo, archiso profile, build script, CI workflow
+- [x] Layer 1 written: boot menu branding, splash picture, quiet start (untested)
 - [ ] First CI build succeeds
 - [ ] Boots in QEMU (BIOS and UEFI), live desktop starts
 - [ ] `xlinos-install` completes in a VM; installed system boots to the desktop

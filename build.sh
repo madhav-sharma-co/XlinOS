@@ -30,8 +30,8 @@ sed -i \
   -e "s|^iso_version=.*|iso_version=\"$version\"|" \
   -e 's|^install_dir=.*|install_dir="xlinos"|' \
   "$PROFILE/profiledef.sh"
-# the boot menu says XlinOS
-grep -rlE "Arch Linux" "$PROFILE"/syslinux "$PROFILE"/grub "$PROFILE"/efiboot 2>/dev/null | xargs -r sed -i 's/Arch Linux/XlinOS/g'
+# Layer 1: boot menus (names, splash picture, quiet start)
+"$ROOT/scripts/brand-boot.sh" "$PROFILE"
 
 # --- packages
 say "Packages"
