@@ -1,0 +1,4 @@
+P+q6E616D65\[18t7[32766;32766H[6n8[!p]104\[0m[?7h[1G[0J]3008;start=d9117edd192340a2b4dd31ccc4910f5d;user=root;hostname=archlinux;machineid=b919fd6fa8c541d18a2c9607f95b28ce;bootid=03fe26f11f8d4ba39dc6f1349b4bbbaa;pid=1;pidfdid=1;comm=systemd;type=boot\P+q6E616D65\[18t7[32766;32766H[6n8[!p]104\[0m[?7h[1G[0J]3008;start=0d4f04bbc72743588d82a944d49bb7d8;user=root;hostname=xlinos;machineid=c893e90acb5b4e14a5467386ee30717f;bootid=03fe26f11f8d4ba39dc6f1349b4bbbaa;pid=1;pidfdid=1;comm=systemd;type=boot\[!p]104\[0m[?7h[1G[0J7[32766;32766H[6n8[!p]104\[0m[?7h[1G[0J7[32766;32766H[6n8]3008;start=b345ed95bbf54e5fa1450eb32d531bcc;user=root;hostname=xlinos;machineid=c893e90acb5b4e14a5467386ee30717f;bootid=03fe26f11f8d4ba39dc6f1349b4bbbaa;pid=308;pidfdid=177;comm=(agetty);servicename=serial-getty@ttyS0.service;invocationid=ca9a056af2b04ce495f2bef3407dd8b5;type=service\P+q6E616D65\
+XlinOS ci-test (ttyS0)
+
+xlinos login: 
