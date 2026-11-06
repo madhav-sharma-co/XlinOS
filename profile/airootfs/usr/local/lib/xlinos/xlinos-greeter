@@ -26,11 +26,22 @@ window.xl { background-image: linear-gradient(#0a2060, #03081c); color: #ffffff;
 .xl button.primary:hover { background: #3a80ff; }
 .xl button.danger { background: #c0392b; font-weight: 600; }
 .xl button.flat { background: transparent; color: #9db4e6; }
+.xl .brand { font-weight: 700; font-size: 16px; color: #c9d6f2; }
 .xl .err { color: #ff8a80; min-height: 22px; }
 .xl .ok { color: #7be0a0; min-height: 22px; }
 .xl .useritem { padding: 10px 16px; min-width: 300px; }
 .xl checkbutton { color: #c9d6f2; }
 """
+
+
+SHARE = os.environ.get("XLINOS_SHARE", "/usr/share/xlinos")
+
+
+def mark(size):
+    path = os.path.join(SHARE, "xlinos-mark.png")
+    if not os.path.exists(path):
+        return Gtk.Box()
+    img = Gtk.Image.new_from_file(path); img.set_pixel_size(size); return img
 
 
 def initial(text):
@@ -54,6 +65,9 @@ class Greeter(Gtk.ApplicationWindow):
             b.connect("clicked", lambda _b, c=cmd: subprocess.Popen(["systemctl", c]))
             bar.append(b)
         root.add_overlay(bar)
+        brand = Gtk.Box(spacing=10, halign=Gtk.Align.START, valign=Gtk.Align.END, margin_start=28, margin_bottom=22)
+        brand.append(mark(26)); brand.append(self.label("XlinOS", "brand"))
+        root.add_overlay(brand)
         self.set_child(root)
         self.tick(); GLib.timeout_add_seconds(1, self.tick)
         self.reload()
@@ -194,7 +208,7 @@ class Greeter(Gtk.ApplicationWindow):
         for u in self.users:
             b = Gtk.Button(); b.add_css_class("useritem")
             row = Gtk.Box(spacing=14)
-            row.append(self.label(initial(u["fullname"]), "small-avatar", halign=Gtk.Align.CENTER))
+            row.append(self.label(initial(u["fullname"]), "small-avatar", halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER))
             col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, halign=Gtk.Align.START, valign=Gtk.Align.CENTER)
             col.append(self.label(u["fullname"], "name", halign=Gtk.Align.START))
             if u["admin"]:
@@ -210,6 +224,8 @@ class Greeter(Gtk.ApplicationWindow):
     # ---- create ------------------------------------------------------------------
     def build_create(self):
         p = self.page("create")
+        self.c_mark = mark(84); self.c_mark.set_halign(Gtk.Align.CENTER); self.c_mark.set_margin_bottom(8)
+        p.append(self.c_mark)
         self.c_title = self.label("", "title"); self.c_sub = self.label("", "sub")
         p.append(self.c_title); p.append(self.c_sub)
         self.c_full = self.entry("Full name"); self.c_name = self.entry("User name")
@@ -239,7 +255,7 @@ class Greeter(Gtk.ApplicationWindow):
         for e in (self.c_full, self.c_name, self.c_pw, self.c_pw2, self.c_auth_pw):
             e.set_text("")
         self.c_name_touched = False; self.c_msg.set_text("")
-        self.c_admin_box.set_visible(not first); self.c_back.set_visible(not first)
+        self.c_admin_box.set_visible(not first); self.c_back.set_visible(not first); self.c_mark.set_visible(first)
         if not first:
             self.c_auth_user.set_model(Gtk.StringList.new(self.admins() or [""]))
             self.c_make_admin.set_active(False)
@@ -278,7 +294,9 @@ class Greeter(Gtk.ApplicationWindow):
         self.d_user.connect("notify::selected", lambda *_: self.fill_auth())
         self.d_pw = self.entry("Password", True)
         self.d_purge = Gtk.CheckButton(label="Also delete this user's files")
-        for w in (self.d_user, self.d_auth, self.d_pw, self.d_purge):
+        for text, w in (("User to delete", self.d_user), ("Confirm with the password of", self.d_auth), (None, self.d_pw), (None, self.d_purge)):
+            if text:
+                p.append(self.label(text, "sub", halign=Gtk.Align.START))
             p.append(w)
         self.d_msg = self.label("", "err"); p.append(self.d_msg)
         p.append(self.button("Delete user", "danger", self.do_delete))

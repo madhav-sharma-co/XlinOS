@@ -6,6 +6,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIB = f"{ROOT}/profile/airootfs/usr/local/lib/xlinos"
 out = sys.argv[1]; os.makedirs(out, exist_ok=True)
 os.environ.setdefault("GSK_RENDERER", "cairo")
+os.environ["XLINOS_SHARE"] = f"{ROOT}/profile/airootfs/usr/share/xlinos"
 sys.path.insert(0, LIB)
 import gi
 gi.require_version("Gtk", "4.0"); gi.require_version("Graphene", "1.0")
