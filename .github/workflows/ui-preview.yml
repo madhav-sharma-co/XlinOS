@@ -1,0 +1,22 @@
+name: UI preview
+# Draws the real login screen with fake users and pushes the pictures to the branch ci-ui-preview.
+on:
+  workflow_dispatch:
+  push:
+    paths: ['profile/airootfs/usr/local/lib/xlinos/**', 'scripts/ui-preview.py']
+permissions:
+  contents: write
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y python3-gi gir1.2-gtk-4.0 gir1.2-graphene-1.0 xvfb fonts-inter
+      - run: xvfb-run -a -s "-screen 0 1280x800x24" python3 scripts/ui-preview.py shots
+      - name: Push the pictures
+        run: |
+          cd shots
+          git init -q -b ci-ui-preview; git config user.name ci; git config user.email ci@users.noreply.github.com
+          echo "built from ${{ github.sha }}" >README.txt
+          git add -A && git commit -qm "login screen preview for ${{ github.sha }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-ui-preview
