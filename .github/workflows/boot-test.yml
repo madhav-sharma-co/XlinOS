@@ -1,0 +1,56 @@
+name: Boot test
+# Boots the ISO of a finished "Build ISO" run in QEMU (BIOS and UEFI) and saves screenshots on the branches
+# ci-shots-bios / ci-shots-uefi. Run it by hand with a run id to test an older build.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Build ISO run id (empty = latest successful)"
+        required: false
+  workflow_run:
+    workflows: ["Build ISO"]
+    types: [completed]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  boot:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [bios, uefi]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find the build
+        id: run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id="${{ github.event.inputs.run_id }}"
+          [ -n "$id" ] || id="${{ github.event.workflow_run.id }}"
+          [ -n "$id" ] || id="$(gh run list --workflow 'Build ISO' --status success --limit 1 --json databaseId -q '.[0].databaseId')"
+          echo "id=$id" >>"$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          name: xlinos-iso
+          path: iso
+          run-id: ${{ steps.run.outputs.id }}
+          github-token: ${{ github.token }}
+      - name: Install QEMU
+        run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 ovmf python3-pil
+      - name: Boot and take screenshots
+        run: |
+          sudo chmod 666 /dev/kvm || true
+          python3 scripts/ci-boot.py iso/*.iso ${{ matrix.mode }} shots
+      - name: Save screenshots on a branch
+        if: always()
+        run: |
+          cd shots
+          git init -q -b ci-shots-${{ matrix.mode }}
+          git config user.name "ci"; git config user.email "ci@users.noreply.github.com"
+          echo "build run ${{ steps.run.outputs.id }}" >README.txt
+          git add -A && git commit -qm "boot screenshots (${{ matrix.mode }}) for build ${{ steps.run.outputs.id }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-shots-${{ matrix.mode }}

@@ -21,28 +21,3 @@ jobs:
         with:
           name: xlinos-iso
           path: out/*.iso
-  boot:
-    needs: iso
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    strategy:
-      fail-fast: false
-      matrix:
-        mode: [bios, uefi]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: xlinos-iso
-          path: iso
-      - name: Install QEMU
-        run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 ovmf python3-pil
-      - name: Boot and take screenshots
-        run: |
-          sudo chmod 666 /dev/kvm || true
-          python3 scripts/ci-boot.py iso/*.iso ${{ matrix.mode }} shots
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: boot-${{ matrix.mode }}
-          path: shots/
