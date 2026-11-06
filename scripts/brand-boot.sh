@@ -12,7 +12,7 @@ grep -rlE "install medium" "$P"/syslinux "$P"/grub "$P"/efiboot 2>/dev/null | xa
 
 # 2. splash picture for the BIOS (syslinux) menu: 640x480 PNG
 if [[ -d "$P/syslinux" ]]; then
-  python3 "$HERE/scripts/make-splash.py" "$P/syslinux/splash.png"
+  cp "$HERE/assets/boot/splash.png" "$P/syslinux/splash.png"   # made by scripts/make-splash.py (needs Pillow, so it is committed)
 fi
 
 # 3. quiet kernel start: add the options in front of archisobasedir= on every boot entry (BIOS, GRUB, systemd-boot)

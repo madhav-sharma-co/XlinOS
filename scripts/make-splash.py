@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Makes the boot-menu splash (640x480, the size syslinux wants) from the Xlin X mark. Usage: make-splash.py out.png"""
 import sys, glob
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 ROOT = __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__)))
 BG = (3, 8, 28)
 src = Image.open(f"{ROOT}/assets/logo/xlin-soft-dark.png").convert("RGB")
