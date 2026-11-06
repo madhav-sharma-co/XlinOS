@@ -13,6 +13,13 @@ if [[ ! -f "$HOME/.config/xlin/state/source" && -d /opt/xlin-soft ]]; then
     || echo "XlinOS: desktop setup had a problem, see ~/.xlinos-first-start.log"
   mkdir -p "$HOME/.config/xlin/state"; echo "$src" >"$HOME/.config/xlin/state/source"
 fi
+# the XlinOS look: its dark palette replaces Xlin-soft's dark theme (re-applied when an Xlin-soft update changes it back)
+th="$HOME/.config/xlin/themes"
+if [[ -d "$th" && -f /usr/share/xlinos/themes/dark.sh ]] && ! cmp -s /usr/share/xlinos/themes/dark.sh "$th/dark.sh"; then
+  cp /usr/share/xlinos/themes/dark.sh "$th/dark.sh"
+  mkdir -p "$HOME/.config/xlin/state"; echo dark >"$HOME/.config/xlin/state/theme"
+  timeout 30 xlin theme dark >/dev/null 2>&1 || true
+fi
 export XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=Hyprland
 # virtual machines and old graphics: let Hyprland draw in software when there is no GPU driver for it
 if command -v systemd-detect-virt >/dev/null && systemd-detect-virt -q; then

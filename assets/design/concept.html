@@ -1,0 +1,91 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>XlinOS desktop concept</title>
+<style>
+:root{--bg0:#03081c;--bg1:#0a2060;--glass:rgba(12,20,56,.62);--glass2:rgba(255,255,255,.07);--line:rgba(255,255,255,.12);--text:#fff;--mute:#9db4e6;--acc:#1e6bff;--acc2:#4f93ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1920px;height:1080px;overflow:hidden;font-family:Inter,sans-serif;color:var(--text);background:linear-gradient(#0a2060,#03081c);position:relative}
+.wall{position:absolute;inset:0;background:radial-gradient(ellipse 60% 55% at 50% 38%,rgba(30,107,255,.38),transparent 70%),radial-gradient(ellipse 40% 40% at 85% 90%,rgba(0,200,255,.14),transparent 70%)}
+.wall img{position:absolute;left:78%;top:66%;width:620px;transform:translate(-50%,-50%);opacity:.20}
+.bar{position:absolute;top:10px;left:14px;right:14px;height:38px;border-radius:14px;background:var(--glass);backdrop-filter:blur(20px);border:1px solid var(--line);display:flex;align-items:center;padding:0 14px;gap:18px;font-size:14px}
+.bar .logo{width:22px}.bar b{font-weight:600}.bar .sp{flex:1}.bar .ic{width:18px;height:18px;opacity:.9}
+.bar .mut{color:var(--mute)}
+.win{position:absolute;border-radius:18px;background:var(--glass);backdrop-filter:blur(26px);border:1px solid var(--line);box-shadow:0 30px 80px rgba(0,0,0,.45);overflow:hidden}
+.title{height:46px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid var(--line);gap:12px;font-weight:600;font-size:15px}
+.title .sp{flex:1}.dot{width:13px;height:13px;border-radius:50%;background:rgba(255,255,255,.22)}.dot.x{background:#ff5f6d}
+.side{width:210px;padding:14px;border-right:1px solid var(--line);font-size:14px;color:var(--mute);display:flex;flex-direction:column;gap:4px}
+.side div{padding:9px 12px;border-radius:10px}.side .on{background:rgba(30,107,255,.35);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:26px;padding:26px}
+.fo{display:flex;flex-direction:column;align-items:center;gap:10px;font-size:14px}
+.fo i{width:92px;height:72px;border-radius:14px;background:linear-gradient(135deg,#3a8bff,#1e6bff);box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.fo i.b{background:linear-gradient(135deg,#00d0ff,#1e6bff)}.fo i.c{background:linear-gradient(135deg,#7a8cff,#4a4fe0)}
+.dock{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);padding:10px 14px;border-radius:26px;background:var(--glass2);backdrop-filter:blur(24px);border:1px solid var(--line);display:flex;gap:14px}
+.app{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 8px 18px rgba(0,0,0,.3)}
+.app svg{width:32px;height:32px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.g1{background:linear-gradient(135deg,#3a8bff,#1e6bff)}.g2{background:linear-gradient(135deg,#1c2a5e,#0b1236)}.g3{background:linear-gradient(135deg,#00d0ff,#1e6bff)}.g4{background:linear-gradient(135deg,#7a8cff,#4a4fe0)}.g5{background:linear-gradient(135deg,#2a3a78,#141c46)}
+.run{position:relative}.run:after{content:"";position:absolute;bottom:-9px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:#fff;opacity:.85}
+.clock{position:absolute;right:48px;top:90px;text-align:right}.clock .t{font-size:84px;font-weight:200;line-height:1}.clock .d{font-size:18px;color:var(--mute);margin-top:6px}
+.search{position:absolute;left:50%;top:170px;transform:translateX(-50%);width:760px;height:64px;border-radius:20px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(26px);display:flex;align-items:center;padding:0 24px;gap:14px;font-size:20px;color:var(--mute)}
+.apps{position:absolute;left:50%;top:290px;transform:translateX(-50%);width:1000px;display:grid;grid-template-columns:repeat(6,1fr);gap:40px 20px}
+.apps .it{display:flex;flex-direction:column;align-items:center;gap:12px;font-size:15px}.apps .app{width:84px;height:84px;border-radius:24px}.apps .app svg{width:40px;height:40px}
+.panel{position:absolute;right:14px;top:60px;width:420px;border-radius:22px;background:var(--glass);backdrop-filter:blur(28px);border:1px solid var(--line);box-shadow:0 30px 80px rgba(0,0,0,.5);padding:20px}
+.who{display:flex;align-items:center;gap:14px;margin-bottom:16px}.av{width:48px;height:48px;border-radius:50%;background:var(--acc);display:grid;place-items:center;font-weight:700;font-size:20px}
+.who .n{font-weight:600;font-size:17px}.who .r{font-size:13px;color:var(--mute)}.who .sp{flex:1}
+.pill{height:40px;padding:0 16px;border-radius:12px;background:var(--glass2);border:1px solid var(--line);display:flex;align-items:center;font-size:14px;gap:8px}
+.tg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}.tile{height:64px;border-radius:16px;background:var(--glass2);border:1px solid var(--line);padding:12px 14px;font-size:14px}.tile small{display:block;color:var(--mute);font-size:12px;margin-top:3px}.tile.on{background:var(--acc);border-color:transparent}.tile.on small{color:#dbe7ff}
+.sl{display:flex;align-items:center;gap:12px;margin:12px 0;font-size:13px;color:var(--mute)}.sl .tr{flex:1;height:8px;border-radius:5px;background:rgba(255,255,255,.14);position:relative}.sl .tr b{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:var(--acc2)}
+.pw{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:16px}.pw .pill{justify-content:center}.pw .red{background:rgba(192,57,43,.7)}
+.s{display:none}.s.on{display:block}
+.cap{position:absolute;left:30px;bottom:22px;font-size:13px;color:var(--mute);opacity:0}
+</style></head><body>
+<div class="wall"><img src="mark.png"></div>
+
+<!-- shared status bar -->
+<div class="bar"><img class="logo" src="mark.png"><b id="appname">Files</b><span class="mut" id="menus">File &nbsp; Edit &nbsp; View &nbsp; Go</span><span class="sp"></span>
+ <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M2 9a15 15 0 0 1 20 0M5 13a10 10 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r="1" fill="#fff"/></svg>
+ <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg>
+ <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6h4l5 4V5L7 9zM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
+ <span>82%</span><span>Fri 6 Nov &nbsp; 5:12 PM</span></div>
+
+<!-- screen 1: desktop with Files -->
+<div class="s on" id="s1">
+ <div class="clock"><div class="t">17:12</div><div class="d">Friday, 06 November</div></div>
+ <div class="win" style="left:250px;top:120px;width:1060px;height:640px">
+  <div class="title"><span class="dot x"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:14px">Files</span><span class="sp"></span><div class="pill" style="height:32px;width:260px;color:var(--mute)">Search</div></div>
+  <div style="display:flex;height:594px"><div class="side"><div class="on">Home</div><div>Documents</div><div>Downloads</div><div>Pictures</div><div>Music</div><div>Videos</div><div style="margin-top:14px">Trash</div></div>
+  <div class="grid" style="flex:1;align-content:start"><div class="fo"><i></i>Documents</div><div class="fo"><i class="b"></i>Downloads</div><div class="fo"><i class="c"></i>Pictures</div><div class="fo"><i></i>Music</div><div class="fo"><i class="b"></i>Videos</div><div class="fo"><i class="c"></i>Projects</div><div class="fo"><i></i>Notes</div><div class="fo"><i class="b"></i>Backups</div></div></div>
+ </div>
+</div>
+
+<!-- screen 2: launcher -->
+<div class="s" id="s2">
+ <div style="position:absolute;inset:0;background:rgba(3,8,28,.55);backdrop-filter:blur(30px)"></div>
+ <div class="search"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9db4e6" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Search apps, files and settings</div>
+ <div class="apps" id="apps"></div>
+</div>
+
+<!-- screen 3: quick settings -->
+<div class="s" id="s3">
+ <div class="clock"><div class="t" style="opacity:.0">17:12</div></div>
+ <div class="panel">
+  <div class="who"><div class="av">A</div><div><div class="n">Ann Lee</div><div class="r">Administrator</div></div><div class="sp"></div></div>
+  <div class="tg"><div class="tile on">Wi-Fi<small>Home network</small></div><div class="tile on">Bluetooth<small>2 devices</small></div><div class="tile">Dark mode<small>On</small></div><div class="tile">Do not disturb<small>Off</small></div></div>
+  <div class="sl">Volume<div class="tr"><b style="width:64%"></b></div>64%</div>
+  <div class="sl">Brightness<div class="tr"><b style="width:82%"></b></div>82%</div>
+  <div class="pill" style="margin-top:14px;justify-content:space-between"><span>Battery 82%</span><span class="mut">Balanced</span></div>
+  <div class="pw"><div class="pill">Lock</div><div class="pill">Log out</div><div class="pill red">Shut down</div></div>
+ </div>
+ <div class="win" style="left:250px;top:120px;width:1060px;height:640px;opacity:.55;z-index:-1"><div class="title">Files</div></div>
+</div>
+
+<div class="dock" id="dock"></div>
+<script>
+const ic={files:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',term:'<path d="M4 17l6-6-6-6M12 19h8"/>',web:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',set:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',store:'<path d="M5 8h14l-1 12H6zM9 8a3 3 0 0 1 6 0"/>',music:'<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',img:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/>',note:'<path d="M6 3h9l4 4v14H6zM9 12h7M9 16h7"/>',calc:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h2M12 12h2M8 16h2M12 16h2"/>',cam:'<path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 7 9-7"/>'};
+const cls=['g1','g2','g3','g4','g5'];
+const dock=[['files','g1',1],['term','g2',1],['web','g3',0],['set','g5',0],['store','g4',0],['music','g2',0]];
+document.getElementById('dock').innerHTML=dock.map(([k,c,r])=>`<div class="app ${c} ${r?'run':''}"><svg viewBox="0 0 24 24">${ic[k]}</svg></div>`).join('');
+const all=[['Files','files'],['Terminal','term'],['Browser','web'],['Settings','set'],['Store','store'],['Music','music'],['Photos','img'],['Notes','note'],['Calculator','calc'],['Camera','cam'],['Calendar','cal'],['Mail','mail']];
+document.getElementById('apps').innerHTML=all.map(([n,k],i)=>`<div class="it"><div class="app ${cls[i%5]}"><svg viewBox="0 0 24 24">${ic[k]}</svg></div>${n}</div>`).join('');
+const q=new URLSearchParams(location.search).get('s')||'1';
+document.querySelectorAll('.s').forEach(e=>e.classList.toggle('on',e.id==='s'+q));
+if(q==='2'){document.getElementById('appname').textContent='Apps';document.getElementById('menus').textContent='';}
+</script></body></html>

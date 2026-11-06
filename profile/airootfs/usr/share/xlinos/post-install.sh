@@ -38,6 +38,7 @@ if git clone --depth 1 ${REF:+--branch "$REF"} https://github.com/madhav-sharma-
   install -m 755 "$A"/usr/local/bin/xlinos-session "$A"/usr/local/bin/xlinos-browser /usr/local/bin/
   install -m 644 "$A"/usr/share/applications/xlinos-browser.desktop /usr/share/applications/
   install -D -m 644 "$A"/usr/share/xlinos/xlinos-mark.png /usr/share/xlinos/xlinos-mark.png
+  install -D -m 644 "$A"/usr/share/xlinos/themes/dark.sh /usr/share/xlinos/themes/dark.sh
   install -d /etc/greetd
   install -m 644 "$A"/usr/share/xlinos/greetd-config.toml /etc/greetd/config.toml
   install -m 440 "$A"/usr/share/xlinos/sudoers-greeter /etc/sudoers.d/xlinos-greeter
