@@ -25,8 +25,12 @@ The screen never gets root rights. It can only call the helper, and the helper c
 ## First login of each user
 Xlin-soft's programs, packages and services are installed once for everyone during the install (`post-install.sh`). Each user's first login then only sets up their own settings, so standard users (no sudo) work too.
 
-## Tested here
-Account helper (17 checks, real `useradd`/`userdel` in a private copy of `/etc`), greetd protocol against a fake greetd, and every screen action with GTK stubbed. **Not tested:** the real GTK look and `cage`/greetd on a real boot. That needs the ISO.
+## Tested
+- Account helper: 17 checks with real `useradd`/`userdel` in a private copy of `/etc` (CI "Tests").
+- Login logic against a fake greetd, and every screen action with GTK stubbed (CI "Tests").
+- The real screens drawn with real GTK (CI "UI preview", branch `ci-ui-preview`).
+- **The whole flow on a real boot** (CI "Install test", branch `ci-shots-install`): an installed-style system (same package list and `post-install.sh` as the installer) boots to the first-start screen, the first user is created by typing into the form, the Xlin-soft desktop starts, after a restart the lock-style login shows, a wrong password gives "Wrong password.", and the right one logs in. All worked in QEMU (software graphics).
+- **Not tested:** archinstall itself (disk menus), real hardware and GPU drivers, user switching/creating/deleting on the real screen (only on the stubbed one).
 
 ## Installing without archinstall's user step
 In the archinstall menu, skip "User account" so the first-start screen creates the user. Calamares (later) will drop that step.

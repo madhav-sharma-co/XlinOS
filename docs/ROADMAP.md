@@ -5,7 +5,8 @@
 - [x] Layer 1 written: boot menu branding, splash picture, quiet start (untested)
 - [x] First CI build succeeds (about 13 min, ISO 1.75 GB)
 - [x] Boots in QEMU (BIOS and UEFI): XlinOS menu, quiet start, autologin, Xlin-soft desktop (seen in CI screenshots)
-- [ ] `xlinos-install` completes in a VM; installed system boots to the desktop
+- [x] Installed-style system boots, creates the first user, shows the login and the desktop (CI install test)
+- [ ] `xlinos-install` (archinstall) completes in a VM: still to test by hand
 - [ ] Release 0.1.0-alpha with the ISO (2 GB GitHub limit; use a split or a mirror if larger)
 
 ## 0.2 beta: feels like an OS
