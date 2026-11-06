@@ -21,6 +21,9 @@ echo xlinos >"$W/root/etc/hostname"; echo "LANG=C.UTF-8" >"$W/root/etc/locale.co
 echo "/dev/vda / ext4 defaults 0 1" >"$W/root/etc/fstab"
 echo "root:root" | arch-chroot "$W/root" chpasswd
 ls -la "$W/root/boot" | head
+# a start-up image with all drivers (the default one is trimmed to the build machine and would miss the virtual disk)
+kver="$(ls "$W/root/usr/lib/modules" | head -1)"
+arch-chroot "$W/root" mkinitcpio -k "$kver" -g /boot/initramfs-linux-fallback.img -S autodetect 2>&1 | tail -n 3
 cp "$W/root/boot/vmlinuz-linux" "$W/root/boot/initramfs-linux-fallback.img" "$W/"
 umount "$W/root" 2>/dev/null || true
 truncate -s 9G "$W/disk.img"
