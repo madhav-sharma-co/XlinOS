@@ -1,0 +1,2 @@
+# the login screen may run the account helper (and nothing else) as root
+greeter ALL=(root) NOPASSWD: /usr/local/lib/xlinos/xlinos-accounts

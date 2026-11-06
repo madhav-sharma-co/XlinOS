@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Runs inside the new system at the end of the install (archinstall custom_commands).
+# Needs the internet (it fetches Xlin-soft and the XlinOS login files from GitHub).
 set -u
+REF="@XLINOS_REF@"
 # the XlinOS name (replaces the symlink that the Arch filesystem package installs)
 rm -f /etc/os-release
 cat >/etc/os-release <<'EOT'
@@ -17,48 +19,41 @@ SUPPORT_URL="https://github.com/madhav-sharma-co/XlinOS/issues"
 BUG_REPORT_URL="https://github.com/madhav-sharma-co/XlinOS/issues"
 EOT
 printf 'XlinOS @VERSION@ (\\l)\n\n' >/etc/issue
-# Xlin-soft source, and the session starter for every user created from now on
+
+# Xlin-soft for everyone: source in /opt, programs in /usr/local (what its installer would do, done once as root)
 git clone --depth 1 https://github.com/madhav-sharma-co/XLIN-Soft.git /opt/xlin-soft && rm -rf /opt/xlin-soft/.git
-cat >/usr/local/bin/xlinos-session <<'EOT'
-#!/usr/bin/env bash
-if [[ ! -f "$HOME/.config/xlin/state/source" && -d /opt/xlin-soft ]]; then
-  echo "XlinOS: setting up the desktop for $USER (first start, about a minute; you may be asked for your password)..."
-  src="$HOME/.Xlin-soft"
-  [[ -d "$src" ]] || cp -r /opt/xlin-soft "$src"
-  ( cd "$src" && XLIN_NO_UPGRADE=1 bash install.sh </dev/null ) || echo "(setup had a problem: run 'xlin doctor' inside the desktop)"
-  mkdir -p "$HOME/.config/xlin/state"; echo "$src" >"$HOME/.config/xlin/state/source"
+if [[ -f /opt/xlin-soft/scripts/files.sh ]]; then
+  SRC=/opt/xlin-soft; . /opt/xlin-soft/scripts/files.sh
+  for b in "${XLIN_BINS[@]}"; do install -m 755 "$SRC/bin/$b" "/usr/local/bin/$b"; done
+  for l in "${XLIN_LIBS[@]}"; do install -D -m 644 "$SRC/lib/$l" "/usr/local/lib/xlin/$l"; done
 fi
-export XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=Hyprland
-exec Hyprland
-EOT
-chmod 755 /usr/local/bin/xlinos-session
-cat >/etc/skel/.bash_profile <<'EOT'
-[[ -f ~/.bashrc ]] && . ~/.bashrc
-if [[ -z "${WAYLAND_DISPLAY:-}" && -z "${DISPLAY:-}" && "$(tty)" == /dev/tty1 ]]; then
-  exec /usr/local/bin/xlinos-session
+
+# XlinOS login files (login screen, account helper, session starter, browser helper)
+tmp="$(mktemp -d)"
+if git clone --depth 1 ${REF:+--branch "$REF"} https://github.com/madhav-sharma-co/XlinOS.git "$tmp/x"; then
+  A="$tmp/x/profile/airootfs"
+  install -d /usr/local/lib/xlinos
+  install -m 755 "$A"/usr/local/lib/xlinos/xlinos-greeter "$A"/usr/local/lib/xlinos/xlinos-accounts /usr/local/lib/xlinos/
+  install -m 644 "$A"/usr/local/lib/xlinos/xlinos_login.py /usr/local/lib/xlinos/
+  install -m 755 "$A"/usr/local/bin/xlinos-session "$A"/usr/local/bin/xlinos-browser /usr/local/bin/
+  install -m 644 "$A"/usr/share/applications/xlinos-browser.desktop /usr/share/applications/
+  install -d /etc/greetd
+  install -m 644 "$A"/usr/share/xlinos/greetd-config.toml /etc/greetd/config.toml
+  install -m 440 "$A"/usr/share/xlinos/sudoers-greeter /etc/sudoers.d/xlinos-greeter
+  chown root:root /usr/local/lib/xlinos/xlinos-accounts && chmod 755 /usr/local/lib/xlinos/xlinos-accounts   # root-owned: the greeter may only run it
+  systemctl enable greetd.service
+else
+  echo "XlinOS: could not fetch the login files. Check the internet and run the installer again."
 fi
-EOT
+rm -rf "$tmp"
+
 # Layers 2-4: lean and fast defaults (zram swap, small journal, no boot wait for the network)
 mkdir -p /etc/systemd/journald.conf.d /etc/sysctl.d
 printf '[zram0]\nzram-size = min(ram / 2, 4096)\ncompression-algorithm = zstd\n' >/etc/systemd/zram-generator.conf
 printf '[Journal]\nSystemMaxUse=100M\n' >/etc/systemd/journald.conf.d/xlinos.conf
 printf 'vm.swappiness = 100\nvm.page-cluster = 0\n' >/etc/sysctl.d/99-xlinos.conf
 ln -sf /dev/null /etc/systemd/system/NetworkManager-wait-online.service
-# no browser is bundled: a small helper installs one
-cat >/usr/local/bin/xlinos-browser <<'EOT'
-#!/usr/bin/env bash
-echo "Choose a web browser to install:"
-echo "  1) Firefox   2) Chromium   3) Epiphany (small, GNOME Web)"
-read -rp "Number [1]: " n
-case "${n:-1}" in 2) pkg=chromium;; 3) pkg=epiphany;; *) pkg=firefox;; esac
-sudo pacman -S --needed --noconfirm "$pkg" && echo "Installed $pkg. Find it in the app launcher."
-EOT
-chmod 755 /usr/local/bin/xlinos-browser
-printf '[Desktop Entry]\nType=Application\nName=Get a Web Browser\nExec=kitty -e xlinos-browser\nIcon=web-browser\nTerminal=false\nCategories=Network;\n' >/usr/share/applications/xlinos-browser.desktop
+
 # members of wheel may use sudo (with a password)
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
-for u in $(awk -F: '$3>=1000 && $3<60000 {print $1}' /etc/passwd); do
-  h="$(getent passwd "$u" | cut -d: -f6)"
-  [[ -d "$h" && ! -f "$h/.bash_profile" ]] && { cp /etc/skel/.bash_profile "$h/.bash_profile"; chown "$u": "$h/.bash_profile"; }
-done
 exit 0

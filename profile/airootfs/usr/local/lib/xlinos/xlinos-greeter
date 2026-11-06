@@ -1,0 +1,326 @@
+#!/usr/bin/env python3
+"""XlinOS login screen. Started by greetd (inside the cage compositor) as the unprivileged user "greeter".
+Screens: welcome (first start: create the first user), login (lock-screen style), users (pick one), create, delete.
+Account changes go through the root helper (xlinos-accounts); the login itself goes through greetd."""
+import os, subprocess, sys, threading, time
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gdk, GLib, Gtk
+from xlinos_login import Accounts, Greetd, suggest_username
+
+CSS = b"""
+window.xl { background-image: linear-gradient(#0a2060, #03081c); color: #ffffff; font-family: Inter, sans-serif; }
+.xl .clock { font-size: 84px; font-weight: 200; }
+.xl .date { font-size: 18px; color: #9db4e6; margin-bottom: 26px; }
+.xl .title { font-size: 30px; font-weight: 700; }
+.xl .sub { font-size: 15px; color: #9db4e6; margin-bottom: 14px; }
+.xl .avatar { background: #1e6bff; border-radius: 999px; min-width: 104px; min-height: 104px; font-size: 44px; font-weight: 700; }
+.xl .small-avatar { background: #1e6bff; border-radius: 999px; min-width: 44px; min-height: 44px; font-size: 20px; font-weight: 700; }
+.xl .name { font-size: 22px; font-weight: 600; margin: 10px 0 12px 0; }
+.xl entry, .xl .field { background: rgba(255,255,255,0.08); color: #ffffff; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); padding: 10px 14px; min-width: 300px; }
+.xl entry:focus-within { border-color: #4f93ff; }
+.xl button { background: rgba(255,255,255,0.10); color: #ffffff; border-radius: 12px; border: none; padding: 10px 18px; }
+.xl button:hover { background: rgba(255,255,255,0.18); }
+.xl button.primary { background: #1e6bff; font-weight: 600; }
+.xl button.primary:hover { background: #3a80ff; }
+.xl button.danger { background: #c0392b; font-weight: 600; }
+.xl button.flat { background: transparent; color: #9db4e6; }
+.xl .err { color: #ff8a80; min-height: 22px; }
+.xl .ok { color: #7be0a0; min-height: 22px; }
+.xl .useritem { padding: 10px 16px; min-width: 300px; }
+.xl checkbutton { color: #c9d6f2; }
+"""
+
+
+def initial(text):
+    return (text.strip()[:1] or "?").upper()
+
+
+class Greeter(Gtk.ApplicationWindow):
+    def __init__(self, app):
+        super().__init__(application=app)
+        self.add_css_class("xl")
+        self.fullscreen()
+        self.acc, self.greetd = Accounts(), Greetd()
+        self.users, self.current, self.busy = [], None, False
+        self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE, transition_duration=200)
+        self.build_login(); self.build_users(); self.build_create(); self.build_delete()
+        root = Gtk.Overlay()
+        root.set_child(self.stack)
+        bar = Gtk.Box(spacing=8, halign=Gtk.Align.END, valign=Gtk.Align.END, margin_end=24, margin_bottom=20)
+        for label, cmd in (("Restart", "reboot"), ("Shut down", "poweroff")):
+            b = Gtk.Button(label=label); b.add_css_class("flat")
+            b.connect("clicked", lambda _b, c=cmd: subprocess.Popen(["systemctl", c]))
+            bar.append(b)
+        root.add_overlay(bar)
+        self.set_child(root)
+        self.tick(); GLib.timeout_add_seconds(1, self.tick)
+        self.reload()
+
+    # ---- small helpers -------------------------------------------------
+    def tick(self):
+        self.clock.set_text(time.strftime("%H:%M")); self.date.set_text(time.strftime("%A, %d %B"))
+        return True
+
+    def bg(self, fn, done):
+        """Run fn in a thread, then call done(result) on the screen's thread."""
+        def work():
+            res = fn()
+            def finish():
+                done(res)
+                return False
+            GLib.idle_add(finish)
+        threading.Thread(target=work, daemon=True).start()
+
+    def label(self, text, css, **kw):
+        l = Gtk.Label(label=text, **kw); l.add_css_class(css); return l
+
+    def entry(self, placeholder, secret=False):
+        e = Gtk.PasswordEntry(show_peek_icon=True) if secret else Gtk.Entry()
+        e.set_property("placeholder-text", placeholder)
+        return e
+
+    def button(self, text, css=None, cb=None):
+        b = Gtk.Button(label=text)
+        if css: b.add_css_class(css)
+        if cb: b.connect("clicked", lambda _b: cb())
+        return b
+
+    def page(self, name):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER)
+        self.stack.add_named(box, name)
+        return box
+
+    def strings(self, names):
+        return Gtk.DropDown(model=Gtk.StringList.new(names))
+
+    def picked(self, dd):
+        i = dd.get_selected()
+        m = dd.get_model()
+        return m.get_string(i) if m is not None and i != Gtk.INVALID_LIST_POSITION else ""
+
+    # ---- data ------------------------------------------------------------
+    def reload(self, then=None):
+        def done(users):
+            self.users = users
+            if not users:
+                self.show_create(first=True)
+            else:
+                names = [u["name"] for u in users]
+                last = self.read_last()
+                if self.current not in names:
+                    self.current = last if last in names else names[0]
+                self.show_login()
+            if then: then()
+        self.bg(self.acc.users, done)
+
+    def read_last(self):
+        try:
+            return open(os.path.join(GLib.get_user_cache_dir(), "xlinos-last-user")).read().strip()
+        except OSError:
+            return ""
+
+    def save_last(self, name):
+        try:
+            os.makedirs(GLib.get_user_cache_dir(), exist_ok=True)
+            open(os.path.join(GLib.get_user_cache_dir(), "xlinos-last-user"), "w").write(name)
+        except OSError:
+            pass
+
+    def user(self, name):
+        return next((u for u in self.users if u["name"] == name), {"name": name, "fullname": name, "admin": False})
+
+    def admins(self):
+        return [u["name"] for u in self.users if u["admin"]]
+
+    # ---- login (lock-screen style) -------------------------------------------
+    def build_login(self):
+        p = self.page("login")
+        self.clock = self.label("", "clock"); self.date = self.label("", "date")
+        p.append(self.clock); p.append(self.date)
+        self.l_avatar = self.label("?", "avatar", halign=Gtk.Align.CENTER)
+        self.l_name = self.label("", "name", halign=Gtk.Align.CENTER)
+        self.l_pass = self.entry("Password", secret=True)
+        self.l_pass.connect("activate", lambda _e: self.do_login())
+        self.l_msg = self.label("", "err")
+        for w in (self.l_avatar, self.l_name, self.l_pass, self.l_msg):
+            p.append(w)
+        p.append(self.button("Log in", "primary", self.do_login))
+        p.append(self.button("Switch user", "flat", self.show_users))
+
+    def show_login(self):
+        u = self.user(self.current)
+        self.l_avatar.set_text(initial(u["fullname"])); self.l_name.set_text(u["fullname"])
+        self.l_pass.set_text(""); self.l_msg.set_text("")
+        self.stack.set_visible_child_name("login"); self.l_pass.grab_focus()
+
+    def do_login(self, password=None, name=None):
+        if self.busy:
+            return
+        name = name or self.current
+        password = self.l_pass.get_text() if password is None else password
+        if not password:
+            self.l_msg.set_text("Enter your password."); return
+        self.busy = True; self.l_msg.set_text("")
+        def done(res):
+            self.busy = False
+            ok, msg = res
+            if ok:
+                self.save_last(name)
+                self.get_application().quit()   # greetd starts the session once the greeter has exited
+            else:
+                self.l_msg.set_text(msg); self.l_pass.set_text(""); self.l_pass.grab_focus()
+        self.bg(lambda: self.greetd.login(name, password), done)
+
+    # ---- user list -----------------------------------------------------------
+    def build_users(self):
+        p = self.page("users")
+        p.append(self.label("Select a user", "title"))
+        p.append(self.label("or create a new one", "sub"))
+        self.u_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        p.append(self.u_list)
+        row = Gtk.Box(spacing=8, halign=Gtk.Align.CENTER, margin_top=10)
+        row.append(self.button("Create new user", "primary", lambda: self.show_create(first=False)))
+        row.append(self.button("Delete user", None, self.show_delete))
+        p.append(row)
+        p.append(self.button("Back", "flat", self.show_login))
+        self.u_msg = self.label("", "ok"); p.append(self.u_msg)
+
+    def show_users(self):
+        c = self.u_list
+        while (ch := c.get_first_child()) is not None:
+            c.remove(ch)
+        for u in self.users:
+            b = Gtk.Button(); b.add_css_class("useritem")
+            row = Gtk.Box(spacing=14)
+            row.append(self.label(initial(u["fullname"]), "small-avatar", halign=Gtk.Align.CENTER))
+            col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, halign=Gtk.Align.START, valign=Gtk.Align.CENTER)
+            col.append(self.label(u["fullname"], "name", halign=Gtk.Align.START))
+            if u["admin"]:
+                col.append(self.label("Administrator", "sub", halign=Gtk.Align.START))
+            row.append(col); b.set_child(row)
+            b.connect("clicked", lambda _b, n=u["name"]: self.pick(n))
+            c.append(b)
+        self.stack.set_visible_child_name("users")
+
+    def pick(self, name):
+        self.current = name; self.show_login()
+
+    # ---- create ------------------------------------------------------------------
+    def build_create(self):
+        p = self.page("create")
+        self.c_title = self.label("", "title"); self.c_sub = self.label("", "sub")
+        p.append(self.c_title); p.append(self.c_sub)
+        self.c_full = self.entry("Full name"); self.c_name = self.entry("User name")
+        self.c_pw = self.entry("Password", True); self.c_pw2 = self.entry("Repeat password", True)
+        self.c_name_touched = False
+        self.c_full.connect("changed", lambda e: None if self.c_name_touched else self.c_name.set_text(suggest_username(e.get_text())))
+        self.c_name.connect("changed", lambda e: setattr(self, "c_name_touched", bool(e.get_text()) and e.get_text() != suggest_username(self.c_full.get_text())))
+        for w in (self.c_full, self.c_name, self.c_pw, self.c_pw2):
+            p.append(w)
+        self.c_admin_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        self.c_admin_box.append(self.label("An administrator must allow this", "sub", halign=Gtk.Align.START))
+        self.c_auth_user = self.strings([""])
+        self.c_auth_pw = self.entry("Administrator password", True)
+        self.c_make_admin = Gtk.CheckButton(label="Make this user an administrator")
+        for w in (self.c_auth_user, self.c_auth_pw, self.c_make_admin):
+            self.c_admin_box.append(w)
+        p.append(self.c_admin_box)
+        self.c_msg = self.label("", "err"); p.append(self.c_msg)
+        self.c_go = self.button("Create user", "primary", self.do_create); p.append(self.c_go)
+        self.c_back = self.button("Back", "flat", self.show_users); p.append(self.c_back)
+        self.c_pw2.connect("activate", lambda _e: self.do_create())
+
+    def show_create(self, first):
+        self.c_first = first
+        self.c_title.set_text("Welcome to XlinOS" if first else "New user")
+        self.c_sub.set_text("Create a user to start using" if first else "Fill in the details below")
+        for e in (self.c_full, self.c_name, self.c_pw, self.c_pw2, self.c_auth_pw):
+            e.set_text("")
+        self.c_name_touched = False; self.c_msg.set_text("")
+        self.c_admin_box.set_visible(not first); self.c_back.set_visible(not first)
+        if not first:
+            self.c_auth_user.set_model(Gtk.StringList.new(self.admins() or [""]))
+            self.c_make_admin.set_active(False)
+        self.stack.set_visible_child_name("create"); self.c_full.grab_focus()
+
+    def do_create(self):
+        if self.busy:
+            return
+        full, name, pw, pw2 = (self.c_full.get_text().strip(), self.c_name.get_text().strip(),
+                               self.c_pw.get_text(), self.c_pw2.get_text())
+        if not name or not pw:
+            self.c_msg.set_text("Enter a name and a password."); return
+        if pw != pw2:
+            self.c_msg.set_text("The passwords do not match."); return
+        auth = None if self.c_first else {"user": self.picked(self.c_auth_user), "password": self.c_auth_pw.get_text()}
+        admin = False if self.c_first else self.c_make_admin.get_active()
+        self.busy = True; self.c_msg.set_text("Creating the user...")
+        def done(r):
+            self.busy = False
+            if not r.get("ok"):
+                self.c_msg.set_text(r.get("message", "Could not create the user.")); return
+            def after():
+                if self.c_first:
+                    self.current = name; self.show_login(); self.do_login(password=pw, name=name)   # straight into the new desktop
+                else:
+                    self.u_msg.set_text("User created."); self.show_users()
+            self.reload(after)
+        self.bg(lambda: self.acc.create(name, full, pw, admin, auth), done)
+
+    # ---- delete ---------------------------------------------------------------------
+    def build_delete(self):
+        p = self.page("delete")
+        p.append(self.label("Delete a user", "title"))
+        p.append(self.label("Needs this user's password or an administrator's", "sub"))
+        self.d_user = self.strings([""]); self.d_auth = self.strings([""])
+        self.d_user.connect("notify::selected", lambda *_: self.fill_auth())
+        self.d_pw = self.entry("Password", True)
+        self.d_purge = Gtk.CheckButton(label="Also delete this user's files")
+        for w in (self.d_user, self.d_auth, self.d_pw, self.d_purge):
+            p.append(w)
+        self.d_msg = self.label("", "err"); p.append(self.d_msg)
+        p.append(self.button("Delete user", "danger", self.do_delete))
+        p.append(self.button("Back", "flat", self.show_users))
+
+    def fill_auth(self):
+        target = self.picked(self.d_user)
+        opts = [target] + [a for a in self.admins() if a != target]
+        self.d_auth.set_model(Gtk.StringList.new([o for o in opts if o] or [""]))
+
+    def show_delete(self):
+        self.d_user.set_model(Gtk.StringList.new([u["name"] for u in self.users] or [""]))
+        self.fill_auth(); self.d_pw.set_text(""); self.d_msg.set_text(""); self.d_purge.set_active(False)
+        self.stack.set_visible_child_name("delete")
+
+    def do_delete(self):
+        if self.busy:
+            return
+        target, who = self.picked(self.d_user), self.picked(self.d_auth)
+        if not target:
+            return
+        self.busy = True; self.d_msg.set_text("Deleting...")
+        auth = {"user": who, "password": self.d_pw.get_text()}
+        purge = self.d_purge.get_active()
+        def done(r):
+            self.busy = False
+            if not r.get("ok"):
+                self.d_msg.set_text(r.get("message", "Could not delete the user.")); return
+            self.u_msg.set_text("User deleted." + ("" if purge else " Their files were kept."))
+            self.reload(self.show_users)
+        self.bg(lambda: self.acc.delete(target, auth, purge), done)
+
+
+class App(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id="dev.xlinos.greeter")
+
+    def do_activate(self):
+        prov = Gtk.CssProvider(); prov.load_from_data(CSS)
+        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        Greeter(self).present()
+
+
+if __name__ == "__main__":
+    sys.exit(App().run(None))

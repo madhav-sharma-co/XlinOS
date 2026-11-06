@@ -10,7 +10,8 @@
 
 ## 0.2 beta: feels like an OS
 - [ ] Calamares graphical installer
-- [ ] Graphical login (greetd or SDDM) and a welcome app on first boot
+- [x] Login screen written: first-user welcome, lock-style login, switch/create/delete user (untested on a real boot; see docs/LOGIN.md)
+- [ ] Boot logo (Plymouth), after the ISO boots
 - [ ] Branding: wallpapers, boot splash, logo in boot menu
 - [ ] Offline install of the base packages (no internet needed for the core)
 

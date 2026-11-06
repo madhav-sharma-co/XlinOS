@@ -1,0 +1,7 @@
+# XlinOS login screen: greetd runs our greeter inside the cage compositor, as the unprivileged user "greeter".
+[terminal]
+vt = 1
+
+[default_session]
+command = "cage -s -- /usr/local/lib/xlinos/xlinos-greeter"
+user = "greeter"
