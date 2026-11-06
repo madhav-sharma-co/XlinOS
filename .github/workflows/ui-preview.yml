@@ -9,9 +9,10 @@ permissions:
 jobs:
   preview:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y python3-gi gir1.2-gtk-4.0 gir1.2-graphene-1.0 xvfb fonts-inter
+      - run: sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get update && sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y --no-install-recommends python3-gi gir1.2-gtk-4.0 gir1.2-graphene-1.0 xvfb fonts-inter
       - run: xvfb-run -a -s "-screen 0 1280x800x24" python3 scripts/ui-preview.py shots
       - name: Push the pictures
         run: |
