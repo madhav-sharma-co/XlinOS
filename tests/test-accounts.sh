@@ -5,10 +5,10 @@ H="$(cd "$(dirname "$0")/.." && pwd)/profile/airootfs/usr/local/lib/xlinos/xlino
 [[ $EUID -eq 0 ]] || { echo "run as root in a disposable environment"; exit 2; }
 getent group wheel >/dev/null || groupadd wheel
 fail=0
-run() { printf '%s' "$1" | python3 "$H"; }
+run() { LAST="$(printf '%s' "$1" | python3 "$H")"; printf '%s' "$LAST"; }
 ok()  { run "$1" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d["ok"] else 1)'; }
 err() { run "$1" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if (not d["ok"] and d["error"]==sys.argv[1]) else 1)' "$2"; }
-t()   { if "$@"; then echo "PASS $T"; else echo "FAIL $T"; fail=1; fi; }
+t()   { if "$@"; then echo "PASS $T"; else echo "FAIL $T"; echo "     last answer: $LAST"; fail=1; fi; }
 cleanup() { for u in xtadm xtstd xtthree; do userdel -r "$u" 2>/dev/null; done; }
 cleanup
 # precondition: no other human users, otherwise the first-user rule cannot be tested
