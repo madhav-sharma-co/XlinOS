@@ -10,8 +10,12 @@ run() { LAST="$(printf '%s' "$1" | python3 "$H")"; printf '%s' "$LAST"; }
 ok()  { LAST="$(run "$1")"; printf '%s' "$LAST" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d["ok"] else 1)'; }
 err() { LAST="$(run "$1")"; printf '%s' "$LAST" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if (not d["ok"] and d["error"]==sys.argv[1]) else 1)' "$2"; }
 t()   { if "$@"; then echo "PASS $T"; else echo "FAIL $T"; echo "     last answer: $LAST"; fail=1; fi; }
-cleanup() { for u in xtadm xtstd xtthree; do userdel -r "$u" 2>/dev/null; done; }
+cleanup() { for u in xtadm xtstd xtthree; do userdel -r "$u" 2>/dev/null; done; sed -i "/^xtbusy/d" /etc/passwd; }
 cleanup
+# user ids that running processes already use must not be handed to the test users: reserve them with dummy no-login entries
+for u in $(ps -eo uid= | sort -un); do
+  if [[ $u -ge 1000 && $u -lt 60000 ]] && ! getent passwd "$u" >/dev/null; then echo "xtbusy$u:x:$u:$u::/nonexistent:/usr/sbin/nologin" >>/etc/passwd; fi
+done
 # the helper asks pgrep whether a user is logged in; a real process on this machine may own the test user's new id,
 # so the tests use a stand-in pgrep: "nobody is logged in" (and a second one that says "yes" for one test)
 SHIM="$(mktemp -d)"; printf '#!/bin/sh\nexit 1\n' >"$SHIM/pgrep"; printf '#!/bin/sh\nexit 0\n' >"$SHIM/pgrep-yes"; chmod +x "$SHIM"/pgrep*
