@@ -1,0 +1,28 @@
+name: Install test
+# Builds an installed XlinOS system (same packages and post-install script as the installer), boots it in QEMU,
+# creates the first user on the first-start screen and logs in. Screenshots go to the branch ci-shots-install.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container:
+      image: archlinux:latest
+      options: --privileged
+    steps:
+      - run: pacman -Syu --noconfirm arch-install-scripts qemu-system-x86 python python-pillow git e2fsprogs mkinitcpio
+      - uses: actions/checkout@v4
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Build the system and test it
+        run: bash scripts/ci-install-test.sh shots
+      - name: Push the pictures
+        if: always()
+        run: |
+          cd shots
+          rm -f *.ppm
+          git init -q -b ci-shots-install; git config user.name ci; git config user.email ci@users.noreply.github.com
+          git add -A && git commit -qm "install test screenshots"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-shots-install
