@@ -12,3 +12,8 @@ Check, in order:
 4. Try UEFI (`-bios OVMF`) and BIOS.
 
 Report problems as issues with the step number and what you saw.
+
+## Automatic boot test (CI)
+After every "Build ISO" run, the "Boot test" workflow boots the ISO in QEMU in BIOS and UEFI mode and pushes screenshots to the
+branches `ci-shots-bios` and `ci-shots-uefi`. To test an older build: Actions > Boot test > Run workflow with the build's run id.
+What it cannot check: the installer (needs a disk and internet), real hardware, graphics drivers (VMs use software drawing).
