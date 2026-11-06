@@ -52,7 +52,6 @@ gst-plugin-gtk4
 gtksourceview5
 poppler-glib
 kitty
-hyprpaper
 # --- base tools and the installer
 sudo
 git
@@ -63,3 +62,4 @@ sof-firmware
 qemu-guest-agent
 nwg-dock-hyprland
 zram-generator
+awww

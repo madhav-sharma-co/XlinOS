@@ -11,7 +11,7 @@
     "hyprlock", "hypridle", "hyprsunset", "vte4", "polkit", "hyprpolkitagent", "rofi", "udisks2", "gvfs",
     "gvfs-smb", "grim", "slurp", "wl-clipboard", "cliphist", "playerctl", "xdg-desktop-portal-hyprland",
     "xdg-desktop-portal-gtk", "gst-plugins-base", "gst-plugins-good", "gst-plugins-bad", "gst-libav",
-    "gst-plugin-gtk4", "gtksourceview5", "poppler-glib", "kitty", "hyprpaper", "nwg-dock-hyprland", "zram-generator", "sudo", "git", "greetd", "cage",
+    "gst-plugin-gtk4", "gtksourceview5", "poppler-glib", "kitty", "awww", "nwg-dock-hyprland", "zram-generator", "sudo", "git", "greetd", "cage",
     "mesa", "vulkan-icd-loader", "sof-firmware", "nano"
   ],
   "custom_commands": [
