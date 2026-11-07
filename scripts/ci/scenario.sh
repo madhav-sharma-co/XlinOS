@@ -23,10 +23,10 @@ echo "== launcher"; /usr/local/lib/xlinos/xlinos-launcher >"$OUT/launcher.log" 2
 sleep 5; shot 7-launcher; pkill -f xlinos-launcher
 echo "== quick"; python3 /usr/local/lib/xlinos/xlinos-quick >"$OUT/quick.log" 2>&1 &
 sleep 8; pgrep -fa xlinos-quick; shot 8-quick; pkill -f lib/xlinos/xlinos-quick
-echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
-sleep 8; shot 9-lock
 echo "== terminal"; hyprctl dispatch exec xlinos-terminal >/dev/null; sleep 7
 shot 10-terminal; hyprctl clients -j | jq -c '.[]|select(.class=="os.xlin.terminal")|{class,title,floating,at,size,workspace}'
 addr=$(hyprctl clients -j | jq -r '.[]|select(.class=="os.xlin.terminal")|.address')
 hyprctl eval "hl.dispatch(hl.dsp.window.move({ workspace = \"special:minimized\", follow = false, window = \"address:$addr\" }))"; sleep 1
 echo "== after minimise"; hyprctl clients -j | jq -c '.[]|select(.class=="os.xlin.terminal")|{workspace,hidden}'; shot 11-minimised
+echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
+sleep 8; shot 9-lock
