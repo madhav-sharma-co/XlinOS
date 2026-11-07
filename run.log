@@ -1,0 +1,159 @@
+/__w/XlinOS/XlinOS/scripts/ci-shell-run.sh: line 11:  1524 Aborted                    (core dumped) Hyprland -c "$CFG" > "$OUT/hyprland.log" 2>&1
+== monitors (before)
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+== monitors
+jq: parse error: Invalid numeric literal at line 1, column 9
+ls: cannot access '/tmp/xdg-1000/wayland-[0-9]': No such file or directory
+wayland: 
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+jq: parse error: Invalid numeric literal at line 1, column 9
+== opened
+jq: parse error: Invalid numeric literal at line 1, column 9
+failed to create display
+Traceback (most recent call last):
+  File "/usr/local/lib/xlinos/xlinos-snap", line 86, in <module>
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else ""))
+             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/xlinos/xlinos-snap", line 27, in main
+    win = json.loads(hc("activewindow", "-j") or "{}")
+  File "/usr/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/usr/local/lib/xlinos/xlinos-snap", line 86, in <module>
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else ""))
+             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/xlinos/xlinos-snap", line 27, in main
+    win = json.loads(hc("activewindow", "-j") or "{}")
+  File "/usr/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+== halves
+jq: parse error: Invalid numeric literal at line 1, column 9
+failed to create display
+Traceback (most recent call last):
+  File "/usr/local/lib/xlinos/xlinos-snap", line 86, in <module>
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else ""))
+             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/xlinos/xlinos-snap", line 27, in main
+    win = json.loads(hc("activewindow", "-j") or "{}")
+  File "/usr/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+failed to create display
+Traceback (most recent call last):
+  File "/usr/local/lib/xlinos/xlinos-snap", line 86, in <module>
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else ""))
+             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/xlinos/xlinos-snap", line 27, in main
+    win = json.loads(hc("activewindow", "-j") or "{}")
+  File "/usr/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+== C max
+jq: parse error: Invalid numeric literal at line 1, column 9
+failed to create display
+Traceback (most recent call last):
+  File "/usr/local/lib/xlinos/xlinos-snap", line 86, in <module>
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else ""))
+             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/xlinos/xlinos-snap", line 27, in main
+    win = json.loads(hc("activewindow", "-j") or "{}")
+  File "/usr/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+== C restored
+jq: parse error: Invalid numeric literal at line 1, column 9
+failed to create display
+Traceback (most recent call last):
+  File "/usr/local/lib/xlinos/xlinos-snap", line 86, in <module>
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else ""))
+             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/xlinos/xlinos-snap", line 27, in main
+    win = json.loads(hc("activewindow", "-j") or "{}")
+  File "/usr/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/usr/local/lib/xlinos/xlinos-snap", line 86, in <module>
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else ""))
+             ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/xlinos/xlinos-snap", line 27, in main
+    win = json.loads(hc("activewindow", "-j") or "{}")
+  File "/usr/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+== quarters
+jq: parse error: Invalid numeric literal at line 1, column 9
+failed to create display
