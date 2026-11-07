@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""XlinOS launcher: full-screen glass overlay with search and an app grid."""
+import os, sys, subprocess
+
+LIB = "/usr/lib/libgtk4-layer-shell.so"
+if os.path.exists(LIB) and LIB not in os.environ.get("LD_PRELOAD", ""):
+    os.environ["LD_PRELOAD"] = (os.environ.get("LD_PRELOAD", "") + " " + LIB).strip()
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gtk4LayerShell", "1.0")
+from gi.repository import Gtk, Gdk, Gio, Gtk4LayerShell as LS
+
+CSS = b"""
+window { background: rgba(3,8,28,0.86); }
+entry.search { background: rgba(255,255,255,0.10); color: #fff; border-radius: 16px; border: 1px solid rgba(255,255,255,0.16);
+               padding: 10px 18px; min-width: 460px; font-size: 16px; }
+.tile { background: transparent; border: none; border-radius: 18px; padding: 14px; min-width: 120px; color: #fff; }
+.tile:hover, .tile:focus { background: rgba(255,255,255,0.14); }
+.tile image { -gtk-icon-size: 56px; }
+.tile label { font-size: 13px; }
+"""
+
+def apps():
+    seen, out = set(), []
+    for a in Gio.AppInfo.get_all():
+        if not a.should_show() or a.get_id() in seen:
+            continue
+        seen.add(a.get_id()); out.append(a)
+    return sorted(out, key=lambda a: a.get_name().lower())
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    w = Gtk.ApplicationWindow(application=app)
+    LS.init_for_window(w); LS.set_layer(w, LS.Layer.OVERLAY); LS.set_namespace(w, "xlinos-launcher")
+    for e in (LS.Edge.TOP, LS.Edge.BOTTOM, LS.Edge.LEFT, LS.Edge.RIGHT):
+        LS.set_anchor(w, e, True)
+    LS.set_exclusive_zone(w, -1); LS.set_keyboard_mode(w, LS.KeyboardMode.EXCLUSIVE)
+
+    entry = Gtk.SearchEntry(placeholder_text="Search apps", halign=Gtk.Align.CENTER); entry.add_css_class("search")
+    flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=8, min_children_per_line=3,
+                       homogeneous=True, halign=Gtk.Align.CENTER, valign=Gtk.Align.START, row_spacing=6, column_spacing=6)
+    tiles = []
+    def launch(_b, a):
+        a.launch([], None); app.quit()
+    for a in apps():
+        b = Gtk.Button(); b.add_css_class("tile")
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        img = Gtk.Image.new_from_gicon(a.get_icon() or Gio.ThemedIcon.new("application-x-executable"))
+        lab = Gtk.Label(label=a.get_name(), ellipsize=3, max_width_chars=14)
+        box.append(img); box.append(lab); b.set_child(box)
+        b.connect("clicked", launch, a); flow.append(b); tiles.append((a.get_name().lower(), b))
+    def filt(_e):
+        q = entry.get_text().lower()
+        for n, b in tiles:
+            b.get_parent().set_visible(q in n)
+    entry.connect("search-changed", filt)
+    def first_match(_e):
+        for n, b in tiles:
+            if b.get_parent().get_visible():
+                b.emit("clicked"); return
+    entry.connect("activate", first_match)
+    scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); scroll.set_child(flow)
+    root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=28, margin_top=90, margin_bottom=60, margin_start=80, margin_end=80)
+    root.append(entry); root.append(scroll)
+    w.set_child(root)
+    k = Gtk.EventControllerKey()
+    k.connect("key-pressed", lambda c, kv, kc, st: (app.quit(), True)[1] if kv == Gdk.KEY_Escape else False)
+    w.add_controller(k)
+    click = Gtk.GestureClick(); click.connect("pressed", lambda g, n, x, y: None); w.add_controller(click)
+    w.present(); entry.grab_focus()
+
+app = Gtk.Application(application_id="os.xlin.launcher", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app.connect("activate", activate)
+sys.exit(app.run(None))

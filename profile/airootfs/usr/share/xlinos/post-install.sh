@@ -33,7 +33,7 @@ tmp="$(mktemp -d)"
 if git clone --depth 1 ${REF:+--branch "$REF"} https://github.com/madhav-sharma-co/XlinOS.git "$tmp/x"; then
   A="$tmp/x/profile/airootfs"
   install -d /usr/local/lib/xlinos
-  install -m 755 "$A"/usr/local/lib/xlinos/xlinos-greeter "$A"/usr/local/lib/xlinos/xlinos-accounts "$A"/usr/local/lib/xlinos/xlinos-shell "$A"/usr/local/lib/xlinos/xlinos-snap /usr/local/lib/xlinos/
+  install -m 755 "$A"/usr/local/lib/xlinos/xlinos-greeter "$A"/usr/local/lib/xlinos/xlinos-accounts "$A"/usr/local/lib/xlinos/xlinos-shell "$A"/usr/local/lib/xlinos/xlinos-launcher "$A"/usr/local/lib/xlinos/xlinos-snap /usr/local/lib/xlinos/
   install -m 644 "$A"/usr/local/lib/xlinos/xlinos_login.py /usr/local/lib/xlinos/
   install -m 755 "$A"/usr/local/bin/xlinos-session "$A"/usr/local/bin/xlinos-browser "$A"/usr/local/bin/xlinos-snap "$A"/usr/local/bin/xlinos-launcher /usr/local/bin/
   install -m 644 "$A"/usr/share/applications/xlinos-browser.desktop /usr/share/applications/
