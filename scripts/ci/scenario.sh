@@ -1,6 +1,7 @@
 #!/bin/bash
 # What the VM test does: open windows, snap them, take screenshots. usage: scenario.sh OUTDIR
 OUT="$1"
+sleep 6; grim "$OUT/0-desktop.png"
 for t in A B C; do
   kitty --title "$t" bash -c "echo XlinOS terminal $t; sleep 900" >"$OUT/kitty-$t.log" 2>&1 &
   sleep 2
@@ -17,3 +18,5 @@ snap C center; shot 3-third-window-over
 snap C up; echo "== C max"; geo; shot 4-maximized
 snap C down; echo "== C restored"; geo; shot 5-restored
 snap A up; snap B down; echo "== quarters"; geo; shot 6-quarters
+
+xlinos-launcher; sleep 3; shot 7-launcher; xlinos-launcher; sleep 1

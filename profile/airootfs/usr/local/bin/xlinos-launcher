@@ -1,0 +1,3 @@
+#!/bin/sh
+# Opens / closes the XlinOS app launcher.
+kill -USR1 "$(cat "${XDG_RUNTIME_DIR:-/tmp}/xlinos-shell.pid" 2>/dev/null)" 2>/dev/null

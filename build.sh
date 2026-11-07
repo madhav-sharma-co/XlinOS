@@ -82,6 +82,7 @@ file_permissions+=(
   ["/usr/local/bin/xlinos-browser"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-accounts"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-greeter"]="0:0:755"
+  ["/usr/local/bin/xlinos-launcher"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-shell"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-snap"]="0:0:755"
   ["/usr/share/xlinos/post-install.sh"]="0:0:755"

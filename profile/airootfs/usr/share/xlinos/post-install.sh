@@ -35,7 +35,7 @@ if git clone --depth 1 ${REF:+--branch "$REF"} https://github.com/madhav-sharma-
   install -d /usr/local/lib/xlinos
   install -m 755 "$A"/usr/local/lib/xlinos/xlinos-greeter "$A"/usr/local/lib/xlinos/xlinos-accounts "$A"/usr/local/lib/xlinos/xlinos-shell "$A"/usr/local/lib/xlinos/xlinos-snap /usr/local/lib/xlinos/
   install -m 644 "$A"/usr/local/lib/xlinos/xlinos_login.py /usr/local/lib/xlinos/
-  install -m 755 "$A"/usr/local/bin/xlinos-session "$A"/usr/local/bin/xlinos-browser "$A"/usr/local/bin/xlinos-snap /usr/local/bin/
+  install -m 755 "$A"/usr/local/bin/xlinos-session "$A"/usr/local/bin/xlinos-browser "$A"/usr/local/bin/xlinos-snap "$A"/usr/local/bin/xlinos-launcher /usr/local/bin/
   install -m 644 "$A"/usr/share/applications/xlinos-browser.desktop /usr/share/applications/
   install -D -m 644 "$A"/usr/share/xlinos/xlinos-mark.png /usr/share/xlinos/xlinos-mark.png
   install -D -m 644 "$A"/usr/share/xlinos/themes/dark.sh /usr/share/xlinos/themes/dark.sh
