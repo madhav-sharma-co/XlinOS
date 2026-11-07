@@ -13,7 +13,7 @@ gi.require_version("Gtk4LayerShell", "1.0")
 from gi.repository import Gtk, Gdk, Gio, Gtk4LayerShell as LS
 
 CSS = b"""
-window { background: rgba(3,8,28,0.86); }
+window { background: rgba(3,8,28,0.95); }
 entry.search { background: rgba(255,255,255,0.10); color: #fff; border-radius: 16px; border: 1px solid rgba(255,255,255,0.16);
                padding: 10px 18px; min-width: 460px; font-size: 16px; }
 .tile { background: transparent; border: none; border-radius: 18px; padding: 14px; min-width: 120px; color: #fff; }
@@ -22,10 +22,12 @@ entry.search { background: rgba(255,255,255,0.10); color: #fff; border-radius: 1
 .tile label { font-size: 13px; }
 """
 
+HIDE = ("rofi", "xgps", "qv4l2", "avahi", "bssh", "bvnc", "nm-connection", "kitty-open", "lstopo", "cmake", "uuctl", "org.gtk.")
+
 def apps():
     seen, out = set(), []
     for a in Gio.AppInfo.get_all():
-        if not a.should_show() or a.get_id() in seen:
+        if not a.should_show() or a.get_id() in seen or any(h in (a.get_id() or "").lower() for h in HIDE):
             continue
         seen.add(a.get_id()); out.append(a)
     return sorted(out, key=lambda a: a.get_name().lower())
