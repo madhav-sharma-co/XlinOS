@@ -6,7 +6,7 @@ for t in A B C; do
   sleep 2
 done
 for _ in $(seq 1 30); do [[ "$(hyprctl clients -j | jq length)" -ge 3 ]] && break; sleep 1; done
-sleep 2
+sleep 6
 geo() { hyprctl clients -j | jq -c '.[] | {t:.title,floating,at,size}'; }
 shot() { grim "$OUT/$1.png" && echo "shot $1"; }
 focus() { hyprctl eval "hl.dispatch(hl.dsp.focus({ window = \"title:$1\" }))" >/dev/null; sleep 0.4; }

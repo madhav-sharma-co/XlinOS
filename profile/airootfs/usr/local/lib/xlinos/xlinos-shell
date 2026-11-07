@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""XlinOS shell: top bar, floating dock and desktop clock, drawn like assets/design/."""
+import os, sys, subprocess, time
+
+LIB = "/usr/lib/libgtk4-layer-shell.so"
+if os.path.exists(LIB) and LIB not in os.environ.get("LD_PRELOAD", ""):
+    os.environ["LD_PRELOAD"] = (os.environ.get("LD_PRELOAD", "") + " " + LIB).strip()
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gtk4LayerShell", "1.0")
+from gi.repository import Gtk, Gdk, GLib, Gtk4LayerShell as LS
+
+CSS = b"""
+.bar { background: rgba(10,18,52,0.62); color: #fff; padding: 0 16px; }
+.bar label { font-size: 13px; font-weight: 600; }
+.dim { color: #9db4e6; }
+.dock { background: rgba(12,20,56,0.72); border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 24px; padding: 8px 12px; }
+.dock button { background: transparent; border: none; border-radius: 16px; padding: 8px; min-width: 48px; min-height: 48px; color: #fff; }
+.dock button:hover { background: rgba(255,255,255,0.14); }
+.dock image { -gtk-icon-size: 36px; }
+.clock-time { font-size: 120px; font-weight: 200; color: #fff; }
+.clock-date { font-size: 22px; color: #9db4e6; }
+window { background: transparent; }
+"""
+
+def sh(cmd):
+    subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+
+def layer(win, layer, anchors, exclusive=0, margins=None):
+    LS.init_for_window(win)
+    LS.set_layer(win, layer)
+    LS.set_namespace(win, "xlinos")
+    for edge, on in anchors.items():
+        LS.set_anchor(win, edge, on)
+    for edge, m in (margins or {}).items():
+        LS.set_margin(win, edge, m)
+    if exclusive:
+        LS.set_exclusive_zone(win, exclusive)
+    else:
+        LS.set_exclusive_zone(win, -1 if layer == LS.Layer.BACKGROUND else 0)
+
+def make_bar(app):
+    w = Gtk.ApplicationWindow(application=app)
+    layer(w, LS.Layer.TOP, {LS.Edge.TOP: True, LS.Edge.LEFT: True, LS.Edge.RIGHT: True}, exclusive=34)
+    box = Gtk.CenterBox(); box.add_css_class("bar"); box.set_size_request(-1, 34)
+    left = Gtk.Label(label="XlinOS"); left.set_markup("<b>XlinOS</b>")
+    clock = Gtk.Label()
+    right = Gtk.Label(); right.add_css_class("dim")
+    box.set_start_widget(left); box.set_center_widget(clock); box.set_end_widget(right)
+    def tick():
+        clock.set_text(time.strftime("%a %-d %b   %H:%M"))
+        right.set_text("Wi-Fi   Volume   Battery")
+        return True
+    tick(); GLib.timeout_add_seconds(10, tick)
+    w.set_child(box); w.present()
+
+APPS = [("utilities-terminal", "Terminal", "kitty"),
+        ("system-file-manager", "Files", "xlinos-files"),
+        ("web-browser", "Browser", "xlinos-browser"),
+        ("view-app-grid-symbolic", "Apps", "rofi -show drun")]
+
+def make_dock(app):
+    w = Gtk.ApplicationWindow(application=app)
+    layer(w, LS.Layer.TOP, {LS.Edge.BOTTOM: True}, margins={LS.Edge.BOTTOM: 14})
+    box = Gtk.Box(spacing=6); box.add_css_class("dock")
+    for icon, name, cmd in APPS:
+        b = Gtk.Button(); b.set_child(Gtk.Image.new_from_icon_name(icon))
+        b.set_tooltip_text(name); b.connect("clicked", lambda _b, c=cmd: sh(c))
+        box.append(b)
+    w.set_child(box); w.present()
+
+def make_desktop(app):
+    w = Gtk.ApplicationWindow(application=app)
+    layer(w, LS.Layer.BACKGROUND, {e: True for e in (LS.Edge.TOP, LS.Edge.BOTTOM, LS.Edge.LEFT, LS.Edge.RIGHT)})
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER)
+    t = Gtk.Label(); t.add_css_class("clock-time")
+    d = Gtk.Label(); d.add_css_class("clock-date")
+    box.append(t); box.append(d)
+    def tick():
+        t.set_text(time.strftime("%H:%M")); d.set_text(time.strftime("%A, %-d %B"))
+        return True
+    tick(); GLib.timeout_add_seconds(10, tick)
+    w.set_child(box); w.present()
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    make_desktop(app); make_bar(app); make_dock(app)
+
+app = Gtk.Application(application_id="os.xlin.shell")
+app.connect("activate", activate)
+sys.exit(app.run(None))

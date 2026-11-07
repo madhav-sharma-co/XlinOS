@@ -70,4 +70,4 @@ for i = 1, 4 do
     bind("SUPER + SHIFT + " .. i, hl.dsp.window.move({ workspace = i }))
 end
 
-pcall(require, "xlinos-shell")   -- the XlinOS shell (bar, dock, launcher ...), added step by step
+hl.on("hyprland.start", function() hl.dispatch(hl.dsp.exec_cmd("/usr/local/lib/xlinos/xlinos-shell")) end)
