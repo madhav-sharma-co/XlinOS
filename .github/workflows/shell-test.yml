@@ -1,0 +1,28 @@
+name: Shell test
+# Runs the XlinOS desktop in a headless Hyprland inside the Arch container, drives it, and takes real screenshots.
+# Pictures and logs go to the branch ci-shots-shell. Fast (about 3 minutes): no ISO, no virtual machine.
+on:
+  workflow_dispatch:
+  push:
+    paths: ['profile/airootfs/usr/local/lib/xlinos/**', 'profile/airootfs/usr/share/xlinos/hypr/**', 'profile/airootfs/usr/share/xlinos/shell/**', 'scripts/ci-shell-*.sh', '.github/workflows/shell-test.yml']
+permissions:
+  contents: write
+jobs:
+  shell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    container:
+      image: archlinux:latest
+    steps:
+      - run: pacman -Syu --noconfirm hyprland kitty grim jq mesa python python-gobject gtk4 gtk4-layer-shell ttf-dejavu inter-font git sudo
+      - uses: actions/checkout@v4
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Run the desktop and take screenshots
+        run: bash scripts/ci-shell-test.sh shots
+      - name: Push the pictures
+        if: always()
+        run: |
+          cd shots
+          git init -q -b ci-shots-shell; git config user.name ci; git config user.email ci@users.noreply.github.com
+          git add -A && git commit -qm "shell test pictures"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-shots-shell

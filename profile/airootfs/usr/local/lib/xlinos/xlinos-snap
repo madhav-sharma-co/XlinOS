@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""XlinOS window snapping. usage: xlinos-snap left|right|up|down|center|tl|tr|bl|br|max|restore
+Left/Right: half of the screen. Up: maximize (from a half: top quarter). Down: restore (from a half: bottom quarter).
+Windows float, so this only moves and resizes the active window; it remembers the old size for "restore"."""
+import json, os, subprocess, sys
+
+GAP = 12
+STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "xlinos-snap.json")
+
+
+def hc(*a):
+    return subprocess.run(["hyprctl", *a], capture_output=True, text=True, timeout=4).stdout
+
+
+def lua(code):
+    return subprocess.run(["hyprctl", "eval", code], capture_output=True, text=True, timeout=4).stdout.strip()
+
+
+def load():
+    try:
+        return json.load(open(STATE))
+    except Exception:
+        return {}
+
+
+def main(action):
+    win = json.loads(hc("activewindow", "-j") or "{}")
+    addr = win.get("address")
+    if not addr:
+        return 0
+    mon = next((m for m in json.loads(hc("monitors", "-j")) if m["id"] == win["monitor"]), None)
+    if mon is None:
+        return 0
+    sc = mon.get("scale", 1) or 1
+    mx, my, mw, mh = mon["x"], mon["y"], int(mon["width"] / sc), int(mon["height"] / sc)
+    rl, rt, rr, rb = (mon.get("reserved") or [0, 0, 0, 0])[:4]       # left, top, right, bottom (bar, dock)
+    x0, y0 = mx + rl + GAP, my + rt + GAP
+    w, h = mw - rl - rr - 2 * GAP, mh - rt - rb - 2 * GAP
+    hw, hh = (w - GAP) // 2, (h - GAP) // 2
+    spots = {
+        "left": (x0, y0, hw, h), "right": (x0 + hw + GAP, y0, hw, h),
+        "max": (x0, y0, w, h),
+        "tl": (x0, y0, hw, hh), "tr": (x0 + hw + GAP, y0, hw, hh),
+        "bl": (x0, y0 + hh + GAP, hw, hh), "br": (x0 + hw + GAP, y0 + hh + GAP, hw, hh),
+        "center": (x0 + w // 6, y0 + h // 8, w * 2 // 3, h * 3 // 4),
+    }
+    st = load()
+    cur = st.get(addr, {})
+    last = cur.get("last")
+    # arrows: the second key refines the first one
+    if action == "up":
+        action = {"left": "tl", "right": "tr", "tl": "max", "tr": "max"}.get(last, "max")
+    elif action == "down":
+        action = {"left": "bl", "right": "br", "tl": "left", "tr": "right", "bl": "restore", "br": "restore"}.get(last, "restore")
+    if action == "restore" and last in (None, "restore", "center") and not cur.get("old"):
+        action = "center"
+    if action == "restore":
+        old = cur.get("old")
+        if not old:
+            return 0
+        x, y, ww, hh2 = old
+        st.pop(addr, None)
+    else:
+        if action not in spots:
+            return 1
+        x, y, ww, hh2 = spots[action]
+        if "old" not in cur and action != "center":
+            cur["old"] = [win["at"][0], win["at"][1], win["size"][0], win["size"][1]]
+        cur["last"] = action
+        st[addr] = cur
+    if not win.get("floating"):
+        lua('hl.dispatch(hl.dsp.window.float({ action = "toggle" }))')
+    sel = f'window = "address:{addr}"'
+    out1 = lua(f"hl.dispatch(hl.dsp.window.resize({{ {sel}, x = {ww}, y = {hh2} }}))")
+    out2 = lua(f"hl.dispatch(hl.dsp.window.move({{ {sel}, x = {x}, y = {y} }}))")
+    try:
+        json.dump(st, open(STATE, "w"))
+    except OSError:
+        pass
+    if os.environ.get("XLINOS_DEBUG"):
+        print(action, (x, y, ww, hh2), out1, out2)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else ""))
