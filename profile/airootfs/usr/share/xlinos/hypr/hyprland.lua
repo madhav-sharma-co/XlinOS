@@ -44,6 +44,7 @@ run("SUPER + Return", "kitty")
 run("SUPER + E", "xlinos-files")
 run("SUPER + SPACE", "xlinos-launcher")
 run("SUPER + L", "xlinos-lock")
+run("SUPER + A", "xlinos-quick")
 
 -- windows: Super+arrows snap like Windows (Left/Right = halves, Up = maximize, Down = restore;
 -- from a half, Up/Down make a quarter); Super+C centres
