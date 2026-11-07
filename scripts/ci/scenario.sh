@@ -21,5 +21,5 @@ snap A up; snap B down; echo "== quarters"; geo; shot 6-quarters
 
 echo "== launcher"; /usr/local/lib/xlinos/xlinos-launcher >"$OUT/launcher.log" 2>&1 &
 sleep 5; shot 7-launcher; pkill -f xlinos-launcher
-echo "== quick"; /usr/local/lib/xlinos/xlinos-quick >"$OUT/quick.log" 2>&1 &
-sleep 5; shot 8-quick; pkill -f xlinos-quick
+echo "== quick"; python3 /usr/local/lib/xlinos/xlinos-quick >"$OUT/quick.log" 2>&1 &
+sleep 8; pgrep -fa xlinos-quick; shot 8-quick; pkill -f lib/xlinos/xlinos-quick
