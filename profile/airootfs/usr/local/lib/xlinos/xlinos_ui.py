@@ -3,7 +3,7 @@ import shutil
 
 # id, label, symbolic icon, gradient, command, window class (to show the running dot)
 APPS = [
-    ("files",    "Files",    "folder-symbolic",             ("#3b8bff", "#1e5bff"), "xlinos-files",   "thunar"),
+    ("files",    "Files",    "folder-symbolic",             ("#3b8bff", "#1e5bff"), "xlinos-files",   "os.xlin.files"),
     ("terminal", "Terminal", "utilities-terminal-symbolic", ("#1c2a5c", "#0f1838"), "xlinos-terminal", "os.xlin.terminal"),
     ("browser",  "Browser",  "web-browser-symbolic",        ("#19d2ff", "#0a74ff"), "xlinos-browser", ""),
 ]

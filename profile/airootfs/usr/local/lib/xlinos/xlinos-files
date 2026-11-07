@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""XlinOS Files: the built-in file manager."""
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, Gio, GLib
+import xlinos_ui
+
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+.side { background: rgba(255,255,255,0.04); padding: 10px 8px; min-width: 170px; border-radius: 0 0 0 14px; }
+.side button { background: transparent; border: none; box-shadow: none; color: #cdd9f5; border-radius: 9px; padding: 7px 10px; }
+.side button:hover { background: rgba(255,255,255,0.08); }
+.side button.sel { background: #1e4fd0; color: #fff; }
+.tool { padding: 8px 14px; }
+.tool button { background: rgba(255,255,255,0.08); border: none; box-shadow: none; color: #fff; border-radius: 9px; min-width: 30px; }
+.tool button:hover { background: rgba(255,255,255,0.16); }
+.tool entry { background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.12); border-radius: 9px; min-width: 220px; }
+.path { color: #dbe6ff; font-weight: 600; }
+.fitem { background: transparent; border: none; box-shadow: none; border-radius: 12px; padding: 8px; color: #e6eeff; }
+.fitem:hover { background: rgba(255,255,255,0.08); }
+.ficon { border-radius: 14px; min-width: 56px; min-height: 56px; }
+.ficon image { color: #fff; -gtk-icon-size: 28px; }
+.f-dir { background-image: linear-gradient(135deg, #3b8bff, #1e5bff); }
+.f-file { background-image: linear-gradient(135deg, #3a4a8a, #1c2a5c); }
+.empty { color: #9db4e6; }
+""").encode()
+
+HOME = os.path.expanduser("~")
+PLACES = [("Home", "user-home-symbolic", HOME)] + [
+    (n, ic, os.path.join(HOME, n)) for n, ic in (("Documents", "folder-documents-symbolic"), ("Downloads", "folder-download-symbolic"),
+        ("Pictures", "folder-pictures-symbolic"), ("Music", "folder-music-symbolic"), ("Videos", "folder-videos-symbolic"))]
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Files", 920, 580)
+    state = {"path": HOME, "hist": []}
+
+    tool = Gtk.Box(spacing=8); tool.add_css_class("tool")
+    back = Gtk.Button(icon_name="go-previous-symbolic"); up = Gtk.Button(icon_name="go-up-symbolic")
+    path = Gtk.Label(xalign=0, hexpand=True); path.add_css_class("path")
+    search = Gtk.SearchEntry(placeholder_text="Search")
+    for w in (back, up, path, search): tool.append(w)
+
+    main = Gtk.Box(vexpand=True)
+    side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); side.add_css_class("side")
+    flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, valign=Gtk.Align.START, homogeneous=True,
+                       max_children_per_line=10, min_children_per_line=2, row_spacing=4, column_spacing=4, margin_start=14, margin_top=8)
+    scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True); scroll.set_child(flow)
+    main.append(side); main.append(scroll)
+    body.append(tool); body.append(main)
+
+    side_btns = {}
+    def go(d, push=True):
+        if not os.path.isdir(d): return
+        if push and state["path"] != d: state["hist"].append(state["path"])
+        state["path"] = d; search.set_text(""); render()
+    def render():
+        c = flow.get_first_child()
+        while c:
+            n = c.get_next_sibling(); flow.remove(c); c = n
+        d = state["path"]
+        path.set_text("Home" if d == HOME else os.path.basename(d) or "/")
+        win.set_title("Files")
+        for pth, b in side_btns.items():
+            (b.add_css_class if pth == d else b.remove_css_class)("sel")
+        try:
+            items = sorted(os.scandir(d), key=lambda e: (not e.is_dir(), e.name.lower()))
+        except OSError:
+            items = []
+        q = search.get_text().lower()
+        shown = 0
+        for e in items:
+            if e.name.startswith(".") or (q and q not in e.name.lower()): continue
+            isdir = e.is_dir()
+            b = Gtk.Button(); b.add_css_class("fitem")
+            bx = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, halign=Gtk.Align.CENTER)
+            t = Gtk.Box(halign=Gtk.Align.CENTER); t.add_css_class("ficon"); t.add_css_class("f-dir" if isdir else "f-file")
+            im = Gtk.Image.new_from_icon_name("folder-symbolic" if isdir else "text-x-generic-symbolic"); im.set_hexpand(True); t.append(im)
+            l = Gtk.Label(label=e.name, ellipsize=3, max_width_chars=12)
+            bx.append(t); bx.append(l); b.set_child(bx)
+            def act(_b, path_=e.path, isdir_=isdir):
+                if isdir_: go(path_)
+                else: Gio.AppInfo.launch_default_for_uri(Gio.File.new_for_path(path_).get_uri(), None)
+            b.connect("clicked", act); flow.append(b); shown += 1
+        if not shown:
+            flow.append(Gtk.Label(label="This folder is empty" if not q else "Nothing found", css_classes=["empty"], margin_top=40))
+    for name, icon, pth in PLACES:
+        b = Gtk.Button(); row = Gtk.Box(spacing=10); row.append(Gtk.Image.new_from_icon_name(icon)); row.append(Gtk.Label(label=name, xalign=0))
+        b.set_child(row); b.connect("clicked", lambda _b, p_=pth: go(p_)); side.append(b); side_btns[pth] = b
+    back.connect("clicked", lambda _b: go(state["hist"].pop(), False) if state["hist"] else None)
+    up.connect("clicked", lambda _b: go(os.path.dirname(state["path"])))
+    search.connect("search-changed", lambda _e: render())
+    if len(sys.argv) > 1 and os.path.isdir(sys.argv[1]): state["path"] = os.path.abspath(sys.argv[1])
+    render(); win.present()
+
+app = Gtk.Application(application_id="os.xlin.files", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app.connect("activate", activate)
+sys.exit(app.run(None))

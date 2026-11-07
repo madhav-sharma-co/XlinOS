@@ -1,2 +1,2 @@
 #!/bin/sh
-exec thunar "$@"
+exec /usr/local/lib/xlinos/xlinos-files "$@"

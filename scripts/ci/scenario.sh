@@ -29,6 +29,9 @@ shot 10-terminal; hyprctl clients -j | jq -c '.[]|select(.class=="os.xlin.termin
 addr=$(hyprctl clients -j | jq -r '.[]|select(.class=="os.xlin.terminal")|.address')
 hyprctl eval "hl.dispatch(hl.dsp.window.move({ workspace = \"special:minimized\", follow = false, window = \"address:$addr\" }))"; sleep 1
 echo "== after minimise"; hyprctl clients -j | jq -c '.[]|select(.class=="os.xlin.terminal")|{workspace,hidden}'; shot 11-minimised
+mkdir -p ~/Documents ~/Downloads ~/Pictures ~/Music ~/Videos ~/Projects; echo hi > ~/notes.txt
+xlinos-files >"$OUT/files.log" 2>&1 &
+sleep 8; shot 12-files
 echo "== events"; strings -a "$(command -v Hyprland)" | grep -E '^(window|mouse|drag|move|resize|workspace|monitor|layer|keybind|config)[a-zA-Z_.]*$' | sort -u | head -80
 strings -a "$(command -v Hyprland)" | grep -iE 'drag|resize_on_border|release' | grep -E '^[a-z_.:]+$' | sort -u | head -60
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
