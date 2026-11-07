@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+"""XlinOS lock screen: wallpaper, clock, password, and a Log out button. Uses ext-session-lock (apps keep running)."""
+import os, sys, time, getpass, threading, ctypes, subprocess
+from ctypes import c_int, c_char_p, c_void_p, POINTER, Structure, CFUNCTYPE, byref, cast
+
+def fallback():
+    os.execvp("hyprlock", ["hyprlock", "-c", "/usr/share/xlinos/hyprlock.conf"])
+
+try:
+    import gi
+    gi.require_version("Gtk", "3.0")
+    gi.require_version("Gdk", "3.0")
+    gi.require_version("GtkSessionLock", "0.1")
+    from gi.repository import Gtk, Gdk, GLib, GtkSessionLock as SL
+    if not SL.is_supported():
+        raise RuntimeError("no ext-session-lock")
+except Exception as e:
+    print("lock fallback:", e, file=sys.stderr)
+    fallback()
+
+USER = getpass.getuser()
+WALL = "/usr/share/xlinos/wallpapers/xlin-dark.jpg"
+
+# ---- password check through PAM ----
+libc = ctypes.CDLL("libc.so.6"); libc.calloc.restype = c_void_p; libc.strdup.restype = c_void_p
+pam = ctypes.CDLL("libpam.so.0")
+class PamMsg(Structure): _fields_ = [("style", c_int), ("msg", c_char_p)]
+class PamResp(Structure): _fields_ = [("resp", c_void_p), ("code", c_int)]
+CONV = CFUNCTYPE(c_int, c_int, POINTER(POINTER(PamMsg)), POINTER(POINTER(PamResp)), c_void_p)
+class PamConv(Structure): _fields_ = [("conv", CONV), ("data", c_void_p)]
+
+def check(password):
+    pw = password.encode()
+    def conv(n, msgs, resp, _d):
+        arr = libc.calloc(n, ctypes.sizeof(PamResp))
+        resp[0] = cast(arr, POINTER(PamResp))
+        for i in range(n):
+            if msgs[i][0].style in (1, 2):      # prompt (echo off / on)
+                resp[0][i].resp = libc.strdup(pw)
+        return 0
+    cb = CONV(conv); c = PamConv(cb, None); h = c_void_p()
+    if pam.pam_start(b"login", USER.encode(), byref(c), byref(h)) != 0:
+        return False
+    ok = pam.pam_authenticate(h, 0) == 0
+    pam.pam_end(h, 0)
+    return ok
+
+CSS = b"""
+window { background-color: #03081c; }
+.wall { }
+label { color: #ffffff; }
+.time { font-size: 110px; font-weight: 200; }
+.date { font-size: 22px; color: #9db4e6; }
+.user { font-size: 18px; font-weight: 700; }
+.msg { color: #ff8a8a; font-size: 13px; }
+entry { background: rgba(12,20,56,0.85); color: #fff; border: 2px solid rgba(30,107,255,0.8); border-radius: 26px; padding: 10px 20px; min-width: 300px; }
+button.out { background: rgba(255,80,80,0.22); color: #fff; border: none; border-radius: 16px; padding: 10px 28px; }
+button.out:hover { background: rgba(255,80,80,0.4); }
+"""
+
+lock = SL.prepare_lock()
+state = {"windows": []}
+
+def unlock():
+    lock.unlock_and_destroy()
+    Gdk.Display.get_default().sync()
+    Gtk.main_quit()
+
+def build(monitor, primary):
+    win = Gtk.Window()
+    ov = Gtk.Overlay()
+    try:
+        from gi.repository import GdkPixbuf
+        geo = monitor.get_geometry()
+        pb = GdkPixbuf.Pixbuf.new_from_file(WALL)
+        s = max(geo.width / pb.get_width(), geo.height / pb.get_height())
+        pb = pb.scale_simple(int(pb.get_width() * s), int(pb.get_height() * s), GdkPixbuf.InterpType.BILINEAR)
+        ov.add(Gtk.Image.new_from_pixbuf(pb))
+    except Exception:
+        pass
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER)
+    t = Gtk.Label(); t.get_style_context().add_class("time")
+    d = Gtk.Label(); d.get_style_context().add_class("date")
+    box.pack_start(t, False, False, 0); box.pack_start(d, False, False, 0)
+    def tick():
+        t.set_text(time.strftime("%H:%M")); d.set_text(time.strftime("%A, %-d %B")); return True
+    tick(); GLib.timeout_add_seconds(5, tick)
+    if primary:
+        u = Gtk.Label(label=USER); u.get_style_context().add_class("user"); u.set_margin_top(40)
+        e = Gtk.Entry(visibility=False, placeholder_text="Enter password", halign=Gtk.Align.CENTER); e.set_alignment(0.5)
+        m = Gtk.Label(); m.get_style_context().add_class("msg")
+        out = Gtk.Button(label="Log out", halign=Gtk.Align.CENTER); out.get_style_context().add_class("out"); out.set_margin_top(30)
+        out.connect("clicked", lambda _b: (subprocess.Popen(["hyprctl", "dispatch", "exit"]), unlock()))
+        def done(ok):
+            if ok: unlock()
+            else:
+                e.set_sensitive(True); e.set_text(""); m.set_text("Wrong password"); e.grab_focus()
+            return False
+        def go(_e):
+            pw = e.get_text()
+            if not pw: return
+            e.set_sensitive(False); m.set_text("")
+            threading.Thread(target=lambda: GLib.idle_add(done, check(pw)), daemon=True).start()
+        e.connect("activate", go)
+        for w in (u, e, m, out): box.pack_start(w, False, False, 0)
+        GLib.idle_add(e.grab_focus)
+    ov.add_overlay(box); win.add(ov)
+    lock.new_surface(win, monitor); win.show_all()
+    state["windows"].append(win)
+
+p = Gtk.CssProvider(); p.load_from_data(CSS)
+Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+lock.connect("finished", lambda *_: Gtk.main_quit())
+lock.lock_lock()
+disp = Gdk.Display.get_default()
+for i in range(disp.get_n_monitors()):
+    build(disp.get_monitor(i), i == 0)
+Gtk.main()

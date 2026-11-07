@@ -64,3 +64,4 @@ qemu-guest-agent
 nwg-dock-hyprland
 zram-generator
 awww
+gtk-session-lock

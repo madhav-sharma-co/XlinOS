@@ -4,7 +4,7 @@
   "ntp": true,
   "services": ["NetworkManager", "bluetooth", "power-profiles-daemon", "fstrim.timer"],
   "packages": [
-    "hyprland", "hyprlock", "waybar", "swaync", "jq", "socat", "libnotify", "brightnessctl", "networkmanager",
+    "hyprland", "hyprlock", "gtk-session-lock", "waybar", "swaync", "jq", "socat", "libnotify", "brightnessctl", "networkmanager",
     "network-manager-applet", "pipewire", "pipewire-alsa", "pipewire-pulse", "wireplumber", "pavucontrol",
     "blueman", "bluez", "bluez-utils", "imagemagick", "ttf-font-awesome", "inter-font", "ttf-nerd-fonts-symbols",
     "ttf-jetbrains-mono-nerd", "gtk3", "gtk4", "python-gobject", "gtk4-layer-shell", "power-profiles-daemon",
