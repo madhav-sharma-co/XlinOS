@@ -20,7 +20,7 @@ def activate(app):
     term.set_font(Pango.FontDescription("JetBrainsMono Nerd Font 11"))
     pal = ["#0a1230", "#ff6b6b", "#5fe3a1", "#ffd166", "#4f93ff", "#b794ff", "#19d2ff", "#dbe6ff",
            "#3a4a7a", "#ff8a8a", "#7dffbd", "#ffe08a", "#7fb2ff", "#cfb3ff", "#6fe3ff", "#ffffff"]
-    term.set_colors(rgba("#e6eeff"), rgba("rgba(0,0,0,0)"), [rgba(c) for c in pal])
+    term.set_colors(rgba("#e6eeff"), rgba("#080e2c"), [rgba(c) for c in pal])
     term.set_scrollback_lines(10000)
     term.set_cursor_blink_mode(Vte.CursorBlinkMode.ON)
     term.set_margin_start(14); term.set_margin_end(10); term.set_margin_bottom(10)
