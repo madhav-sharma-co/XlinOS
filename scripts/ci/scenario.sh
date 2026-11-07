@@ -19,6 +19,5 @@ snap C up; echo "== C max"; geo; shot 4-maximized
 snap C down; echo "== C restored"; geo; shot 5-restored
 snap A up; snap B down; echo "== quarters"; geo; shot 6-quarters
 
-xlinos-launcher; sleep 3; shot 7-launcher; xlinos-launcher; sleep 1
 echo "== launcher"; /usr/local/lib/xlinos/xlinos-launcher >"$OUT/launcher.log" 2>&1 &
 sleep 5; shot 7-launcher; pkill -f xlinos-launcher
