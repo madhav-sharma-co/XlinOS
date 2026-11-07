@@ -40,7 +40,7 @@ local function run(keys, cmd, flags)
     bind(keys, hl.dsp.exec_cmd(cmd), flags)
 end
 
-run("SUPER + Return", "kitty")
+run("SUPER + Return", "xlinos-terminal")
 run("SUPER + E", "xlinos-files")
 run("SUPER + SPACE", "xlinos-launcher")
 run("SUPER + L", "xlinos-lock")

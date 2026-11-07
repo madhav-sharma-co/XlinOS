@@ -80,7 +80,7 @@ def make_bar(app):
     def active():
         a = hypr("activewindow")
         name = (a or {}).get("class") or ""
-        appname.set_text(name.capitalize() if name else "XlinOS")
+        appname.set_text(xlinos_ui.friendly(name))
         return True
     tick(); active(); GLib.timeout_add_seconds(10, tick); GLib.timeout_add(800, active)
     w.set_child(box); w.present()
