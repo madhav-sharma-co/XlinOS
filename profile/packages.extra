@@ -1,6 +1,7 @@
 # Packages added to archiso's releng list. One per line. Lines starting with # are ignored.
 # --- desktop (the list Xlin-soft needs; see scripts/deps.sh in Xlin-soft)
 hyprland
+hyprlock
 waybar
 swaync
 jq

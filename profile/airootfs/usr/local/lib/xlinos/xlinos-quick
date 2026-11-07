@@ -105,6 +105,7 @@ def activate(app):
         a = Gtk.Button(label=text); a.add_css_class("act")
         if danger: a.add_css_class("danger")
         a.connect("clicked", lambda _b: (bg(cmd), app.quit())); acts.append(a)
+    act("Lock", "xlinos-lock")
     act("Log out", "hyprctl dispatch exit", True)
     act("Restart", "systemctl reboot")
     act("Shut down", "systemctl poweroff")

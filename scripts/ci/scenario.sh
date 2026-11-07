@@ -23,3 +23,5 @@ echo "== launcher"; /usr/local/lib/xlinos/xlinos-launcher >"$OUT/launcher.log" 2
 sleep 5; shot 7-launcher; pkill -f xlinos-launcher
 echo "== quick"; python3 /usr/local/lib/xlinos/xlinos-quick >"$OUT/quick.log" 2>&1 &
 sleep 8; pgrep -fa xlinos-quick; shot 8-quick; pkill -f lib/xlinos/xlinos-quick
+echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
+sleep 8; shot 9-lock

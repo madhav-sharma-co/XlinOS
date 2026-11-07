@@ -83,6 +83,7 @@ file_permissions+=(
   ["/usr/local/lib/xlinos/xlinos-accounts"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-greeter"]="0:0:755"
   ["/usr/local/bin/xlinos-launcher"]="0:0:755"
+  ["/usr/local/bin/xlinos-lock"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-shell"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-quick"]="0:0:755"
   ["/usr/local/bin/xlinos-quick"]="0:0:755"

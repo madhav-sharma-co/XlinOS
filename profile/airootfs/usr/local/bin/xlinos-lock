@@ -1,0 +1,3 @@
+#!/bin/sh
+# Lock the screen (XlinOS lock screen). Does nothing if already locked.
+pgrep -x hyprlock >/dev/null || exec hyprlock -c /usr/share/xlinos/hyprlock.conf
