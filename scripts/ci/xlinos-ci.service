@@ -1,0 +1,13 @@
+[Unit]
+Description=XlinOS CI: run the current repo inside the test VM
+ConditionKernelCommandLine=xlinos.ci
+Before=greetd.service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'modprobe 9pnet_virtio; modprobe 9p; mkdir -p /mnt/repo && mount -t 9p -o trans=virtio,version=9p2000.L repo /mnt/repo && exec /mnt/repo/scripts/ci/vm-prep.sh'
+
+[Install]
+WantedBy=multi-user.target

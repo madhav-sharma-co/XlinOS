@@ -1,0 +1,61 @@
+name: VM test
+# Boots a cached XlinOS system image in QEMU with the current repo shared into it, runs the desktop scenario
+# (scripts/ci/scenario.sh) and keeps the screenshots on the branch ci-shots-vm. The image is rebuilt only when the
+# package list, post-install script or image script changes. A run takes about 4 minutes once the image is cached.
+on:
+  workflow_dispatch:
+  push:
+    paths: ['profile/airootfs/usr/local/lib/xlinos/**', 'profile/airootfs/usr/local/bin/**', 'profile/airootfs/usr/share/xlinos/**', 'scripts/ci/**', 'scripts/ci-vm-*', '.github/workflows/vm-test.yml']
+permissions:
+  contents: write
+concurrency:
+  group: vm-test
+  cancel-in-progress: true
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container:
+      image: archlinux:latest
+      options: --privileged
+    outputs:
+      key: ${{ steps.k.outputs.key }}
+    steps:
+      - run: pacman -Syu --noconfirm arch-install-scripts python git e2fsprogs mkinitcpio zstd
+      - uses: actions/checkout@v4
+      - id: k
+        run: echo "key=vmimage-${{ hashFiles('profile/airootfs/usr/share/xlinos/archinstall-config.json.in', 'profile/airootfs/usr/share/xlinos/post-install.sh', 'scripts/ci-vm-image.sh', 'scripts/ci/xlinos-ci.service') }}" >>"$GITHUB_OUTPUT"
+      - id: c
+        uses: actions/cache@v4
+        with:
+          path: /var/tmp/vmimage
+          key: ${{ steps.k.outputs.key }}
+      - name: Build the image
+        if: steps.c.outputs.cache-hit != 'true'
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          bash scripts/ci-vm-image.sh /var/tmp/vmimage
+  run:
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        with:
+          path: /var/tmp/vmimage
+          key: ${{ needs.image.outputs.key }}
+          fail-on-cache-miss: true
+      - run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 zstd
+      - name: Boot the VM and run the scenario
+        run: |
+          sudo chmod 666 /dev/kvm || true
+          zstd -d -q --sparse /var/tmp/vmimage/disk.img.zst -o /var/tmp/vmimage/disk.img
+          python3 scripts/ci-vm-boot.py /var/tmp/vmimage "$PWD"
+      - name: Push the pictures
+        if: always()
+        run: |
+          cd out
+          git init -q -b ci-shots-vm; git config user.name ci; git config user.email ci@users.noreply.github.com
+          git add -A && git commit -qm "VM test pictures for ${{ github.sha }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-shots-vm
