@@ -32,7 +32,12 @@ echo "== after minimise"; hyprctl clients -j | jq -c '.[]|select(.class=="os.xli
 mkdir -p ~/Documents ~/Downloads ~/Pictures ~/Music ~/Videos ~/Projects; echo hi > ~/notes.txt
 xlinos-files >"$OUT/files.log" 2>&1 &
 sleep 8; shot 12-files
-echo "== events"; strings -a "$(command -v Hyprland)" | grep -E '^(window|mouse|drag|move|resize|workspace|monitor|layer|keybind|config)[a-zA-Z_.]*$' | sort -u | head -80
-strings -a "$(command -v Hyprland)" | grep -iE 'drag|resize_on_border|release' | grep -E '^[a-z_.:]+$' | sort -u | head -60
+echo "== edge snap"; focus A
+/usr/local/lib/xlinos/xlinos-snap press
+hyprctl eval 'hl.dispatch(hl.dsp.window.move({ x = 300, y = 300 }))' >/dev/null; sleep 0.5
+echo "cursor move:"; hyprctl dispatch movecursor 2 400; hyprctl eval 'hl.dispatch(hl.dsp.cursor.move({ x = 2, y = 400 }))'
+sleep 0.5; hyprctl cursorpos
+XLINOS_DEBUG=1 /usr/local/lib/xlinos/xlinos-snap drop; sleep 0.8; geo; shot 13-edge-snap
+echo "== config errors"; hyprctl configerrors
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock

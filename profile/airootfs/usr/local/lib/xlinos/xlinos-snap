@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""XlinOS window snapping. usage: xlinos-snap left|right|up|down|center|tl|tr|bl|br|max|restore
+"""XlinOS window snapping. usage: xlinos-snap press|drop|left|right|up|down|center|tl|tr|bl|br|max|restore
 Left/Right: half of the screen. Up: maximize (from a half: top quarter). Down: restore (from a half: bottom quarter).
 Windows float, so this only moves and resizes the active window; it remembers the old size for "restore"."""
 import json, os, subprocess, sys
@@ -45,6 +45,30 @@ def main(action):
         "center": (x0 + w // 6, y0 + h // 8, w * 2 // 3, h * 3 // 4),
     }
     st = load()
+    if action == "press":                       # mouse button went down: remember where the window is
+        st["_press"] = {"addr": addr, "at": win["at"], "size": win["size"]}
+        json.dump(st, open(STATE, "w")); return 0
+    if action == "drop":                        # mouse button released: if the window was dragged to a screen edge, snap it
+        pr = st.get("_press") or {}
+        if pr.get("addr") != addr or (pr.get("at") == win["at"] and pr.get("size") == win["size"]):
+            return 0
+        cp = json.loads(hc("cursorpos", "-j") or "{}")
+        cx, cy = cp.get("x", -1) - mx, cp.get("y", -1) - my
+        E_, C_ = 6, 90
+        l, r_, t, b = cx <= E_, cx >= mw - 1 - E_, cy <= E_, cy >= mh - 1 - E_
+        if t and cx <= C_: action = "tl"
+        elif t and cx >= mw - C_: action = "tr"
+        elif b and cx <= C_: action = "bl"
+        elif b and cx >= mw - C_: action = "br"
+        elif l and cy <= C_: action = "tl"
+        elif l and cy >= mh - C_: action = "bl"
+        elif r_ and cy <= C_: action = "tr"
+        elif r_ and cy >= mh - C_: action = "br"
+        elif t: action = "max"
+        elif l: action = "left"
+        elif r_: action = "right"
+        else: return 0
+        st.pop("_press", None)
     cur = st.get(addr, {})
     last = cur.get("last")
     # arrows: the second key refines the first one
