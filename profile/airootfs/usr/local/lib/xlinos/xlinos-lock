@@ -47,15 +47,18 @@ def check(password):
 
 CSS = b"""
 window { background-color: #03081c; }
-.wall { }
 label { color: #ffffff; }
-.time { font-size: 110px; font-weight: 200; }
-.date { font-size: 22px; color: #9db4e6; }
-.user { font-size: 18px; font-weight: 700; }
+.time { font-size: 96px; font-weight: 200; }
+.date { font-size: 20px; color: #9db4e6; }
+.avatar { background: #1e6bff; color: #fff; border-radius: 40px; font-size: 32px; font-weight: 700; min-width: 80px; min-height: 80px; }
+.user { font-size: 20px; font-weight: 700; }
 .msg { color: #ff8a8a; font-size: 13px; }
-entry { background: rgba(12,20,56,0.85); color: #fff; border: 2px solid rgba(30,107,255,0.8); border-radius: 26px; padding: 10px 20px; min-width: 300px; }
-button.out { background: rgba(255,80,80,0.22); color: #fff; border: none; border-radius: 16px; padding: 10px 28px; }
-button.out:hover { background: rgba(255,80,80,0.4); }
+entry { background: rgba(12,20,56,0.85); color: #fff; border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 12px 16px; min-width: 300px; }
+entry:focus { border-color: #4f93ff; }
+button.login { background: #1e6bff; color: #fff; border: none; border-radius: 14px; padding: 12px; min-width: 330px; font-weight: 600; }
+button.login:hover { background: #3b82ff; }
+button.link { background: transparent; color: #9db4e6; border: none; box-shadow: none; padding: 6px 10px; }
+button.link:hover { color: #fff; }
 """
 
 lock = SL.prepare_lock()
@@ -86,23 +89,33 @@ def build(monitor, primary):
         t.set_text(time.strftime("%H:%M")); d.set_text(time.strftime("%A, %-d %B")); return True
     tick(); GLib.timeout_add_seconds(5, tick)
     if primary:
-        u = Gtk.Label(label=USER); u.get_style_context().add_class("user"); u.set_margin_top(40)
-        e = Gtk.Entry(visibility=False, placeholder_text="Enter password", halign=Gtk.Align.CENTER); e.set_alignment(0.5)
+        try:
+            import pwd
+            full = pwd.getpwnam(USER).pw_gecos.split(",")[0] or USER
+        except Exception:
+            full = USER
+        av = Gtk.Label(label=full[:1].upper()); av.get_style_context().add_class("avatar"); av.set_halign(Gtk.Align.CENTER); av.set_margin_top(34)
+        u = Gtk.Label(label=full); u.get_style_context().add_class("user")
+        e = Gtk.Entry(visibility=False, halign=Gtk.Align.CENTER); e.set_alignment(0.0)
+        e.set_placeholder_text("Password")
+        e.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, "view-reveal-symbolic")
+        e.connect("icon-press", lambda en, pos, ev: en.set_visibility(not en.get_visibility()))
         m = Gtk.Label(); m.get_style_context().add_class("msg")
-        out = Gtk.Button(label="Log out", halign=Gtk.Align.CENTER); out.get_style_context().add_class("out"); out.set_margin_top(30)
-        out.connect("clicked", lambda _b: (subprocess.Popen(["hyprctl", "dispatch", "exit"]), unlock()))
+        btn = Gtk.Button(label="Login", halign=Gtk.Align.CENTER); btn.get_style_context().add_class("login")
+        sw = Gtk.Button(label="Switch user", halign=Gtk.Align.CENTER); sw.get_style_context().add_class("link")
+        sw.connect("clicked", lambda _b: (subprocess.Popen(["hyprctl", "dispatch", "exit"]), unlock()))
         def done(ok):
             if ok: unlock()
             else:
-                e.set_sensitive(True); e.set_text(""); m.set_text("Wrong password"); e.grab_focus()
+                e.set_sensitive(True); btn.set_sensitive(True); e.set_text(""); m.set_text("Wrong password. Try again."); e.grab_focus()
             return False
-        def go(_e):
+        def go(_w):
             pw = e.get_text()
             if not pw: return
-            e.set_sensitive(False); m.set_text("")
+            e.set_sensitive(False); btn.set_sensitive(False); m.set_text("")
             threading.Thread(target=lambda: GLib.idle_add(done, check(pw)), daemon=True).start()
-        e.connect("activate", go)
-        for w in (u, e, m, out): box.pack_start(w, False, False, 0)
+        e.connect("activate", go); btn.connect("clicked", go)
+        for w_ in (av, u, e, m, btn, sw): box.pack_start(w_, False, False, 0)
         GLib.idle_add(e.grab_focus)
     ov.add_overlay(box); win.add(ov)
     lock.new_surface(win, monitor); win.show_all()

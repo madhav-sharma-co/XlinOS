@@ -1,167 +1,136 @@
 #!/usr/bin/env python3
 """XlinOS shell: top bar, floating dock and desktop clock, drawn like assets/design/."""
-import os, sys, subprocess, time
+import os, sys, json, subprocess, time, glob
 
 LIB = "/usr/lib/libgtk4-layer-shell.so"
 if os.path.exists(LIB) and LIB not in os.environ.get("LD_PRELOAD", ""):
     os.environ["LD_PRELOAD"] = (os.environ.get("LD_PRELOAD", "") + " " + LIB).strip()
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gtk4LayerShell", "1.0")
-from gi.repository import Gtk, Gdk, Gio, GLib, Gtk4LayerShell as LS
-import signal
+from gi.repository import Gtk, Gdk, GLib, Gtk4LayerShell as LS
+import xlinos_ui
 
-CSS = b"""
-.bar { background: rgba(10,18,52,0.62); color: #fff; padding: 0 16px; }
-.bar label { font-size: 13px; font-weight: 600; }
-.qs { color: #9db4e6; background: transparent; border: none; box-shadow: none; padding: 0 8px; }
-.qs:hover { background: rgba(255,255,255,0.12); border-radius: 8px; }
-.dock { background: rgba(12,20,56,0.72); border: 1px solid rgba(255,255,255,0.12);
-        border-radius: 24px; padding: 8px 12px; }
-.dock button { background: transparent; border: none; border-radius: 16px; padding: 8px; min-width: 48px; min-height: 48px; color: #fff; }
-.dock button:hover { background: rgba(255,255,255,0.14); }
-.dock image { -gtk-icon-size: 36px; }
-.clock-time { font-size: 120px; font-weight: 200; color: #fff; }
-.clock-date { font-size: 22px; color: #9db4e6; }
+CSS = (b"""
 window { background: transparent; }
-.launcher { background: rgba(4,10,34,0.86); }
-.launcher entry { background: rgba(255,255,255,0.10); color: #fff; border-radius: 16px; border: 1px solid rgba(255,255,255,0.14);
-                  padding: 10px 18px; min-width: 460px; font-size: 16px; }
-.tile { background: transparent; border: none; border-radius: 16px; padding: 12px; min-width: 110px; color: #fff; }
-.tile:hover { background: rgba(255,255,255,0.12); }
-.tile image { -gtk-icon-size: 56px; }
-.tile label { font-size: 13px; }
-"""
+.bar { background: rgba(8,14,44,0.70); color: #fff; padding: 0 14px; }
+.bar label { font-size: 13px; }
+.appname { font-weight: 700; margin-left: 10px; }
+.qs { color: #fff; background: transparent; border: none; box-shadow: none; padding: 0 8px; min-height: 0; }
+.qs:hover { background: rgba(255,255,255,0.12); border-radius: 8px; }
+.qs image { -gtk-icon-size: 15px; }
+.dock { background: rgba(12,20,56,0.72); border: 1px solid rgba(255,255,255,0.12); border-radius: 22px; padding: 7px 10px; }
+.dockbtn { background: transparent; border: none; box-shadow: none; padding: 4px; min-width: 0; min-height: 0; border-radius: 16px; }
+.dockbtn:hover { background: rgba(255,255,255,0.12); }
+.dot { background: #fff; border-radius: 3px; min-width: 5px; min-height: 5px; }
+.clock-time { font-size: 44px; font-weight: 200; color: #fff; }
+.clock-date { font-size: 14px; color: #9db4e6; }
+""" + xlinos_ui.css().encode())
 
 def sh(cmd):
     subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
-def layer(win, layer, anchors, exclusive=0, margins=None):
-    LS.init_for_window(win)
-    LS.set_layer(win, layer)
-    LS.set_namespace(win, "xlinos")
+def hypr(*a):
+    try:
+        return json.loads(subprocess.run(["hyprctl", "-j", *a], capture_output=True, text=True, timeout=2).stdout or "null")
+    except Exception:
+        return None
+
+def layer(win, lyr, anchors, exclusive=0, margins=None):
+    LS.init_for_window(win); LS.set_layer(win, lyr); LS.set_namespace(win, "xlinos")
     for edge, on in anchors.items():
         LS.set_anchor(win, edge, on)
     for edge, m in (margins or {}).items():
         LS.set_margin(win, edge, m)
-    if exclusive:
-        LS.set_exclusive_zone(win, exclusive)
-    else:
-        LS.set_exclusive_zone(win, -1 if layer == LS.Layer.BACKGROUND else 0)
+    LS.set_exclusive_zone(win, exclusive if exclusive else (-1 if lyr == LS.Layer.BACKGROUND else 0))
+
+def battery():
+    for d in glob.glob("/sys/class/power_supply/BAT*"):
+        try:
+            return int(open(d + "/capacity").read())
+        except Exception:
+            pass
+    return None
 
 def make_bar(app):
     w = Gtk.ApplicationWindow(application=app)
-    layer(w, LS.Layer.TOP, {LS.Edge.TOP: True, LS.Edge.LEFT: True, LS.Edge.RIGHT: True}, exclusive=34)
-    box = Gtk.CenterBox(); box.add_css_class("bar"); box.set_size_request(-1, 34)
-    left = Gtk.Label(label="XlinOS"); left.set_markup("<b>XlinOS</b>")
-    clock = Gtk.Label()
-    right = Gtk.Button(); right.add_css_class("flat"); right.add_css_class("qs")
-    rl = Gtk.Label(); right.set_child(rl)
+    layer(w, LS.Layer.TOP, {LS.Edge.TOP: True, LS.Edge.LEFT: True, LS.Edge.RIGHT: True}, exclusive=32)
+    box = Gtk.CenterBox(); box.add_css_class("bar"); box.set_size_request(-1, 32)
+    left = Gtk.Box(spacing=0)
+    mark = "/usr/share/xlinos/xlinos-mark.png"
+    if os.path.exists(mark):
+        img = Gtk.Image.new_from_file(mark); img.set_pixel_size(18); left.append(img)
+    appname = Gtk.Label(label="XlinOS", xalign=0); appname.add_css_class("appname"); left.append(appname)
+    right = Gtk.Button(); right.add_css_class("qs")
+    rb = Gtk.Box(spacing=12)
+    for n in ("network-wireless-symbolic", "bluetooth-symbolic", "audio-volume-high-symbolic"):
+        rb.append(Gtk.Image.new_from_icon_name(n))
+    bat = Gtk.Label(); rb.append(bat)
+    clock = Gtk.Label(); rb.append(clock)
+    right.set_child(rb)
     right.connect("clicked", lambda _b: sh("pkill -f lib/xlinos/xlinos-quick || /usr/local/lib/xlinos/xlinos-quick"))
-    box.set_start_widget(left); box.set_center_widget(clock); box.set_end_widget(right)
+    box.set_start_widget(left); box.set_end_widget(right)
     def tick():
-        clock.set_text(time.strftime("%a %-d %b   %H:%M"))
-        rl.set_text("Wi-Fi   Volume   Battery   \u25be")
+        clock.set_text(time.strftime("%a %-d %b  %-I:%M %p"))
+        b = battery(); bat.set_text(("%d%%" % b) if b is not None else "")
         return True
-    tick(); GLib.timeout_add_seconds(10, tick)
+    def active():
+        a = hypr("activewindow")
+        name = (a or {}).get("class") or ""
+        appname.set_text(name.capitalize() if name else "XlinOS")
+        return True
+    tick(); active(); GLib.timeout_add_seconds(10, tick); GLib.timeout_add(800, active)
     w.set_child(box); w.present()
-
-APPS = [("utilities-terminal", "Terminal", "kitty"),
-        ("system-file-manager", "Files", "xlinos-files"),
-        ("web-browser", "Browser", "xlinos-browser"),
-        ("view-app-grid-symbolic", "Apps", None)]
 
 def make_dock(app):
     w = Gtk.ApplicationWindow(application=app)
-    layer(w, LS.Layer.TOP, {LS.Edge.BOTTOM: True}, margins={LS.Edge.BOTTOM: 14})
-    box = Gtk.Box(spacing=6); box.add_css_class("dock")
-    for icon, name, cmd in APPS:
-        b = Gtk.Button(); b.set_child(Gtk.Image.new_from_icon_name(icon))
-        b.set_tooltip_text(name); b.connect("clicked", (lambda _b, c=cmd: sh(c)) if cmd else toggle_launcher)
-        box.append(b)
+    layer(w, LS.Layer.TOP, {LS.Edge.BOTTOM: True}, margins={LS.Edge.BOTTOM: 12})
+    box = Gtk.Box(spacing=8); box.add_css_class("dock")
+    dots = {}
+    def add(cid, label, icon, cmd, wmclass):
+        col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, halign=Gtk.Align.CENTER)
+        b = Gtk.Button(); b.add_css_class("dockbtn")
+        t = Gtk.Box(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); t.add_css_class("apptile"); t.add_css_class("t-" + cid)
+        t.append(Gtk.Image.new_from_icon_name(icon)); b.set_child(t); b.set_tooltip_text(label)
+        b.connect("clicked", lambda _b: sh(cmd))
+        dot = Gtk.Box(halign=Gtk.Align.CENTER); dot.add_css_class("dot"); dot.set_opacity(0)
+        col.append(b); col.append(dot); box.append(col)
+        if wmclass: dots[wmclass] = dot
+    for cid, label, icon, grad, cmd, wmc in xlinos_ui.available():
+        add(cid, label, icon, cmd, wmc)
+    add("apps", "Apps", "view-app-grid-symbolic", "/usr/local/lib/xlinos/xlinos-launcher", "")
+    def running():
+        cl = {(c.get("class") or "").lower() for c in (hypr("clients") or [])}
+        for k, d in dots.items():
+            d.set_opacity(1 if k in cl else 0)
+        return True
+    running(); GLib.timeout_add(1500, running)
     w.set_child(box); w.present()
 
 def make_desktop(app):
     w = Gtk.ApplicationWindow(application=app)
     layer(w, LS.Layer.BACKGROUND, {e: True for e in (LS.Edge.TOP, LS.Edge.BOTTOM, LS.Edge.LEFT, LS.Edge.RIGHT)})
     ov = Gtk.Overlay()
-    wp = "/usr/share/xlinos/wallpapers/xlin-dark.jpg"
-    if os.path.exists(wp):
-        pic = Gtk.Picture.new_for_filename(wp); pic.set_content_fit(Gtk.ContentFit.COVER); ov.set_child(pic)
-    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER)
-    ov.add_overlay(box)
-    t = Gtk.Label(); t.add_css_class("clock-time")
-    d = Gtk.Label(); d.add_css_class("clock-date")
+    for f in (os.path.expanduser("~/.config/xlin/wallpapers/xlin-dark.jpg"), "/usr/share/xlinos/wallpapers/xlin-dark.jpg"):
+        if os.path.exists(f):
+            pic = Gtk.Picture.new_for_filename(f); pic.set_content_fit(Gtk.ContentFit.COVER); ov.set_child(pic); break
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, valign=Gtk.Align.START, halign=Gtk.Align.END, margin_top=52, margin_end=34)
+    t = Gtk.Label(xalign=1); t.add_css_class("clock-time")
+    d = Gtk.Label(xalign=1); d.add_css_class("clock-date")
     box.append(t); box.append(d)
     def tick():
-        t.set_text(time.strftime("%H:%M")); d.set_text(time.strftime("%A, %-d %B"))
-        return True
+        t.set_text(time.strftime("%H:%M")); d.set_text(time.strftime("%A, %d %B")); return True
     tick(); GLib.timeout_add_seconds(10, tick)
-    w.set_child(ov); w.present()
-
-LAUNCHER = {}
-
-def make_launcher(app):
-    w = Gtk.ApplicationWindow(application=app)
-    layer(w, LS.Layer.OVERLAY, {e: True for e in (LS.Edge.TOP, LS.Edge.BOTTOM, LS.Edge.LEFT, LS.Edge.RIGHT)})
-    LS.set_exclusive_zone(w, -1)
-    LS.set_keyboard_mode(w, LS.KeyboardMode.EXCLUSIVE)
-    root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=28, halign=Gtk.Align.CENTER, valign=Gtk.Align.START)
-    root.set_margin_top(90); w.set_child(root); w.add_css_class("launcher")
-    entry = Gtk.SearchEntry(placeholder_text="Search apps"); root.append(entry)
-    flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=7, min_children_per_line=3,
-                       homogeneous=True, column_spacing=6, row_spacing=6, halign=Gtk.Align.CENTER)
-    sc = Gtk.ScrolledWindow(vexpand=True, propagate_natural_height=False); sc.set_child(flow); root.append(sc)
-    sc.set_size_request(900, 520)
-    apps = sorted((a for a in Gio.AppInfo.get_all() if a.should_show()), key=lambda a: a.get_name().lower())
-    tiles = []
-    def launch(a):
-        hide(); a.launch([], None)
-    for a in apps:
-        b = Gtk.Button(); b.add_css_class("tile")
-        bx = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        ic = a.get_icon(); img = Gtk.Image.new_from_gicon(ic) if ic else Gtk.Image.new_from_icon_name("application-x-executable")
-        lb = Gtk.Label(label=a.get_name(), ellipsize=3, max_width_chars=14)
-        bx.append(img); bx.append(lb); b.set_child(bx); b.connect("clicked", lambda _b, a=a: launch(a))
-        flow.append(b); tiles.append((a, b))
-    def refilter(_e=None):
-        q = entry.get_text().lower()
-        for a, b in tiles:
-            b.get_parent().set_visible(q in a.get_name().lower())
-    entry.connect("search-changed", refilter)
-    def first(_e=None):
-        q = entry.get_text().lower()
-        for a, b in tiles:
-            if q in a.get_name().lower(): launch(a); return
-    entry.connect("activate", first)
-    def hide():
-        w.set_visible(False)
-    kc = Gtk.EventControllerKey()
-    kc.connect("key-pressed", lambda c, k, *_: (hide(), True)[1] if k == Gdk.KEY_Escape else False)
-    w.add_controller(kc)
-    LAUNCHER.update(win=w, entry=entry)
-    return w
-
-def toggle_launcher(*_):
-    w = LAUNCHER.get("win")
-    if w is None:
-        w = make_launcher(APP)
-    if w.get_visible():
-        w.set_visible(False)
-    else:
-        LAUNCHER["entry"].set_text(""); w.present(); LAUNCHER["entry"].grab_focus()
-    return True
+    ov.add_overlay(box); w.set_child(ov); w.present()
 
 def activate(app):
     p = Gtk.CssProvider(); p.load_from_data(CSS)
     Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
     make_desktop(app); make_bar(app); make_dock(app)
-    pid = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "xlinos-shell.pid")
-    open(pid, "w").write(str(os.getpid()))
-    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, toggle_launcher)
 
-APP = app = Gtk.Application(application_id="os.xlin.shell", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app = Gtk.Application(application_id="os.xlin.shell")
 app.connect("activate", activate)
 sys.exit(app.run(None))

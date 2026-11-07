@@ -10,17 +10,19 @@ if os.path.exists(LIB) and LIB not in os.environ.get("LD_PRELOAD", ""):
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gtk4LayerShell", "1.0")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gi.repository import Gtk, Gdk, Gio, Gtk4LayerShell as LS
+import xlinos_ui
 
-CSS = b"""
-window { background: rgba(3,8,28,0.95); }
+CSS = (b"""
+window { background: rgba(3,8,28,0.93); }
 entry.search { background: rgba(255,255,255,0.10); color: #fff; border-radius: 16px; border: 1px solid rgba(255,255,255,0.16);
                padding: 10px 18px; min-width: 460px; font-size: 16px; }
 .tile { background: transparent; border: none; border-radius: 18px; padding: 14px; min-width: 120px; color: #fff; }
 .tile:hover, .tile:focus { background: rgba(255,255,255,0.14); }
 .tile image { -gtk-icon-size: 56px; }
-.tile label { font-size: 13px; }
-"""
+.tile label { font-size: 12px; }
+""" + xlinos_ui.css().encode())
 
 HIDE = ("rofi", "xgps", "qv4l2", "qvidcap", "org.qt-project", "avahi", "bssh", "bvnc", "nm-connection", "kitty-open", "lstopo", "cmake", "uuctl", "org.gtk.")
 
@@ -41,18 +43,29 @@ def activate(app):
         LS.set_anchor(w, e, True)
     LS.set_exclusive_zone(w, -1); LS.set_keyboard_mode(w, LS.KeyboardMode.EXCLUSIVE)
 
-    entry = Gtk.SearchEntry(placeholder_text="Search apps", halign=Gtk.Align.CENTER); entry.add_css_class("search")
+    entry = Gtk.SearchEntry(placeholder_text="Search apps, files and settings", halign=Gtk.Align.CENTER); entry.add_css_class("search")
     flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=8, min_children_per_line=3,
                        homogeneous=True, halign=Gtk.Align.CENTER, valign=Gtk.Align.START, row_spacing=6, column_spacing=6)
     tiles = []
     def launch(_b, a):
         a.launch([], None); app.quit()
+    KEYS = {"kitty": "terminal", "browser": "browser", "thunar": "files"}
+    ICONS = {a_[0]: a_[2] for a_ in xlinos_ui.APPS}
     for a in apps():
         b = Gtk.Button(); b.add_css_class("tile")
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        img = Gtk.Image.new_from_gicon(a.get_icon() or Gio.ThemedIcon.new("application-x-executable"))
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, halign=Gtk.Align.CENTER)
+        aid = (a.get_id() or "").lower()
+        key = next((v for k, v in KEYS.items() if k in aid), None)
+        tile = Gtk.Box(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); tile.add_css_class("apptile")
+        tile.set_size_request(64, 64)
+        if key:
+            tile.add_css_class("t-" + key); img = Gtk.Image.new_from_icon_name(ICONS[key]); img.set_pixel_size(30)
+        else:
+            tile.add_css_class("t-other")
+            img = Gtk.Image.new_from_gicon(a.get_icon() or Gio.ThemedIcon.new("application-x-executable")); img.set_pixel_size(34)
+        img.set_hexpand(True); tile.append(img)
         lab = Gtk.Label(label=a.get_name(), ellipsize=3, max_width_chars=14)
-        box.append(img); box.append(lab); b.set_child(box)
+        box.append(tile); box.append(lab); b.set_child(box)
         b.connect("clicked", launch, a); flow.append(b); tiles.append((a.get_name().lower(), b))
     def filt(_e):
         q = entry.get_text().lower()
