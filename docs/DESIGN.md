@@ -20,3 +20,20 @@ Concept drawings: `assets/design/` (`1-desktop.png`, `2-launcher.png`, `3-quick-
 | Launcher grid, quick-settings panel with Log out, new dock icons | needs new UI code | decision pending: in XlinOS only, or in Xlin-soft as an "XlinOS edition" |
 | Removing "Hyprland"/"Arch" wording in Xlin-soft's own texts | text patches or an edition switch | same decision |
 | Boot animation (Plymouth) | after the above | planned |
+
+## Direction (2026-11-07)
+XlinOS is its own OS, built in this repo. Xlin-soft is not changed and is no longer the desktop: XlinOS gets its own shell
+(`xlinos-*`), drawn like `assets/design/`. Windows behave like Windows and macOS: they float, overlap, can be dragged and
+resized, and snap to halves and quarters.
+
+| Part | State |
+|---|---|
+| Windows float and overlap; Super+Left/Right = halves, Up = maximize / top quarter, Down = restore / bottom quarter, Super+C = centre; Super+drag moves, Super+right-drag resizes; Alt+Tab | done, tested in a running compositor (CI "VM test") |
+| Drag a window to a screen edge to snap, with a preview | planned |
+| Title bars with close / minimise / maximise on every window | planned |
+| Top bar, dock, launcher, quick settings (with Log out), notifications, lock screen, task overview | planned, in this order |
+| Own apps: Files, Settings, Terminal skin, Welcome | planned; until then standard apps |
+
+## How we test the desktop
+CI "VM test": boots a cached XlinOS system image in QEMU with this repo shared into it, runs `scripts/ci/scenario.sh`
+(opens windows, snaps them, takes screenshots) and pushes the pictures to the branch `ci-shots-vm`. About 4 minutes per run.

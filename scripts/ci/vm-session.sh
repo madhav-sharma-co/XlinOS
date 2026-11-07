@@ -18,5 +18,5 @@ else
   bash "$R/scripts/ci/scenario.sh" "$OUT"
 fi
 hyprctl eval 'hl.dispatch(hl.dsp.exit())' >/dev/null 2>&1; sleep 1
-touch "$OUT/done"
+echo ok >"$OUT/done"
 sleep 600
