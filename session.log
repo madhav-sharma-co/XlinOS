@@ -1,0 +1,36 @@
+== monitors
+{"name":"Virtual-1","width":1280,"height":800,"reserved":[0,34,0,0]}
+== opened
+{"t":"A","floating":true,"at":[320,217],"size":[640,400]}
+{"t":"B","floating":true,"at":[320,217],"size":[640,400]}
+{"t":"C","floating":true,"at":[320,217],"size":[640,400]}
+shot 1-opened-overlapping
+left (12, 46, 622, 742) ok ok
+right (646, 46, 622, 742) ok ok
+== halves
+{"t":"A","floating":true,"at":[12,46],"size":[622,742]}
+{"t":"B","floating":true,"at":[646,46],"size":[622,742]}
+{"t":"C","floating":true,"at":[320,217],"size":[640,400]}
+shot 2-halves
+center (221, 138, 837, 556) ok ok
+shot 3-third-window-over
+max (12, 46, 1256, 742) ok ok
+== C max
+{"t":"A","floating":true,"at":[12,46],"size":[622,742]}
+{"t":"B","floating":true,"at":[646,46],"size":[622,742]}
+{"t":"C","floating":true,"at":[12,46],"size":[1256,742]}
+shot 4-maximized
+restore (221, 138, 837, 556) ok ok
+== C restored
+{"t":"A","floating":true,"at":[12,46],"size":[622,742]}
+{"t":"B","floating":true,"at":[646,46],"size":[622,742]}
+{"t":"C","floating":true,"at":[221,138],"size":[837,556]}
+shot 5-restored
+tl (12, 46, 622, 365) ok ok
+br (646, 423, 622, 365) ok ok
+== quarters
+{"t":"A","floating":true,"at":[12,46],"size":[622,365]}
+{"t":"B","floating":true,"at":[646,423],"size":[622,365]}
+{"t":"C","floating":true,"at":[221,138],"size":[837,556]}
+shot 6-quarters
+shot 7-launcher
