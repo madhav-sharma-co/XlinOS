@@ -24,7 +24,7 @@ entry.search { background: rgba(255,255,255,0.10); color: #fff; border-radius: 1
 .tile label { font-size: 12px; }
 """ + xlinos_ui.css().encode())
 
-HIDE = ("rofi", "xgps", "qv4l2", "qvidcap", "org.qt-project", "avahi", "bssh", "bvnc", "nm-connection", "kitty-open", "lstopo", "cmake", "uuctl", "org.gtk.")
+HIDE = ("thunar-bulk", "thunar-settings", "thunar-volman", "pavucontrol", "rofi", "xgps", "qv4l2", "qvidcap", "org.qt-project", "avahi", "bssh", "bvnc", "nm-connection", "kitty-open", "lstopo", "cmake", "uuctl", "org.gtk.")
 
 def apps():
     seen, out = set(), []
