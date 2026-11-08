@@ -31,15 +31,31 @@ NAMES = {"os.xlin.terminal": "Terminal", "os.xlin.files": "Files", "os.xlin.stor
 def friendly(cls):
     return NAMES.get(cls) or (cls.split(".")[-1].capitalize() if cls else "XlinOS")
 
+BASE_CSS = """
+button { background-image: none; background-color: rgba(255,255,255,0.09); color: #e6eeff; border: none; box-shadow: none; outline: none;
+         border-radius: 12px; min-height: 20px; padding: 7px 16px; }
+button:hover { background-color: rgba(255,255,255,0.16); }
+button:disabled { opacity: 0.5; }
+entry { background-image: none; background-color: rgba(255,255,255,0.07); color: #fff; border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 12px; min-height: 22px; padding: 6px 12px; box-shadow: none; outline: none; }
+entry:focus-within { border-color: #4f93ff; }
+scale trough { background: rgba(255,255,255,0.16); min-height: 6px; border-radius: 3px; border: none; box-shadow: none; }
+scale highlight { background: #1e6bff; border-radius: 3px; border: none; }
+scale slider { background: #fff; min-width: 18px; min-height: 18px; border-radius: 9px; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.35); margin: -6px; }
+switch { border-radius: 14px; border: none; box-shadow: none; background: rgba(255,255,255,0.16); }
+switch slider { border-radius: 12px; margin: 2px; min-width: 22px; min-height: 22px; background: #fff; box-shadow: none; }
+scrollbar slider { border-radius: 4px; min-width: 6px; background: rgba(255,255,255,0.22); }
+"""
+
 def window_css():
-    return """
-.xwin { background: rgba(8,14,44,1.0); border-radius: 14px; border: 1px solid rgba(255,255,255,0.14); }
+    return BASE_CSS + """
+.xwin { background: rgba(8,14,44,1.0); border-radius: 14px; border: 1px solid rgba(255,255,255,0.14); overflow: hidden; }
 .xhead { padding: 0 12px; min-height: 40px; }
 .xtitle { color: #dbe6ff; font-weight: 600; font-size: 13px; }
-.tl { min-width: 13px; min-height: 13px; padding: 0; border-radius: 7px; border: none; box-shadow: none; background: #3a4a7a; }
-.tl-close { background: #ff5f57; }
-.tl-min:hover { background: #febc2e; }
-.tl-max:hover { background: #28c840; }
+.tl { min-width: 13px; min-height: 13px; padding: 0; border-radius: 7px; border: none; box-shadow: none; background-color: #3a4a7a; }
+.tl-close { background-color: #ff5f57; }
+.tl-min:hover { background-color: #febc2e; }
+.tl-max:hover { background-color: #28c840; }
 """
 
 def make_window(app, title, width=900, height=560):

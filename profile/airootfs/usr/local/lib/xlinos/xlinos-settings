@@ -9,10 +9,10 @@ import xlinos_ui
 
 CSS = (xlinos_ui.window_css() + """
 window { background: transparent; }
-.side { background: rgba(255,255,255,0.04); padding: 10px 8px; min-width: 190px; border-radius: 0 0 0 14px; }
-.side button { background: transparent; border: none; box-shadow: none; color: #cdd9f5; border-radius: 9px; padding: 8px 10px; }
-.side button:hover { background: rgba(255,255,255,0.08); }
-.side button.sel { background: #1e4fd0; color: #fff; }
+.side { background: rgba(255,255,255,0.04); padding: 10px 8px; min-width: 190px; border-radius: 0 0 0 13px; }
+.side button { background-color: transparent; border: none; box-shadow: none; color: #cdd9f5; border-radius: 9px; padding: 8px 10px; }
+.side button:hover { background-color: rgba(255,255,255,0.08); }
+.side button.sel { background-color: #1e4fd0; color: #fff; }
 .page { padding: 22px 28px; }
 .h1 { font-size: 22px; font-weight: 700; color: #fff; }
 .sub { color: #9db4e6; }
@@ -22,7 +22,7 @@ scale trough { background: rgba(255,255,255,0.16); min-height: 6px; border-radiu
 scale highlight { background: #1e6bff; border-radius: 3px; }
 scale slider { background: #fff; min-width: 18px; min-height: 18px; border-radius: 9px; }
 switch:checked { background: #1e6bff; }
-button.primary { background: #1e6bff; color: #fff; border: none; border-radius: 12px; padding: 7px 18px; font-weight: 600; }
+button.primary { background-color: #1e6bff; color: #fff; border: none; border-radius: 12px; padding: 7px 18px; font-weight: 600; }
 .pwbox { background: rgba(8,14,44,0.98); border-radius: 16px; padding: 22px; border: 1px solid rgba(255,255,255,0.16); color: #fff; }
 .err { color: #ff8a8a; }
 """).encode()

@@ -15,16 +15,17 @@ from gi.repository import Gtk, Gdk, Gio, Gtk4LayerShell as LS
 CSS = b"""
 window { background: transparent; }
 .panel { background: rgba(10,18,52,0.94); border: 1px solid rgba(255,255,255,0.14); border-radius: 22px; padding: 18px; color: #fff; min-width: 340px; }
-.name { font-size: 18px; font-weight: 700; }
+.name { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+.sub { margin-bottom: 12px; }
 .sub { color: #9db4e6; font-size: 12px; }
-.toggle { background: rgba(255,255,255,0.08); color: #fff; border: none; border-radius: 14px; padding: 12px 14px; }
-.toggle.on { background: #1e6bff; }
-.act { background: rgba(255,255,255,0.08); color: #fff; border: none; border-radius: 14px; padding: 10px 8px; }
-.act:hover { background: rgba(255,255,255,0.16); }
-.danger { background: rgba(255,80,80,0.22); }
-scale trough { background: rgba(255,255,255,0.16); min-height: 6px; border-radius: 3px; }
+.toggle { background-image: none; background-color: rgba(255,255,255,0.08); box-shadow: none; color: #fff; border: none; border-radius: 14px; padding: 12px 14px; }
+.toggle.on { background-color: #1e6bff; }
+.act { background-image: none; background-color: rgba(255,255,255,0.08); box-shadow: none; color: #fff; border: none; border-radius: 14px; padding: 10px 8px; }
+.act:hover { background-color: rgba(255,255,255,0.16); }
+.danger { background-color: rgba(255,80,80,0.22); }
+scale trough { background: rgba(255,255,255,0.16); min-height: 6px; border-radius: 3px; border: none; box-shadow: none; }
 scale highlight { background: #1e6bff; border-radius: 3px; }
-scale slider { background: #fff; min-width: 18px; min-height: 18px; border-radius: 9px; }
+scale slider { background: #fff; min-width: 18px; min-height: 18px; border-radius: 9px; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.35); margin: -6px; }
 """
 
 def run(cmd):
