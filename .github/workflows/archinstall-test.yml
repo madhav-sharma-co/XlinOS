@@ -34,7 +34,7 @@ jobs:
       - name: Install and boot
         run: |
           sudo chmod 666 /dev/kvm || true
-          mkdir -p work && XLIN_EXPLORE=1 python3 scripts/ci-archinstall.py iso/*.iso "$PWD" "$PWD/work/out" || echo "TEST FAILED" >work/failed
+          mkdir -p work && python3 scripts/ci-archinstall.py iso/*.iso "$PWD" "$PWD/work/out" || echo "TEST FAILED" >work/failed
           true
       - name: Save pictures and logs on a branch
         if: always()
