@@ -39,5 +39,7 @@ echo "cursor move:"; hyprctl dispatch movecursor 2 400; hyprctl eval 'hl.dispatc
 sleep 0.5; hyprctl cursorpos
 XLINOS_DEBUG=1 /usr/local/lib/xlinos/xlinos-snap drop; sleep 0.8; geo; shot 13-edge-snap
 echo "== config errors"; hyprctl configerrors
+echo "== restore minimised terminal"; /usr/local/lib/xlinos/xlinos-focus os.xlin.terminal xlinos-terminal; sleep 1
+hyprctl clients -j | jq -c '.[]|select(.class=="os.xlin.terminal")|{workspace:.workspace.name,at}'; shot 14-restored-terminal
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock

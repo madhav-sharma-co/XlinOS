@@ -90,6 +90,7 @@ file_permissions+=(
   ["/usr/local/lib/xlinos/xlinos-files"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos_ui.py"]="0:0:644"
   ["/usr/local/lib/xlinos/xlinos-shell"]="0:0:755"
+  ["/usr/local/lib/xlinos/xlinos-focus"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-lock"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-quick"]="0:0:755"
   ["/usr/local/bin/xlinos-quick"]="0:0:755"
