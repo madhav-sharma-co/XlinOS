@@ -47,10 +47,10 @@ try:
     time.sleep(25); shot(s, "1-iso-menu"); cmd(s, "sendkey ret")
     time.sleep(90); shot(s, "2-iso-booted")
     cmd(s, "sendkey ctrl-alt-f2"); time.sleep(4); shot(s, "2b-tty2")
-    cmd(s, "sendkey ctrl-alt-f3"); time.sleep(4); shot(s, "2b-tty3")
-    cmd(s, "sendkey ctrl-alt-f2"); time.sleep(2)
-    if os.environ.get("XLIN_EXPLORE"): sys.exit(1)  # the live ISO starts the desktop: open XlinOS Terminal
-    for line in ("id -u; sudo -n true; echo ok", "mkdir /r", "mount -t 9p -o trans=virtio repo /r", "bash /r/scripts/ci/ai.sh"):
+    typ(s, "root"); time.sleep(2); cmd(s, "sendkey ret"); time.sleep(4); shot(s, "2b-login")
+    if os.environ.get("XLIN_EXPLORE"):
+        typ(s, "id -u; echo hello"); time.sleep(2); shot(s, "2b-cmd"); sys.exit(1)  # the live ISO starts the desktop: open XlinOS Terminal
+    for line in ("mkdir /r", "mount -t 9p -o trans=virtio repo /r", "bash /r/scripts/ci/ai.sh"):
         typ(s, line); time.sleep(2)
     shot(s, "2c-typed")
     t0 = time.time(); done = False
