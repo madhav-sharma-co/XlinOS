@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Boots the test system image and drives the first start by typing into the login screen. usage: ci-install-boot.py WORKDIR OUTDIR"""
-import os, socket, subprocess, sys, time
+import sys, os, socket, subprocess, sys, time
 W, OUT = sys.argv[1:3]
 mon = "/tmp/qemu-mon-install"
 def start():
@@ -28,6 +28,17 @@ def shot(name):
         Image.open(ppm).save(f"{OUT}/{name}.png"); os.remove(ppm)
     except Exception as e: print("convert failed", name, e)
     print("shot", name, flush=True)
+FAILS = []
+def expect_graphic(name):
+    """The picture must be a graphical screen (blue desktop or login), not a black text console."""
+    try:
+        from PIL import Image
+        im = Image.open(f"{OUT}/{name}.png").convert("RGB").resize((64, 40))
+        px = list(im.getdata()); lit = sum(1 for r, g, b in px if b > 40) / len(px)
+        print("check", name, "lit=%.2f" % lit, flush=True)
+        if lit < 0.4: FAILS.append(name)
+    except Exception as e:
+        print("check failed", name, e); FAILS.append(name)
 KEYS = {" ": "spc", ".": "dot", "-": "minus"}
 def typ(text):
     for ch in text:
@@ -35,18 +46,20 @@ def typ(text):
         elif ch.isupper(): cmd("sendkey shift-" + ch.lower())
         else: cmd("sendkey " + ch)
 try:
-    time.sleep(75); shot("1-first-start")
+    time.sleep(75); shot("1-first-start"); expect_graphic("1-first-start")
     typ("Ann Lee"); cmd("sendkey tab"); time.sleep(0.5); shot("2-name-typed")
     cmd("sendkey tab"); typ("Xlin2026pass"); cmd("sendkey tab"); typ("Xlin2026pass"); time.sleep(0.5); shot("3-form-filled")
     cmd("sendkey ret")
     time.sleep(25); shot("4-after-create")
-    time.sleep(70); shot("5-desktop-first-login")
+    time.sleep(70); shot("5-desktop-first-login"); expect_graphic("5-desktop-first-login")
     cmd("system_powerdown"); time.sleep(25)
     p.terminate(); p.wait(); time.sleep(2)
     p, s = start()
-    time.sleep(60); shot("6-login-screen")
+    time.sleep(60); shot("6-login-screen"); expect_graphic("6-login-screen")
     typ("wrongpass"); cmd("sendkey ret"); time.sleep(4); shot("7-wrong-password")
     cmd("sendkey ctrl-a"); cmd("sendkey backspace"); typ("Xlin2026pass"); cmd("sendkey ret")
-    time.sleep(45); shot("8-desktop-after-login")
+    time.sleep(45); shot("8-desktop-after-login"); expect_graphic("8-desktop-after-login")
 finally:
     p.terminate()
+if FAILS:
+    print("FAILED: not a graphical screen:", FAILS); sys.exit(1)
