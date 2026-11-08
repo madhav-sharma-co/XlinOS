@@ -17,6 +17,7 @@ window { background: transparent; }
 .side button.item:hover { background: rgba(255,255,255,0.08); }
 .side button.item.sel { background: #1e4fd0; color: #fff; }
 .stage { background: #02040f; border-radius: 0 0 14px 0; }
+.sub { color: #9db4e6; }
 .empty { color: #9db4e6; }
 .empty .big { font-size: 20px; font-weight: 700; color: #fff; }
 video, picture { background: transparent; }
@@ -48,12 +49,12 @@ def activate(app):
     empty = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); empty.add_css_class("empty")
     t1 = Gtk.Label(label="Nothing playing"); t1.add_css_class("big")
     empty.append(t1); empty.append(Gtk.Label(label="Pick a file on the left, open one, or drop it here."))
-    stage.set_child(video); stage.add_overlay(empty); empty.set_can_target(False)
+    video.set_visible(False); stage.set_child(video); stage.add_overlay(empty); empty.set_can_target(False)
     main.append(side); main.append(stage); body.append(main)
     st = {"sel": None, "btns": {}}
 
     def play(path):
-        video.set_file(Gio.File.new_for_path(path)); empty.set_visible(False)
+        video.set_visible(True); video.set_file(Gio.File.new_for_path(path)); empty.set_visible(False)
         win.set_title(os.path.basename(path))
         for pth, b in st["btns"].items():
             (b.add_css_class if pth == path else b.remove_css_class)("sel")
