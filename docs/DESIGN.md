@@ -29,10 +29,10 @@ resized, and snap to halves and quarters.
 | Part | State |
 |---|---|
 | Windows float and overlap; Super+Left/Right = halves, Up = maximize / top quarter, Down = restore / bottom quarter, Super+C = centre; Super+drag moves, Super+right-drag resizes; Alt+Tab | done, tested in a running compositor (CI "VM test") |
-| Drag a window to a screen edge to snap, with a preview | planned |
-| Title bars with close / minimise / maximise on every window | planned |
-| Top bar, dock, launcher, quick settings (with Log out), notifications, lock screen, task overview | planned, in this order |
-| Own apps: Files, Settings, Terminal skin, Welcome | planned; until then standard apps |
+| Drag a window to a screen edge or corner to snap it | built; logic tested in CI, real mouse drag not yet; preview planned |
+| Window buttons (close / minimise / maximise) | built into every XlinOS app; other apps keep their own |
+| Status bar, run bar (dock), launcher, quick settings, lock screen | built; notifications and task overview planned |
+| Own apps: Terminal, Files built; Settings, Store, Notes, Calculator, Welcome planned |
 
 ## How we test the desktop
 CI "VM test": boots a cached XlinOS system image in QEMU with this repo shared into it, runs `scripts/ci/scenario.sh`
