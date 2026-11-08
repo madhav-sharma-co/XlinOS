@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# XlinOS system update.  xlinos-update check   -> prints "<latest> <installed>" (commit ids)
+#                        xlinos-update apply   -> (root) updates system packages and the XlinOS desktop from GitHub
+REPO="${XLINOS_REPO:-https://github.com/madhav-sharma-co/XlinOS.git}"
+case "$1" in
+  check)
+    latest="$(git ls-remote "$REPO" refs/heads/main 2>/dev/null | cut -f1)"
+    [[ -n "$latest" ]] || { echo "offline"; exit 1; }
+    echo "$latest $(cat /usr/share/xlinos/commit 2>/dev/null || echo none)" ;;
+  apply)
+    [[ $EUID -eq 0 ]] || { echo "needs administrator rights"; exit 1; }
+    set -e
+    echo "STEP Updating system packages"
+    pacman -Syu --noconfirm
+    echo "STEP Getting the latest XlinOS"
+    tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+    git clone --depth 1 "$REPO" "$tmp/x"
+    echo "STEP Installing XlinOS"
+    bash "$tmp/x/scripts/install-files.sh" "$tmp/x"
+    echo "DONE" ;;
+  *) echo "usage: xlinos-update check|apply"; exit 2 ;;
+esac

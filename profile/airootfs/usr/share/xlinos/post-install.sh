@@ -23,20 +23,7 @@ printf 'XlinOS @VERSION@ (\\l)\n\n' >/etc/issue
 # XlinOS login files (login screen, account helper, session starter, browser helper)
 tmp="$(mktemp -d)"
 if git clone --depth 1 ${REF:+--branch "$REF"} https://github.com/madhav-sharma-co/XlinOS.git "$tmp/x"; then
-  A="$tmp/x/profile/airootfs"
-  install -d /usr/local/lib/xlinos
-  install -m 755 "$A"/usr/local/lib/xlinos/xlinos-greeter "$A"/usr/local/lib/xlinos/xlinos-accounts "$A"/usr/local/lib/xlinos/xlinos-shell "$A"/usr/local/lib/xlinos/xlinos-notes "$A"/usr/local/lib/xlinos/xlinos-calculator "$A"/usr/local/lib/xlinos/xlinos-store "$A"/usr/local/lib/xlinos/xlinos-settings "$A"/usr/local/lib/xlinos/xlinos-focus "$A"/usr/local/lib/xlinos/xlinos-files "$A"/usr/local/lib/xlinos/xlinos-terminal "$A"/usr/local/lib/xlinos/xlinos_ui.py "$A"/usr/local/lib/xlinos/xlinos-lock "$A"/usr/local/lib/xlinos/xlinos-quick "$A"/usr/local/lib/xlinos/xlinos-launcher "$A"/usr/local/lib/xlinos/xlinos-snap /usr/local/lib/xlinos/
-  install -m 644 "$A"/usr/local/lib/xlinos/xlinos_login.py /usr/local/lib/xlinos/
-  install -m 755 "$A"/usr/local/bin/xlinos-session "$A"/usr/local/bin/xlinos-browser "$A"/usr/local/bin/xlinos-snap "$A"/usr/local/bin/xlinos-launcher "$A"/usr/local/bin/xlinos-lock "$A"/usr/local/bin/xlinos-notes "$A"/usr/local/bin/xlinos-calculator "$A"/usr/local/bin/xlinos-store "$A"/usr/local/bin/xlinos-settings "$A"/usr/local/bin/xlinos-terminal "$A"/usr/local/bin/xlinos-files "$A"/usr/local/bin/xlinos-quick /usr/local/bin/
-  install -m 644 "$A"/usr/share/applications/xlinos-browser.desktop /usr/share/applications/
-  install -D -m 644 "$A"/usr/share/xlinos/xlinos-mark.png /usr/share/xlinos/xlinos-mark.png
-  install -D -m 644 "$A"/usr/share/xlinos/hypr/hyprland.lua /usr/share/xlinos/hypr/hyprland.lua
-  install -D -m 644 "$A"/usr/share/xlinos/hyprlock.conf /usr/share/xlinos/hyprlock.conf
-  install -D -m 644 "$A"/usr/share/xlinos/wallpapers/xlin-dark.jpg /usr/share/xlinos/wallpapers/xlin-dark.jpg
-  install -d /etc/greetd
-  install -m 644 "$A"/usr/share/xlinos/greetd-config.toml /etc/greetd/config.toml
-  install -m 440 "$A"/usr/share/xlinos/sudoers-greeter /etc/sudoers.d/xlinos-greeter
-  chown root:root /usr/local/lib/xlinos/xlinos-accounts && chmod 755 /usr/local/lib/xlinos/xlinos-accounts   # root-owned: the greeter may only run it
+  bash "$tmp/x/scripts/install-files.sh" "$tmp/x"
   systemctl enable greetd.service
 else
   echo "XlinOS: could not fetch the login files. Check the internet and run the installer again."

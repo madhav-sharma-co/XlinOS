@@ -37,3 +37,8 @@ resized, and snap to halves and quarters.
 ## How we test the desktop
 CI "VM test": boots a cached XlinOS system image in QEMU with this repo shared into it, runs `scripts/ci/scenario.sh`
 (opens windows, snaps them, takes screenshots) and pushes the pictures to the branch `ci-shots-vm`. About 4 minutes per run.
+
+## System updates
+Settings > About > **Update System**: `xlinos-update` (root) runs `pacman -Syu`, fetches the latest XlinOS from GitHub and runs
+`scripts/install-files.sh` (the same script the installer uses), then asks for a restart. "Check for updates" compares the
+installed commit (`/usr/share/xlinos/commit`) with the latest on GitHub. Needs an administrator password and internet.
