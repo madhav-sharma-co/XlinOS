@@ -63,7 +63,7 @@ def activate(app):
         else:
             tile.add_css_class("t-other")
             img = Gtk.Image.new_from_gicon(a.get_icon() or Gio.ThemedIcon.new("application-x-executable")); img.set_pixel_size(34)
-        img.set_hexpand(True); tile.append(img)
+        img.set_hexpand(True); img.set_vexpand(True); img.set_halign(Gtk.Align.CENTER); img.set_valign(Gtk.Align.CENTER); tile.append(img)
         lab = Gtk.Label(label=a.get_name(), ellipsize=3, max_width_chars=14)
         box.append(tile); box.append(lab); b.set_child(box)
         b.connect("clicked", launch, a); flow.append(b); tiles.append((a.get_name().lower(), b))
