@@ -33,7 +33,7 @@ def friendly(cls):
 
 def window_css():
     return """
-.xwin { background: rgba(8,14,44,0.97); border-radius: 14px; border: 1px solid rgba(255,255,255,0.14); }
+.xwin { background: rgba(8,14,44,1.0); border-radius: 14px; border: 1px solid rgba(255,255,255,0.14); }
 .xhead { padding: 0 12px; min-height: 40px; }
 .xtitle { color: #dbe6ff; font-weight: 600; font-size: 13px; }
 .tl { min-width: 13px; min-height: 13px; padding: 0; border-radius: 7px; border: none; box-shadow: none; background: #3a4a7a; }
