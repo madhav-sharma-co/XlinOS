@@ -81,7 +81,7 @@ def activate(app):
     root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=28, margin_top=90, margin_bottom=60, margin_start=80, margin_end=80)
     root.append(entry); root.append(scroll)
     w.set_child(root)
-    k = Gtk.EventControllerKey()
+    k = Gtk.EventControllerKey(); k.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
     k.connect("key-pressed", lambda c, kv, kc, st: (app.quit(), True)[1] if kv == Gdk.KEY_Escape else False)
     w.add_controller(k)
     click = Gtk.GestureClick(); click.connect("pressed", lambda g, n, x, y: None); w.add_controller(click)
