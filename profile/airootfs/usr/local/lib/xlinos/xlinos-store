@@ -92,7 +92,7 @@ def activate(app):
 
     for name, desc, pkg, icon, grad in CATALOG:
         card = Gtk.Box(spacing=12); card.add_css_class("appcard")
-        t = Gtk.Box(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); t.add_css_class("aticon")
+        t = Gtk.Box(halign=Gtk.Align.START, valign=Gtk.Align.CENTER, hexpand=False); t.add_css_class("aticon"); t.set_size_request(52, 52)
         cls = "st-" + pkg.replace("+", "p"); t.add_css_class(cls)
         pr = Gtk.CssProvider(); pr.load_from_data(("." + cls + " { background-image: linear-gradient(135deg, %s, %s); }" % grad).encode())
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), pr, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
