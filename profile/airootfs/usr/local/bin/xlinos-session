@@ -1,40 +1,12 @@
 #!/usr/bin/env bash
-# Starts the Xlin-soft desktop for the logged-in user. The first time, Xlin-soft is set up for this user.
-if [[ ! -f "$HOME/.config/xlin/state/source" && -d /opt/xlin-soft ]]; then
-  src="$HOME/.Xlin-soft"
-  [[ -d "$src" ]] || cp -r /opt/xlin-soft "$src"
-  if command -v xlin >/dev/null 2>&1 && [[ ! -w /usr/local/bin ]]; then
-    # installed system: the programs, packages and services were set up for everyone at install time,
-    # so a user without admin rights must not (and cannot) use sudo here. A stand-in "sudo" that only
-    # skips those steps is used for this one run. It never gains any rights.
-    shim="$(mktemp -d)"; printf '#!/bin/sh\nexit 0\n' >"$shim/sudo"; chmod +x "$shim/sudo"; export PATH="$shim:$PATH"
-  fi
-  ( cd "$src" && XLIN_NO_UPGRADE=1 bash install.sh </dev/null ) >"$HOME/.xlinos-first-start.log" 2>&1 \
-    || echo "XlinOS: desktop setup had a problem, see ~/.xlinos-first-start.log"
-  mkdir -p "$HOME/.config/xlin/state"; echo "$src" >"$HOME/.config/xlin/state/source"
-fi
-# the XlinOS look: its dark palette replaces Xlin-soft's dark theme (re-applied when an Xlin-soft update changes it back)
-th="$HOME/.config/xlin/themes"
-if [[ -d "$th" && -f /usr/share/xlinos/themes/dark.sh ]] && ! cmp -s /usr/share/xlinos/themes/dark.sh "$th/dark.sh"; then
-  cp /usr/share/xlinos/themes/dark.sh "$th/dark.sh"
-  mkdir -p "$HOME/.config/xlin/state"; echo dark >"$HOME/.config/xlin/state/theme"
-  timeout 30 xlin theme dark >/dev/null 2>&1 || true
-fi
-# the XlinOS wallpaper (replaces the built-in dark one), and XlinOS settings loaded after the desktop config
-w="$HOME/.config/xlin/wallpapers"
-if [[ -d "$w" && -f /usr/share/xlinos/wallpapers/xlin-dark.jpg ]] && ! cmp -s /usr/share/xlinos/wallpapers/xlin-dark.jpg "$w/xlin-dark.jpg"; then
-  cp /usr/share/xlinos/wallpapers/xlin-dark.jpg "$w/xlin-dark.jpg"; rm -f "$HOME/.config/xlin/state/wallpaper"
-fi
-hc="$HOME/.config/hypr"
-if [[ -f "$hc/hyprland.lua" && -f /usr/share/xlinos/xlinos.lua ]]; then
-  cp /usr/share/xlinos/xlinos.lua "$hc/xlinos.lua"
-  grep -q 'require("xlinos")' "$hc/hyprland.lua" || printf '\npcall(require, "xlinos")   -- XlinOS settings\n' >>"$hc/hyprland.lua"
-fi
-export XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=Hyprland
-# virtual machines and old graphics: let Hyprland draw in software when there is no GPU driver for it
+# Starts the XlinOS desktop for the logged-in user.
+export XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=Hyprland   # names the system parts expect; never shown
+# XlinOS owns its window settings: they are placed fresh at every login
+mkdir -p "$HOME/.config/hypr"
+cp /usr/share/xlinos/hypr/hyprland.lua "$HOME/.config/hypr/hyprland.lua"
+# virtual machines and old graphics: draw in software when there is no GPU driver
 if command -v systemd-detect-virt >/dev/null && systemd-detect-virt -q; then
   export WLR_RENDERER_ALLOW_SOFTWARE=1 WLR_NO_HARDWARE_CURSORS=1
 fi
-# newer Hyprland wants to be started through its own launcher
 command -v start-hyprland >/dev/null 2>&1 && exec start-hyprland
 exec Hyprland

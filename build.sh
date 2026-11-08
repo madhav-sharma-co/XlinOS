@@ -5,8 +5,6 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 ROOT="$PWD"
 USE_AUR=0; [[ "${1:-}" == "--aur" ]] && USE_AUR=1   # the dock is in the official repo now; --aur only for AUR extras
-XLIN_SOFT_REPO="${XLIN_SOFT_REPO:-https://github.com/madhav-sharma-co/XLIN-Soft.git}"
-XLIN_SOFT_REF="${XLIN_SOFT_REF:-main}"
 RELENG=/usr/share/archiso/configs/releng
 WORK="$ROOT/work"; OUT="$ROOT/out"; PROFILE="$WORK/profile"
 
@@ -18,7 +16,7 @@ say() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 version="$(cat "$ROOT/VERSION")"
 say "Preparing the profile (XlinOS $version)"
 mkdir -p "$WORK" "$OUT"
-[[ -n "$WORK" && -d "$WORK" ]] && rm -rf "${WORK:?}/profile" "${WORK:?}/tmp" "${WORK:?}/xlin-soft"
+[[ -n "$WORK" && -d "$WORK" ]] && rm -rf "${WORK:?}/profile" "${WORK:?}/tmp" 
 cp -r "$RELENG" "$PROFILE"
 
 # --- identity of the ISO
@@ -37,13 +35,6 @@ sed -i \
 say "Packages"
 grep -vE '^\s*(#|$)' "$ROOT/profile/packages.extra" >>"$PROFILE/packages.x86_64"
 sort -u -o "$PROFILE/packages.x86_64" "$PROFILE/packages.x86_64"
-
-# --- the Xlin-soft source goes into the image
-say "Xlin-soft ($XLIN_SOFT_REF)"
-git clone --depth 1 --branch "$XLIN_SOFT_REF" "$XLIN_SOFT_REPO" "$WORK/xlin-soft"
-rm -rf "$WORK/xlin-soft/.git"
-mkdir -p "$PROFILE/airootfs/opt"
-cp -r "$WORK/xlin-soft" "$PROFILE/airootfs/opt/xlin-soft"
 
 # --- our files on top of releng's airootfs
 cp -r "$ROOT/profile/airootfs/." "$PROFILE/airootfs/"

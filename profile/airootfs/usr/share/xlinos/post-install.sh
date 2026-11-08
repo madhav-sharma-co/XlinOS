@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs inside the new system at the end of the install (archinstall custom_commands).
-# Needs the internet (it fetches Xlin-soft and the XlinOS login files from GitHub).
+# Needs the internet (it fetches the XlinOS desktop files from GitHub).
 set -u
 REF="@XLINOS_REF@"
 # the XlinOS name (replaces the symlink that the Arch filesystem package installs)
@@ -20,14 +20,6 @@ BUG_REPORT_URL="https://github.com/madhav-sharma-co/XlinOS/issues"
 EOT
 printf 'XlinOS @VERSION@ (\\l)\n\n' >/etc/issue
 
-# Xlin-soft for everyone: source in /opt, programs in /usr/local (what its installer would do, done once as root)
-git clone --depth 1 https://github.com/madhav-sharma-co/XLIN-Soft.git /opt/xlin-soft && rm -rf /opt/xlin-soft/.git
-if [[ -f /opt/xlin-soft/scripts/files.sh ]]; then
-  SRC=/opt/xlin-soft; . /opt/xlin-soft/scripts/files.sh
-  for b in "${XLIN_BINS[@]}"; do install -m 755 "$SRC/bin/$b" "/usr/local/bin/$b"; done
-  for l in "${XLIN_LIBS[@]}"; do install -D -m 644 "$SRC/lib/$l" "/usr/local/lib/xlin/$l"; done
-fi
-
 # XlinOS login files (login screen, account helper, session starter, browser helper)
 tmp="$(mktemp -d)"
 if git clone --depth 1 ${REF:+--branch "$REF"} https://github.com/madhav-sharma-co/XlinOS.git "$tmp/x"; then
@@ -38,9 +30,9 @@ if git clone --depth 1 ${REF:+--branch "$REF"} https://github.com/madhav-sharma-
   install -m 755 "$A"/usr/local/bin/xlinos-session "$A"/usr/local/bin/xlinos-browser "$A"/usr/local/bin/xlinos-snap "$A"/usr/local/bin/xlinos-launcher "$A"/usr/local/bin/xlinos-lock "$A"/usr/local/bin/xlinos-notes "$A"/usr/local/bin/xlinos-calculator "$A"/usr/local/bin/xlinos-store "$A"/usr/local/bin/xlinos-settings "$A"/usr/local/bin/xlinos-terminal "$A"/usr/local/bin/xlinos-files "$A"/usr/local/bin/xlinos-quick /usr/local/bin/
   install -m 644 "$A"/usr/share/applications/xlinos-browser.desktop /usr/share/applications/
   install -D -m 644 "$A"/usr/share/xlinos/xlinos-mark.png /usr/share/xlinos/xlinos-mark.png
-  install -D -m 644 "$A"/usr/share/xlinos/themes/dark.sh /usr/share/xlinos/themes/dark.sh
+  install -D -m 644 "$A"/usr/share/xlinos/hypr/hyprland.lua /usr/share/xlinos/hypr/hyprland.lua
+  install -D -m 644 "$A"/usr/share/xlinos/hyprlock.conf /usr/share/xlinos/hyprlock.conf
   install -D -m 644 "$A"/usr/share/xlinos/wallpapers/xlin-dark.jpg /usr/share/xlinos/wallpapers/xlin-dark.jpg
-  install -D -m 644 "$A"/usr/share/xlinos/xlinos.lua /usr/share/xlinos/xlinos.lua
   install -d /etc/greetd
   install -m 644 "$A"/usr/share/xlinos/greetd-config.toml /etc/greetd/config.toml
   install -m 440 "$A"/usr/share/xlinos/sudoers-greeter /etc/sudoers.d/xlinos-greeter
