@@ -40,6 +40,9 @@ def recorder():
         time.sleep(REC["every"])
 threading.Thread(target=recorder, daemon=True).start(); REC["on"] = True
 def shot(s, name):
+  try: _shot(s, name)
+  except Exception as e: print("shot failed", name, e, flush=True)
+def _shot(s, name):
     ppm = f"{out}/shots/{name}.ppm"; cmd(s, f"screendump {ppm}")
     try:
         from PIL import Image
