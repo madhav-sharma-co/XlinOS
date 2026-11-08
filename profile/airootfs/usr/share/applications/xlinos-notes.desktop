@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Notes
+Comment=Write notes
+Exec=xlinos-notes
+Icon=accessories-text-editor
+Terminal=false
+Categories=Utility;
+StartupWMClass=os.xlin.notes

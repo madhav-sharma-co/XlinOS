@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Settings
+Comment=System settings
+Exec=xlinos-settings
+Icon=preferences-system
+Terminal=false
+Categories=Settings;
+StartupWMClass=os.xlin.settings

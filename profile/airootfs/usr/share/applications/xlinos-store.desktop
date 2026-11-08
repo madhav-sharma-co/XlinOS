@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Store
+Comment=Get and remove apps
+Exec=xlinos-store
+Icon=folder-download
+Terminal=false
+Categories=System;
+StartupWMClass=os.xlin.store

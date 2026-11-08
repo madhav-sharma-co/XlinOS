@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Calculator
+Comment=Calculate
+Exec=xlinos-calculator
+Icon=accessories-calculator
+Terminal=false
+Categories=Utility;
+StartupWMClass=os.xlin.calculator

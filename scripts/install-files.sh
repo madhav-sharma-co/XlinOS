@@ -14,7 +14,7 @@ for f in "$A"/usr/local/bin/*; do
   [[ "$(basename "$f")" == xlinos-install ]] && continue
   install -m 755 "$f" /usr/local/bin/
 done
-install -m 644 "$A"/usr/share/applications/xlinos-browser.desktop /usr/share/applications/
+for f in "$A"/usr/share/applications/xlinos-*.desktop; do [[ "$f" == *xlinos-install.desktop ]] && continue; install -m 644 "$f" /usr/share/applications/; done
 install -D -m 644 "$A"/usr/share/xlinos/xlinos-mark.png /usr/share/xlinos/xlinos-mark.png
 install -D -m 644 "$A"/usr/share/xlinos/hypr/hyprland.lua /usr/share/xlinos/hypr/hyprland.lua
 install -D -m 644 "$A"/usr/share/xlinos/hyprlock.conf /usr/share/xlinos/hyprlock.conf

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Terminal
+Comment=Command line
+Exec=xlinos-terminal
+Icon=utilities-terminal
+Terminal=false
+Categories=System;
+StartupWMClass=os.xlin.terminal
