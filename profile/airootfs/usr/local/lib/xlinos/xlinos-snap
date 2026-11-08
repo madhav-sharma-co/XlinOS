@@ -55,14 +55,19 @@ def watch(win, addr, mx, my, mw, mh, spots):
     open(PIDF, "w").write(str(os.getpid()))
     start = (win["at"], win["size"]); shown = None; proc = None
     t0 = time.time()
+    n = 0
     while time.time() - t0 < 120:
         time.sleep(0.05)
         cur = json.loads(hc("activewindow", "-j") or "{}")
+        n += 1
+        if n % 20 == 1:
+            print("watch", cur.get("address") == addr, cur.get("at"), start[0], hc("cursorpos", "-j").replace("\n", " "), file=sys.stderr, flush=True)
         moved = cur.get("address") == addr and (cur.get("at"), cur.get("size")) != start
         cp = json.loads(hc("cursorpos", "-j") or "{}")
         z = zone_for(cp.get("x", -1) - mx, cp.get("y", -1) - my, mw, mh) if moved else None
         if z != shown:
             if proc: proc.terminate(); proc = None
+            print("zone", z, file=sys.stderr, flush=True)
             if z:
                 x, y, w, h = spots[z]
                 proc = subprocess.Popen([PREVIEW, str(x), str(y), str(w), str(h)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
