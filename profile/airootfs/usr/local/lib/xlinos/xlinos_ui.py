@@ -7,6 +7,8 @@ APPS = [
     ("terminal", "Terminal", "utilities-terminal-symbolic", ("#1c2a5c", "#0f1838"), "xlinos-terminal", "os.xlin.terminal"),
     ("store",    "Store",    "folder-download-symbolic",         ("#b06bff", "#7a3fe0"), "xlinos-store",    "os.xlin.store"),
     ("settings", "Settings", "emblem-system-symbolic",        ("#7b6dff", "#4b3fd6"), "xlinos-settings", "os.xlin.settings"),
+    ("notes",    "Notes",    "document-edit-symbolic",         ("#19d2ff", "#1196e6"), "xlinos-notes",    "os.xlin.notes"),
+    ("calculator", "Calculator", "accessories-calculator-symbolic", ("#8a7bff", "#5a45e0"), "xlinos-calculator", "os.xlin.calculator"),
     ("browser",  "Browser",  "applications-internet-symbolic",        ("#19d2ff", "#0a74ff"), "xlinos-browser", ""),
 ]
 
@@ -24,7 +26,7 @@ def css():
 
 
 # ---------------------------------------------------------------- window chrome for XlinOS apps
-NAMES = {"os.xlin.terminal": "Terminal", "os.xlin.files": "Files", "os.xlin.store": "Store", "os.xlin.settings": "Settings"}
+NAMES = {"os.xlin.terminal": "Terminal", "os.xlin.files": "Files", "os.xlin.store": "Store", "os.xlin.settings": "Settings", "os.xlin.notes": "Notes", "os.xlin.calculator": "Calculator"}
 
 def friendly(cls):
     return NAMES.get(cls) or (cls.split(".")[-1].capitalize() if cls else "XlinOS")

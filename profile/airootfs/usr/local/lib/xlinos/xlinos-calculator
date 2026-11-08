@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""XlinOS Calculator."""
+import os, sys, ast, operator as op
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, Gio
+import xlinos_ui
+
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+.disp { color: #fff; font-size: 40px; font-weight: 300; padding: 8px 18px 2px; }
+.expr { color: #9db4e6; font-size: 14px; padding: 0 18px; }
+.key { background: rgba(255,255,255,0.08); color: #fff; border: none; border-radius: 14px; font-size: 18px; min-height: 52px; box-shadow: none; }
+.key:hover { background: rgba(255,255,255,0.16); }
+.op { background: rgba(79,147,255,0.30); }
+.eq { background: #1e6bff; }
+""").encode()
+
+OPS = {ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul, ast.Div: op.truediv, ast.Mod: op.mod, ast.Pow: op.pow,
+       ast.USub: op.neg, ast.UAdd: op.pos}
+
+def ev(n):
+    if isinstance(n, ast.Expression): return ev(n.body)
+    if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)): return n.value
+    if isinstance(n, ast.BinOp) and type(n.op) in OPS: return OPS[type(n.op)](ev(n.left), ev(n.right))
+    if isinstance(n, ast.UnaryOp) and type(n.op) in OPS: return OPS[type(n.op)](ev(n.operand))
+    raise ValueError("bad")
+
+def calc(s):
+    s = s.replace("×", "*").replace("÷", "/").replace("−", "-").replace("^", "**")
+    v = ev(ast.parse(s, mode="eval"))
+    if isinstance(v, float) and v.is_integer(): v = int(v)
+    return str(round(v, 10) if isinstance(v, float) else v)
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Calculator", 340, 520)
+    expr = Gtk.Label(xalign=1); expr.add_css_class("expr")
+    disp = Gtk.Label(label="0", xalign=1); disp.add_css_class("disp")
+    body.append(expr); body.append(disp)
+    st = {"t": ""}
+    def show(): disp.set_text(st["t"] or "0")
+    def press(k):
+        if k == "C": st["t"] = ""; expr.set_text("")
+        elif k == "⌫": st["t"] = st["t"][:-1]
+        elif k == "=":
+            try:
+                e = st["t"]; st["t"] = calc(e); expr.set_text(e + " =")
+            except Exception:
+                st["t"] = ""; expr.set_text("Error")
+        else: st["t"] += k
+        show()
+    grid = Gtk.Grid(row_spacing=8, column_spacing=8, margin_start=14, margin_end=14, margin_bottom=14, margin_top=10, vexpand=True, row_homogeneous=True, column_homogeneous=True)
+    keys = ["C", "(", ")", "÷", "7", "8", "9", "×", "4", "5", "6", "−", "1", "2", "3", "+", "0", ".", "⌫", "="]
+    for i, k in enumerate(keys):
+        b = Gtk.Button(label=k); b.add_css_class("key")
+        if k in "÷×−+": b.add_css_class("op")
+        if k == "=": b.add_css_class("eq")
+        b.connect("clicked", lambda _b, k=k: press(k)); grid.attach(b, i % 4, i // 4, 1, 1)
+    body.append(grid)
+    kc = Gtk.EventControllerKey()
+    def key(c, kv, kcode, mods):
+        ch = Gdk.keyval_to_unicode(kv)
+        if kv in (Gdk.KEY_Return, Gdk.KEY_KP_Enter): press("="); return True
+        if kv == Gdk.KEY_BackSpace: press("⌫"); return True
+        if kv == Gdk.KEY_Escape: press("C"); return True
+        if ch and chr(ch) in "0123456789.+-*/()%": press({"*": "×", "/": "÷", "-": "−"}.get(chr(ch), chr(ch))); return True
+        return False
+    kc.connect("key-pressed", key); win.add_controller(kc)
+    win.present()
+
+app = Gtk.Application(application_id="os.xlin.calculator", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app.connect("activate", activate); sys.exit(app.run(None))
