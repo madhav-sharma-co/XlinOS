@@ -5,7 +5,7 @@ name: VM test
 on:
   workflow_dispatch:
   push:
-    paths: ['profile/airootfs/usr/local/lib/xlinos/**', 'profile/airootfs/usr/local/bin/**', 'profile/airootfs/usr/share/xlinos/**', 'scripts/ci/**', 'scripts/ci-vm-*', '.github/workflows/vm-test.yml']
+    paths: ['profile/airootfs/usr/local/lib/xlinos/**', 'profile/airootfs/usr/local/bin/**', 'profile/airootfs/usr/share/xlinos/**', 'profile/airootfs/usr/share/applications/**', 'scripts/ci/**', 'scripts/ci-vm-*', '.github/workflows/vm-test.yml']
 permissions:
   contents: write
 concurrency:
