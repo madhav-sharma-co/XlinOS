@@ -53,7 +53,8 @@ def stop_watch():
 def watch(win, addr, mx, my, mw, mh, spots):
     import time
     open(PIDF, "w").write(str(os.getpid()))
-    start = (win["at"], win["size"]); shown = None; proc = None
+    pr = load().get("_press") or {}
+    start = (pr.get("at", win["at"]), pr.get("size", win["size"])); shown = None; proc = None
     t0 = time.time()
     n = 0
     while time.time() - t0 < 120:
