@@ -4,14 +4,13 @@
   "ntp": true,
   "services": ["NetworkManager", "bluetooth", "power-profiles-daemon", "fstrim.timer"],
   "packages": [
-    "hyprland", "hyprlock", "thunar", "gtk-session-lock", "waybar", "swaync", "jq", "socat", "libnotify", "brightnessctl", "networkmanager",
-    "network-manager-applet", "pipewire", "pipewire-alsa", "pipewire-pulse", "wireplumber", "pavucontrol",
-    "blueman", "bluez", "bluez-utils", "imagemagick", "ttf-font-awesome", "inter-font", "ttf-nerd-fonts-symbols",
+    "hyprland", "hyprlock", "gtk-session-lock", "jq", "socat", "libnotify", "brightnessctl", "networkmanager",
+    "pipewire", "pipewire-alsa", "pipewire-pulse", "wireplumber", "bluez", "bluez-utils", "inter-font", "ttf-nerd-fonts-symbols",
     "ttf-jetbrains-mono-nerd", "gtk3", "gtk4", "python-gobject", "gtk4-layer-shell", "power-profiles-daemon",
-    "hyprlock", "hypridle", "hyprsunset", "vte4", "polkit", "hyprpolkitagent", "rofi", "udisks2", "gvfs",
-    "gvfs-smb", "grim", "slurp", "wl-clipboard", "cliphist", "playerctl", "xdg-desktop-portal-hyprland",
+    "hyprlock", "hypridle", "vte4", "polkit", "hyprpolkitagent", "udisks2", "gvfs",
+    "gvfs-smb", "grim", "wl-clipboard", "playerctl", "xdg-desktop-portal-hyprland",
     "xdg-desktop-portal-gtk", "gst-plugins-base", "gst-plugins-good", "gst-plugins-bad", "gst-libav",
-    "gst-plugin-gtk4", "gtksourceview5", "poppler-glib", "kitty", "awww", "nwg-dock-hyprland", "zram-generator", "sudo", "git", "greetd", "cage",
+    "gst-plugin-gtk4", "gtksourceview5", "poppler-glib", "kitty", "zram-generator", "sudo", "git", "greetd", "cage",
     "mesa", "vulkan-icd-loader", "sof-firmware", "nano"
   ],
   "custom_commands": [

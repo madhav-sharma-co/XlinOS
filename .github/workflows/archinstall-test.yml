@@ -1,0 +1,47 @@
+name: Installer test
+# Boots the ISO of a finished "Build ISO" run, runs the real installer (archinstall) onto a blank disk, then boots the result.
+# Pictures go to the branch ci-shots-archinstall.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Build ISO run id (empty = latest successful)"
+        required: false
+permissions:
+  contents: write
+  actions: read
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find the build
+        id: run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id="${{ github.event.inputs.run_id }}"
+          [ -n "$id" ] || id="$(gh run list --workflow 'Build ISO' --status success --limit 1 --json databaseId -q '.[0].databaseId')"
+          echo "id=$id" >>"$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          name: xlinos-iso
+          path: iso
+          run-id: ${{ steps.run.outputs.id }}
+          github-token: ${{ github.token }}
+      - run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 ovmf python3-pil
+      - name: Install and boot
+        run: |
+          sudo chmod 666 /dev/kvm || true
+          mkdir -p work && python3 scripts/ci-archinstall.py iso/*.iso "$PWD" "$PWD/work/out" || echo "TEST FAILED" >work/failed
+          true
+      - name: Save pictures and logs on a branch
+        if: always()
+        run: |
+          mkdir -p save; cp -r work/out/shots/* save/ 2>/dev/null || true
+          cp work/out/install.log work/out/*serial.log save/ 2>/dev/null || true
+          cp work/failed save/ 2>/dev/null || true
+          cd save; git init -q -b ci-shots-archinstall; git config user.name ci; git config user.email ci@users.noreply.github.com
+          echo "build run ${{ steps.run.outputs.id }}" >README.txt
+          git add -A && git commit -qm "installer test" && git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-shots-archinstall
