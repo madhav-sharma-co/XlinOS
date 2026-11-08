@@ -25,3 +25,12 @@ install -m 440 "$A"/usr/share/xlinos/sudoers-greeter /etc/sudoers.d/xlinos-greet
 chown root:root /usr/local/lib/xlinos/xlinos-accounts /usr/local/lib/xlinos/xlinos-update
 chmod 755 /usr/local/lib/xlinos/xlinos-accounts /usr/local/lib/xlinos/xlinos-update
 git -C "$R" rev-parse HEAD >/usr/share/xlinos/commit 2>/dev/null || echo unknown >/usr/share/xlinos/commit
+
+# the start-up menu says XlinOS (never the base system's name) and does not wait
+for e in /boot/loader/entries/*.conf; do
+  [[ -f "$e" ]] || continue
+  sed -i -E 's/^title .*/title   XlinOS/' "$e"
+done
+if [[ -f /boot/loader/loader.conf ]]; then
+  if grep -q '^timeout' /boot/loader/loader.conf; then sed -i -E 's/^timeout .*/timeout 0/' /boot/loader/loader.conf; else echo "timeout 0" >>/boot/loader/loader.conf; fi
+fi

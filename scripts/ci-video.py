@@ -22,8 +22,9 @@ def raw(c):
     with lock:
         s = S["sock"]
         if not s: return
-        s.sendall((c + "\n").encode()); time.sleep(0.12)
-        try: s.recv(65536)
+        try:
+            s.sendall((c + "\n").encode()); time.sleep(0.12)
+            s.recv(65536)
         except Exception: pass
 
 def grab():
@@ -43,7 +44,9 @@ def grab():
 
 def recorder():
     while not stop:
-        grab(); time.sleep(PHASE["every"])
+        try: grab()
+        except Exception as e: print("grab failed", e, flush=True)
+        time.sleep(PHASE["every"])
 threading.Thread(target=recorder, daemon=True).start()
 
 def phase(cap, every=2.0, speed=1.0):
