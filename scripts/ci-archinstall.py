@@ -21,11 +21,24 @@ def qemu(extra, name):
         if os.path.exists(mon): break
         time.sleep(0.2)
     s = socket.socket(socket.AF_UNIX); s.connect(mon); s.settimeout(5)
+    REC["sock"] = s
     return p, s
+import threading
+LOCK = threading.RLock(); REC = {"on": False, "n": 0, "sock": None, "every": 2.0}
 def cmd(s, c):
-    s.sendall((c + "\n").encode()); time.sleep(0.15)
-    try: s.recv(65536)
-    except Exception: pass
+    with LOCK:
+        s.sendall((c + "\n").encode()); time.sleep(0.15)
+        try: s.recv(65536)
+        except Exception: pass
+def recorder():
+    """Takes a picture of the virtual screen every few seconds; ffmpeg turns them into the video."""
+    os.makedirs(out + "/frames", exist_ok=True)
+    while REC["on"]:
+        if REC["sock"] is not None:
+            try: cmd(REC["sock"], f"screendump {out}/frames/{REC['n']:05d}.ppm"); REC["n"] += 1
+            except Exception: pass
+        time.sleep(REC["every"])
+threading.Thread(target=recorder, daemon=True).start(); REC["on"] = True
 def shot(s, name):
     ppm = f"{out}/shots/{name}.ppm"; cmd(s, f"screendump {ppm}")
     try:
@@ -60,20 +73,36 @@ try:
     shot(s, "4-install-end")
     time.sleep(10)
 finally:
-    p.terminate(); p.wait()
+    REC["sock"] = None; p.terminate(); p.wait()
 shutil.copy(repo + "/out/install.log", out + "/install.log") if os.path.exists(repo + "/out/install.log") else None
 if not done:
     print("FAILED: installer did not finish"); sys.exit(1)
-# ---- phase 2: boot the installed disk
+# ---- phase 2: boot the installed disk (UEFI), create the first user, log in, use the desktop
 p, s = qemu([], "phase2")
 fails = []
+def lit(name):
+    from PIL import Image
+    im = Image.open(f"{out}/shots/{name}.png").convert("RGB").resize((64, 40))
+    px = list(im.getdata()); v = sum(1 for r, g, b in px if b > 40) / len(px); print("check", name, "lit=%.2f" % v, flush=True)
+    return v
+def typ2(text):
+    for ch in text:
+        if ch in KEYS: cmd(s, "sendkey " + KEYS[ch])
+        elif ch.isupper(): cmd(s, "sendkey shift-" + ch.lower())
+        else: cmd(s, "sendkey " + ch)
 try:
     time.sleep(90); shot(s, "5-first-boot")
-    from PIL import Image
-    im = Image.open(f"{out}/shots/5-first-boot.png").convert("RGB").resize((64, 40))
-    px = list(im.getdata()); lit = sum(1 for r, g, b in px if b > 40) / len(px)
-    print("first boot lit=%.2f" % lit)
-    if lit < 0.4: fails.append("first boot is not the graphical welcome screen")
+    if lit("5-first-boot") < 0.4: fails.append("first boot is not the graphical welcome screen")
+    typ2("Ann Lee"); cmd(s, "sendkey tab"); time.sleep(0.5)
+    cmd(s, "sendkey tab"); typ2("Xlin2026pass"); cmd(s, "sendkey tab"); typ2("Xlin2026pass"); time.sleep(1); shot(s, "6-form-filled")
+    cmd(s, "sendkey ret"); time.sleep(100); shot(s, "7-desktop")
+    if lit("7-desktop") < 0.4: fails.append("no desktop after creating the user")
+    for name, keys in (("8-launcher", "meta_l-spc"), ("9-closed", "esc"), ("10-terminal", "meta_l-ret"), ("11-quick", "meta_l-a")):
+        cmd(s, "sendkey " + keys); time.sleep(6); shot(s, name)
+    cmd(s, "sendkey esc"); time.sleep(2)
+    cmd(s, "sendkey meta_l-l"); time.sleep(8); shot(s, "12-lock")
+    time.sleep(5)
 finally:
-    p.terminate()
+    time.sleep(3); REC["on"] = False; time.sleep(3); p.terminate()
+subprocess.run(f"cd {out} && ffmpeg -y -loglevel error -framerate 6 -i frames/%05d.ppm -vf scale=1024:-2 -c:v libx264 -preset veryfast -crf 29 -pix_fmt yuv420p xlinos-install.mp4", shell=True)
 if fails: print("FAILED:", fails); sys.exit(1)
