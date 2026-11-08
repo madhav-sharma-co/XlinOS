@@ -49,7 +49,7 @@ def activate(app):
     tiles = []
     def launch(_b, a):
         a.launch([], None); app.quit()
-    KEYS = {"kitty": "terminal", "xlinos-terminal": "terminal", "browser": "browser", "thunar": "files", "xlinos-settings": "settings", "xlinos-files": "files"}
+    KEYS = {"kitty": "terminal", "xlinos-terminal": "terminal", "browser": "browser", "thunar": "files", "xlinos-settings": "settings", "xlinos-store": "store", "xlinos-files": "files"}
     ICONS = {a_[0]: a_[2] for a_ in xlinos_ui.APPS}
     for a in apps():
         b = Gtk.Button(); b.add_css_class("tile")

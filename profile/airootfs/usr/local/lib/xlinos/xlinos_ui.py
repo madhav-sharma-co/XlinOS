@@ -5,6 +5,7 @@ import shutil
 APPS = [
     ("files",    "Files",    "folder-symbolic",             ("#3b8bff", "#1e5bff"), "xlinos-files",   "os.xlin.files"),
     ("terminal", "Terminal", "utilities-terminal-symbolic", ("#1c2a5c", "#0f1838"), "xlinos-terminal", "os.xlin.terminal"),
+    ("store",    "Store",    "emblem-shared-symbolic",         ("#b06bff", "#7a3fe0"), "xlinos-store",    "os.xlin.store"),
     ("settings", "Settings", "emblem-system-symbolic",        ("#7b6dff", "#4b3fd6"), "xlinos-settings", "os.xlin.settings"),
     ("browser",  "Browser",  "applications-internet-symbolic",        ("#19d2ff", "#0a74ff"), "xlinos-browser", ""),
 ]

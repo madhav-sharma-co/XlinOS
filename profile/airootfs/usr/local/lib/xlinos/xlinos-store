@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""XlinOS Store: install and remove apps."""
+import os, sys, subprocess, threading
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, Gio, GLib
+import xlinos_ui
+
+# name, description, package, icon, gradient
+CATALOG = [
+    ("Firefox", "Fast, private web browser", "firefox", "applications-internet-symbolic", ("#ff9a3c", "#e0431c")),
+    ("Chromium", "Open-source web browser", "chromium", "applications-internet-symbolic", ("#19d2ff", "#0a74ff")),
+    ("VLC", "Plays any video or music", "vlc", "multimedia-player-symbolic", ("#ffb347", "#ff7b00")),
+    ("LibreOffice", "Documents, sheets and slides", "libreoffice-fresh", "x-office-document-symbolic", ("#3ddc97", "#12a06b")),
+    ("GIMP", "Photo editing", "gimp", "image-x-generic-symbolic", ("#8a7bff", "#5a45e0")),
+    ("Inkscape", "Vector drawing", "inkscape", "applications-graphics-symbolic", ("#3b8bff", "#1e5bff")),
+    ("Audacity", "Record and edit audio", "audacity", "audio-input-microphone-symbolic", ("#ff6b6b", "#d63a3a")),
+    ("OBS Studio", "Screen recording and streaming", "obs-studio", "camera-video-symbolic", ("#4a5578", "#232b47")),
+    ("Steam", "Games", "steam", "applications-games-symbolic", ("#3a6fa8", "#1b3a63")),
+    ("Thunderbird", "Email", "thunderbird", "mail-unread-symbolic", ("#4f93ff", "#2a5fd6")),
+    ("Visual Studio Code", "Code editor", "code", "text-editor-symbolic", ("#2f8fff", "#1560c8")),
+    ("Telegram", "Messaging", "telegram-desktop", "mail-send-symbolic", ("#35b6ff", "#1b8fd8")),
+]
+
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+.page { padding: 18px 24px; }
+.h1 { font-size: 22px; font-weight: 700; color: #fff; }
+.sub { color: #9db4e6; }
+.search { background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 8px 12px; }
+.appcard { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 14px; color: #e6eeff; min-width: 250px; }
+.appcard .n { font-weight: 700; font-size: 14px; }
+.appcard .d { color: #9db4e6; font-size: 12px; }
+.aticon { border-radius: 14px; min-width: 52px; min-height: 52px; }
+.aticon image { color: #fff; -gtk-icon-size: 26px; }
+button.get { background: #1e6bff; color: #fff; border: none; border-radius: 12px; padding: 6px 18px; font-weight: 600; }
+button.rem { background: rgba(255,255,255,0.10); color: #fff; border: none; border-radius: 12px; padding: 6px 18px; }
+button.busy { background: rgba(255,255,255,0.10); color: #9db4e6; }
+.pw { background: rgba(8,14,44,0.98); border-radius: 16px; padding: 22px; border: 1px solid rgba(255,255,255,0.16); color: #fff; }
+.pw entry { background: rgba(255,255,255,0.08); color: #fff; border-radius: 10px; padding: 8px 12px; }
+.err { color: #ff8a8a; }
+""").encode()
+
+def installed(pkg):
+    return subprocess.run(["pacman", "-Q", pkg], capture_output=True).returncode == 0
+
+def sudo(args, pw):
+    p = subprocess.run(["sudo", "-S", "-p", "", *args], input=(pw + "\n").encode(), capture_output=True)
+    return p.returncode == 0, (p.stderr or b"").decode()[-300:]
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Store", 900, 600)
+    ov = Gtk.Overlay(); body.append(ov); ov.set_vexpand(True)
+    page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12); page.add_css_class("page"); ov.set_child(page)
+    h = Gtk.Label(label="Store", xalign=0); h.add_css_class("h1")
+    sub = Gtk.Label(label="Install apps for XlinOS. Admin password required.", xalign=0); sub.add_css_class("sub")
+    search = Gtk.SearchEntry(placeholder_text="Search apps"); search.add_css_class("search")
+    page.append(h); page.append(sub); page.append(search)
+    flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=3, min_children_per_line=1, homogeneous=True, row_spacing=10, column_spacing=10, valign=Gtk.Align.START)
+    sc = Gtk.ScrolledWindow(vexpand=True); sc.set_child(flow); page.append(sc)
+    cards = []
+    state = {"pw": None}
+
+    def ask_password(then):
+        if state["pw"]: return then()
+        dlg = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); dlg.add_css_class("pw")
+        dlg.append(Gtk.Label(label="Enter your password to continue", xalign=0))
+        e = Gtk.Entry(visibility=False, placeholder_text="Password", width_chars=28); err = Gtk.Label(xalign=0); err.add_css_class("err")
+        row = Gtk.Box(spacing=8, halign=Gtk.Align.END); cancel = Gtk.Button(label="Cancel"); ok = Gtk.Button(label="Continue"); ok.add_css_class("get")
+        row.append(cancel); row.append(ok); dlg.append(e); dlg.append(err); dlg.append(row)
+        ov.add_overlay(dlg); e.grab_focus()
+        def submit(_w):
+            pw = e.get_text(); good, _m = sudo(["-v"], pw)
+            if good:
+                state["pw"] = pw; ov.remove_overlay(dlg); then()
+            else:
+                err.set_text("Wrong password"); e.set_text("")
+        e.connect("activate", submit); ok.connect("clicked", submit); cancel.connect("clicked", lambda _b: ov.remove_overlay(dlg))
+
+    def act(pkg, btn, installing, refresh):
+        def go():
+            btn.set_label("Installing…" if installing else "Removing…"); btn.set_sensitive(False); btn.add_css_class("busy")
+            def work():
+                args = ["pacman", "-S", "--noconfirm", "--needed", pkg] if installing else ["pacman", "-Rns", "--noconfirm", pkg]
+                good, msg = sudo(args, state["pw"])
+                GLib.idle_add(lambda: (btn.remove_css_class("busy"), btn.set_sensitive(True), refresh(), sub.set_text("" if good else "Could not finish: " + msg.strip().splitlines()[-1] if msg.strip() else "Could not finish")))
+            threading.Thread(target=work, daemon=True).start()
+        ask_password(go)
+
+    for name, desc, pkg, icon, grad in CATALOG:
+        card = Gtk.Box(spacing=12); card.add_css_class("appcard")
+        t = Gtk.Box(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); t.add_css_class("aticon")
+        cls = "st-" + pkg.replace("+", "p"); t.add_css_class(cls)
+        pr = Gtk.CssProvider(); pr.load_from_data(("." + cls + " { background-image: linear-gradient(135deg, %s, %s); }" % grad).encode())
+        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), pr, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        im = Gtk.Image.new_from_icon_name(icon); im.set_hexpand(True); t.append(im)
+        txt = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, hexpand=True, valign=Gtk.Align.CENTER)
+        n = Gtk.Label(label=name, xalign=0); n.add_css_class("n"); d = Gtk.Label(label=desc, xalign=0, wrap=True); d.add_css_class("d")
+        txt.append(n); txt.append(d)
+        b = Gtk.Button(valign=Gtk.Align.CENTER)
+        def refresh(b=b, pkg=pkg):
+            inst = installed(pkg)
+            b.set_label("Remove" if inst else "Get")
+            for c in ("get", "rem"): b.remove_css_class(c)
+            b.add_css_class("rem" if inst else "get")
+        refresh()
+        b.connect("clicked", lambda _b, b=b, pkg=pkg, r=refresh: act(pkg, b, not installed(pkg), r))
+        card.append(t); card.append(txt); card.append(b); flow.append(card); cards.append((name.lower() + " " + desc.lower(), card))
+    def filt(_e):
+        q = search.get_text().lower()
+        for k, c in cards: c.get_parent().set_visible(q in k)
+    search.connect("search-changed", filt)
+    win.present()
+
+app = Gtk.Application(application_id="os.xlin.store", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app.connect("activate", activate)
+sys.exit(app.run(None))
