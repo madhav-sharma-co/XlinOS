@@ -48,5 +48,7 @@ sleep 8; shot 16-store
 xlinos-calculator >"$OUT/calc.log" 2>&1 &
 xlinos-notes >"$OUT/notes.log" 2>&1 &
 sleep 9; shot 17-calc-notes
+xlinos-media >"$OUT/media.log" 2>&1 &
+sleep 8; shot 18-media
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock

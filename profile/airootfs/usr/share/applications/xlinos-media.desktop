@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Media
+Comment=Play videos and music
+Exec=xlinos-media %U
+Icon=multimedia-video-player
+Terminal=false
+Categories=AudioVideo;Player;
+MimeType=video/mp4;video/x-matroska;video/webm;audio/mpeg;audio/flac;audio/ogg;
+StartupWMClass=os.xlin.media

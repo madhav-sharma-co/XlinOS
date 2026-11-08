@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+"""XlinOS Media: plays video and music from ~/Videos and ~/Music, or any file you open or drop on the window."""
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, Gio, GLib
+import xlinos_ui
+
+EXT = {".mp4", ".mkv", ".webm", ".avi", ".mov", ".m4v", ".mp3", ".flac", ".ogg", ".opus", ".wav", ".m4a", ".aac"}
+DIRS = [("Videos", "~/Videos"), ("Music", "~/Music"), ("Downloads", "~/Downloads")]
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+.side { background: rgba(255,255,255,0.04); padding: 12px 8px; min-width: 240px; border-radius: 0 0 0 14px; }
+.side .sec { color: #9db4e6; font-size: 11px; font-weight: 700; margin: 10px 10px 4px 10px; }
+.side button.item { background: transparent; border: none; box-shadow: none; color: #cdd9f5; border-radius: 10px; padding: 8px 12px; }
+.side button.item:hover { background: rgba(255,255,255,0.08); }
+.side button.item.sel { background: #1e4fd0; color: #fff; }
+.stage { background: #02040f; border-radius: 0 0 14px 0; }
+.empty { color: #9db4e6; }
+.empty .big { font-size: 20px; font-weight: 700; color: #fff; }
+video, picture { background: transparent; }
+""").encode()
+
+def library():
+    out = []
+    for label, d in DIRS:
+        d = os.path.expanduser(d); items = []
+        try:
+            for n in sorted(os.listdir(d), key=str.lower):
+                if os.path.splitext(n)[1].lower() in EXT: items.append(os.path.join(d, n))
+        except OSError:
+            pass
+        if items: out.append((label, items))
+    return out
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Media", 960, 600)
+    main = Gtk.Box(vexpand=True)
+    side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); side.add_css_class("side")
+    openb = Gtk.Button(label="Open file…"); openb.add_css_class("primary"); side.append(openb)
+    lst = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+    sl = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sl.set_child(lst); side.append(sl)
+    stage = Gtk.Overlay(hexpand=True, vexpand=True); stage.add_css_class("stage")
+    video = Gtk.Video(hexpand=True, vexpand=True, autoplay=True)
+    empty = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); empty.add_css_class("empty")
+    t1 = Gtk.Label(label="Nothing playing"); t1.add_css_class("big")
+    empty.append(t1); empty.append(Gtk.Label(label="Pick a file on the left, open one, or drop it here."))
+    stage.set_child(video); stage.add_overlay(empty); empty.set_can_target(False)
+    main.append(side); main.append(stage); body.append(main)
+    st = {"sel": None, "btns": {}}
+
+    def play(path):
+        video.set_file(Gio.File.new_for_path(path)); empty.set_visible(False)
+        win.set_title(os.path.basename(path))
+        for pth, b in st["btns"].items():
+            (b.add_css_class if pth == path else b.remove_css_class)("sel")
+
+    def fill():
+        while (c := lst.get_first_child()) is not None: lst.remove(c)
+        st["btns"].clear()
+        lib = library()
+        if not lib:
+            lab = Gtk.Label(label="No videos or music yet.\nPut files in Videos or Music.", wrap=True, xalign=0, margin_top=12, margin_start=10); lab.add_css_class("sub"); lst.append(lab)
+        for label, items in lib:
+            h = Gtk.Label(label=label.upper(), xalign=0); h.add_css_class("sec"); lst.append(h)
+            for pth in items:
+                b = Gtk.Button(label=os.path.splitext(os.path.basename(pth))[0]); b.add_css_class("item")
+                b.get_child().set_xalign(0); b.get_child().set_ellipsize(3)
+                b.connect("clicked", lambda _b, q=pth: play(q)); lst.append(b); st["btns"][pth] = b
+    fill()
+
+    def chosen(dlg, res):
+        try: f = dlg.open_finish(res)
+        except GLib.Error: return
+        if f and f.get_path(): play(f.get_path())
+    def pick(_b):
+        d = Gtk.FileDialog(title="Open a video or song"); d.open(win, None, chosen)
+    openb.connect("clicked", pick)
+    drop = Gtk.DropTarget.new(Gio.File, Gdk.DragAction.COPY)
+    drop.connect("drop", lambda _t, f, x, y: (play(f.get_path()), True)[1] if f.get_path() else False)
+    win.add_controller(drop)
+    if app.initial: play(app.initial)
+    win.present()
+
+app = Gtk.Application(application_id="os.xlin.media", flags=Gio.ApplicationFlags.HANDLES_OPEN)
+app.initial = None
+def opened(a, files, n, hint):
+    a.initial = files[0].get_path() if files else None; a.activate()
+app.connect("activate", activate); app.connect("open", opened)
+sys.exit(app.run(sys.argv))
