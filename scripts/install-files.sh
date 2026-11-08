@@ -5,10 +5,12 @@ set -e
 R="${1:?repo dir}"; A="$R/profile/airootfs"
 install -d /usr/local/lib/xlinos /usr/local/bin
 for f in "$A"/usr/local/lib/xlinos/*; do
+  [[ -f "$f" ]] || continue
   case "$f" in *.py) m=644 ;; *) m=755 ;; esac
   install -m "$m" "$f" /usr/local/lib/xlinos/
 done
 for f in "$A"/usr/local/bin/*; do
+  [[ -f "$f" ]] || continue
   [[ "$(basename "$f")" == xlinos-install ]] && continue
   install -m 755 "$f" /usr/local/bin/
 done
