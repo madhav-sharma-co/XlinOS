@@ -5,11 +5,12 @@ import shutil
 APPS = [
     ("files",    "Files",    "folder-symbolic",             ("#3b8bff", "#1e5bff"), "xlinos-files",   "os.xlin.files"),
     ("terminal", "Terminal", "utilities-terminal-symbolic", ("#1c2a5c", "#0f1838"), "xlinos-terminal", "os.xlin.terminal"),
+    ("settings", "Settings", "emblem-system-symbolic",        ("#7b6dff", "#4b3fd6"), "xlinos-settings", "os.xlin.settings"),
     ("browser",  "Browser",  "web-browser-symbolic",        ("#19d2ff", "#0a74ff"), "xlinos-browser", ""),
 ]
 
 def available():
-    return [a for a in APPS if shutil.which(a[4].split()[0]) or shutil.which(a[4].split()[0], path="/usr/local/bin:/usr/bin")]
+    return [a for a in APPS if shutil.which(a[4].split()[0], path="/usr/local/bin:/usr/bin")]
 
 def css():
     out = [".apptile { border-radius: 16px; min-width: 52px; min-height: 52px; }",

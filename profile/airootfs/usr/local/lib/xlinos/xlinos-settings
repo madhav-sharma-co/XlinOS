@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""XlinOS Settings: network, sound, display, power, users, about."""
+import os, sys, subprocess, pwd, platform
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, Gio, GLib
+import xlinos_ui
+
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+.side { background: rgba(255,255,255,0.04); padding: 10px 8px; min-width: 190px; border-radius: 0 0 0 14px; }
+.side button { background: transparent; border: none; box-shadow: none; color: #cdd9f5; border-radius: 9px; padding: 8px 10px; }
+.side button:hover { background: rgba(255,255,255,0.08); }
+.side button.sel { background: #1e4fd0; color: #fff; }
+.page { padding: 22px 28px; }
+.h1 { font-size: 22px; font-weight: 700; color: #fff; }
+.sub { color: #9db4e6; }
+.card { background: rgba(255,255,255,0.06); border-radius: 14px; padding: 14px 16px; color: #e6eeff; }
+.card label.k { color: #9db4e6; }
+scale trough { background: rgba(255,255,255,0.16); min-height: 6px; border-radius: 3px; }
+scale highlight { background: #1e6bff; border-radius: 3px; }
+scale slider { background: #fff; min-width: 18px; min-height: 18px; border-radius: 9px; }
+switch:checked { background: #1e6bff; }
+""").encode()
+
+def run(c):
+    try: return subprocess.run(c, shell=True, capture_output=True, text=True, timeout=4).stdout.strip()
+    except Exception: return ""
+
+def bg(c): subprocess.Popen(c, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+
+def card(*widgets):
+    b = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); b.add_css_class("card")
+    for w in widgets: b.append(w)
+    return b
+
+def row(key, val):
+    r = Gtk.Box(spacing=12); k = Gtk.Label(label=key, xalign=0, hexpand=True); k.add_css_class("k")
+    r.append(k); r.append(Gtk.Label(label=val, xalign=1, selectable=True)); return r
+
+def page(title, sub=""):
+    b = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14); b.add_css_class("page")
+    h = Gtk.Label(label=title, xalign=0); h.add_css_class("h1"); b.append(h)
+    if sub:
+        s = Gtk.Label(label=sub, xalign=0, wrap=True); s.add_css_class("sub"); b.append(s)
+    return b
+
+def slider(get, set_):
+    s = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1); s.set_value(get())
+    s.connect("value-changed", lambda sc: set_(int(sc.get_value()))); return s
+
+def p_network():
+    b = page("Network"); sw = Gtk.Switch(active="enabled" in run("nmcli radio wifi"), halign=Gtk.Align.END)
+    sw.connect("state-set", lambda _s, st: bg("nmcli radio wifi " + ("on" if st else "off")) or False)
+    r = Gtk.Box(); r.append(Gtk.Label(label="Wi-Fi", xalign=0, hexpand=True)); r.append(sw); b.append(card(r))
+    nets = [l for l in run("nmcli -t -f IN-USE,SSID,SIGNAL dev wifi list").splitlines() if l.split(":")[1:2] != [""]]
+    seen = set(); items = []
+    for l in nets:
+        u, ssid, sig = (l.split(":") + ["", "", ""])[:3]
+        if ssid and ssid not in seen: seen.add(ssid); items.append(row(("● " if u == "*" else "") + ssid, sig + "%"))
+    b.append(card(*(items or [Gtk.Label(label="No Wi-Fi networks found", xalign=0)])))
+    return b
+
+def p_sound():
+    b = page("Sound")
+    def get():
+        try: return int(float(run("wpctl get-volume @DEFAULT_AUDIO_SINK@").split()[1]) * 100)
+        except Exception: return 50
+    b.append(card(Gtk.Label(label="Output volume", xalign=0), slider(get, lambda v: bg("wpctl set-volume @DEFAULT_AUDIO_SINK@ %d%%" % v))))
+    return b
+
+def p_display():
+    b = page("Display")
+    mon = run("hyprctl -j monitors")
+    try:
+        import json; m = json.loads(mon)[0]; info = "%dx%d @ %.0f Hz" % (m["width"], m["height"], m["refreshRate"])
+    except Exception: info = "Unknown"
+    b.append(card(row("Screen", info)))
+    if run("brightnessctl -m"):
+        def get():
+            try: return int(run("brightnessctl -m").split(",")[3].rstrip("%"))
+            except Exception: return 70
+        b.append(card(Gtk.Label(label="Brightness", xalign=0), slider(get, lambda v: bg("brightnessctl set %d%%" % v))))
+    return b
+
+def p_power():
+    b = page("Power", "Choose how XlinOS balances speed and battery.")
+    cur = run("powerprofilesctl get")
+    box = Gtk.Box(spacing=8)
+    grp = None
+    for key, label in (("power-saver", "Battery saver"), ("balanced", "Balanced"), ("performance", "Performance")):
+        t = Gtk.ToggleButton(label=label, active=(cur == key), group=grp); grp = grp or t
+        t.connect("toggled", lambda w, k=key: bg("powerprofilesctl set " + k) if w.get_active() else None); box.append(t)
+    b.append(card(box)); return b
+
+def p_users():
+    b = page("Users", "To add or remove a user, log out and use the login screen.")
+    items = []
+    for u in pwd.getpwall():
+        if 1000 <= u.pw_uid < 60000:
+            items.append(row(u.pw_gecos.split(",")[0] or u.pw_name, u.pw_name + (" (you)" if u.pw_name == os.environ.get("USER") else "")))
+    b.append(card(*items))
+    out = Gtk.Button(label="Log out"); out.connect("clicked", lambda _b: bg("hyprctl dispatch exit")); b.append(out)
+    return b
+
+def p_about():
+    b = page("About XlinOS")
+    rel = {}
+    try:
+        for l in open("/etc/os-release"):
+            if "=" in l: k, v = l.strip().split("=", 1); rel[k] = v.strip('"')
+    except OSError: pass
+    mem = ""
+    try: mem = "%.1f GB" % (int(open("/proc/meminfo").readline().split()[1]) / 1048576)
+    except Exception: pass
+    cpu = ""
+    try: cpu = next(l.split(":")[1].strip() for l in open("/proc/cpuinfo") if l.startswith("model name"))
+    except Exception: pass
+    b.append(card(row("System", rel.get("PRETTY_NAME", "XlinOS")), row("Version", rel.get("VERSION_ID", rel.get("BUILD_ID", ""))),
+                  row("Processor", cpu), row("Memory", mem), row("Device name", platform.node())))
+    return b
+
+PAGES = [("Network", "network-wireless-symbolic", p_network), ("Sound", "audio-volume-high-symbolic", p_sound),
+         ("Display", "video-display-symbolic", p_display), ("Power", "battery-symbolic", p_power),
+         ("Users", "avatar-default-symbolic", p_users), ("About", "help-about-symbolic", p_about)]
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Settings", 860, 560)
+    main = Gtk.Box(vexpand=True); side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); side.add_css_class("side")
+    stack = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
+    btns = {}
+    def show(name, fn):
+        stack.set_child(fn())
+        for n, b in btns.items(): (b.add_css_class if n == name else b.remove_css_class)("sel")
+    for name, icon, fn in PAGES:
+        b = Gtk.Button(); r = Gtk.Box(spacing=10); r.append(Gtk.Image.new_from_icon_name(icon)); r.append(Gtk.Label(label=name, xalign=0))
+        b.set_child(r); b.connect("clicked", lambda _b, n=name, f=fn: show(n, f)); side.append(b); btns[name] = b
+    main.append(side); main.append(stack); body.append(main)
+    start = sys.argv[1].lower() if len(sys.argv) > 1 else "network"
+    n, f = next(((n, f) for n, _i, f in PAGES if n.lower() == start), (PAGES[0][0], PAGES[0][2]))
+    show(n, f); win.present()
+
+app = Gtk.Application(application_id="os.xlin.settings", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app.connect("activate", activate)
+sys.exit(app.run(None))

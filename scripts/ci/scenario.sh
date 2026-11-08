@@ -41,5 +41,7 @@ XLINOS_DEBUG=1 /usr/local/lib/xlinos/xlinos-snap drop; sleep 0.8; geo; shot 13-e
 echo "== config errors"; hyprctl configerrors
 echo "== restore minimised terminal"; /usr/local/lib/xlinos/xlinos-focus os.xlin.terminal xlinos-terminal; sleep 1
 hyprctl clients -j | jq -c '.[]|select(.class=="os.xlin.terminal")|{workspace:.workspace.name,at}'; shot 14-restored-terminal
+xlinos-settings about >"$OUT/settings.log" 2>&1 &
+sleep 8; shot 15-settings
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock
