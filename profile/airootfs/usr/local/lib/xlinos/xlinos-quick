@@ -25,7 +25,7 @@ window { background: transparent; }
 .act { background-image: none; background-color: rgba(255,255,255,0.08); box-shadow: none; color: #fff; border: none; border-radius: 12px; min-height: 22px; padding: 11px 8px; }
 .act:hover { background-color: rgba(255,255,255,0.16); }
 .danger { background-color: rgba(255,80,80,0.22); }
-scale { min-height: 24px; }
+scale { min-height: 18px; }
 scale trough { background: rgba(255,255,255,0.16); background-image: none; min-height: 6px; border-radius: 3px; border: none; box-shadow: none; outline: none; }
 scale highlight { background: #1e6bff; background-image: none; border-radius: 3px; border: none; outline: none; }
 scale slider { background: #fff; min-width: 18px; min-height: 18px; border-radius: 9px; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.35); margin: -6px; }

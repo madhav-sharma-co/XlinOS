@@ -79,6 +79,8 @@ def build(monitor, primary):
         pb = GdkPixbuf.Pixbuf.new_from_file(WALL)
         s = max(geo.width / pb.get_width(), geo.height / pb.get_height())
         pb = pb.scale_simple(int(pb.get_width() * s), int(pb.get_height() * s), GdkPixbuf.InterpType.BILINEAR)
+        x0 = max(0, (pb.get_width() - geo.width) // 2); y0 = max(0, (pb.get_height() - geo.height) // 2)
+        pb = pb.new_subpixbuf(x0, y0, min(geo.width, pb.get_width()), min(geo.height, pb.get_height()))  # crop to the screen so the surface is not wider than it
         ov.add(Gtk.Image.new_from_pixbuf(pb))
     except Exception:
         pass
