@@ -20,7 +20,6 @@ jobs:
         run: bash scripts/ci-install-test.sh shots
       - name: Push the pictures
         if: always()
-        if: always()
         run: |
           cd shots
           rm -f *.ppm
