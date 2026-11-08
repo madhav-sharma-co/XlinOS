@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+"""Snap preview: a soft blue rectangle showing where a dragged window will land. usage: xlinos-preview X Y W H"""
+import os, sys
+LIB = "/usr/lib/libgtk4-layer-shell.so"
+if os.path.exists(LIB) and LIB not in os.environ.get("LD_PRELOAD", ""):
+    os.environ["LD_PRELOAD"] = (os.environ.get("LD_PRELOAD", "") + " " + LIB).strip()
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+import gi
+gi.require_version("Gtk", "4.0"); gi.require_version("Gtk4LayerShell", "1.0")
+from gi.repository import Gtk, Gdk, Gio, Gtk4LayerShell as LS
+x, y, w, h = (int(v) for v in sys.argv[1:5])
+CSS = b"window { background: transparent; } .p { background: rgba(79,147,255,0.22); border: 2px solid rgba(120,175,255,0.8); border-radius: 14px; }"
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win = Gtk.ApplicationWindow(application=app)
+    LS.init_for_window(win); LS.set_layer(win, LS.Layer.OVERLAY); LS.set_namespace(win, "xlinos-preview")
+    LS.set_anchor(win, LS.Edge.TOP, True); LS.set_anchor(win, LS.Edge.LEFT, True)
+    LS.set_margin(win, LS.Edge.TOP, y); LS.set_margin(win, LS.Edge.LEFT, x); LS.set_exclusive_zone(win, -1)
+    LS.set_keyboard_mode(win, LS.KeyboardMode.NONE)
+    b = Gtk.Box(); b.add_css_class("p"); b.set_size_request(w, h); win.set_default_size(w, h); win.set_child(b); win.present()
+app = Gtk.Application(application_id="os.xlin.preview", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app.connect("activate", activate); sys.exit(app.run(None))

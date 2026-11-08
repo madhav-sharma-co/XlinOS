@@ -16,11 +16,59 @@ def lua(code):
     return subprocess.run(["hyprctl", "eval", code], capture_output=True, text=True, timeout=4).stdout.strip()
 
 
+def zone_for(cx, cy, mw, mh):
+    """Which snap spot a cursor at (cx, cy) on the screen points to, or None."""
+    E_, C_ = 6, 90
+    l, r_, t, b = cx <= E_, cx >= mw - 1 - E_, cy <= E_, cy >= mh - 1 - E_
+    if (t and cx <= C_) or (l and cy <= C_): return "tl"
+    if (t and cx >= mw - C_) or (r_ and cy <= C_): return "tr"
+    if (b and cx <= C_) or (l and cy >= mh - C_): return "bl"
+    if (b and cx >= mw - C_) or (r_ and cy >= mh - C_): return "br"
+    if t: return "max"
+    if l: return "left"
+    if r_: return "right"
+    return None
+
+
 def load():
     try:
         return json.load(open(STATE))
     except Exception:
         return {}
+
+
+PIDF = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "xlinos-snap-watch.pid")
+PREVIEW = "/usr/local/lib/xlinos/xlinos-preview"
+
+
+def stop_watch():
+    try:
+        pid = int(open(PIDF).read()); os.remove(PIDF)
+        os.kill(pid, 15)
+    except Exception:
+        pass
+    subprocess.run(["pkill", "-f", "lib/xlinos/xlinos-preview"], capture_output=True)
+
+
+def watch(win, addr, mx, my, mw, mh, spots):
+    import time
+    open(PIDF, "w").write(str(os.getpid()))
+    start = (win["at"], win["size"]); shown = None; proc = None
+    t0 = time.time()
+    while time.time() - t0 < 120:
+        time.sleep(0.05)
+        cur = json.loads(hc("activewindow", "-j") or "{}")
+        moved = cur.get("address") == addr and (cur.get("at"), cur.get("size")) != start
+        cp = json.loads(hc("cursorpos", "-j") or "{}")
+        z = zone_for(cp.get("x", -1) - mx, cp.get("y", -1) - my, mw, mh) if moved else None
+        if z != shown:
+            if proc: proc.terminate(); proc = None
+            if z:
+                x, y, w, h = spots[z]
+                proc = subprocess.Popen([PREVIEW, str(x), str(y), str(w), str(h)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            shown = z
+    if proc: proc.terminate()
+    return 0
 
 
 def main(action):
@@ -44,30 +92,24 @@ def main(action):
         "bl": (x0, y0 + hh + GAP, hw, hh), "br": (x0 + hw + GAP, y0 + hh + GAP, hw, hh),
         "center": (x0 + w // 6, y0 + h // 8, w * 2 // 3, h * 3 // 4),
     }
+    if action == "watch":                       # runs while the button is held: shows where the window would snap
+        return watch(win, addr, mx, my, mw, mh, spots)
     st = load()
     if action == "press":                       # mouse button went down: remember where the window is
         st["_press"] = {"addr": addr, "at": win["at"], "size": win["size"]}
-        json.dump(st, open(STATE, "w")); return 0
-    if action == "drop":                        # mouse button released: if the window was dragged to a screen edge, snap it
+        json.dump(st, open(STATE, "w"))
+        stop_watch()
+        subprocess.Popen([sys.argv[0], "watch"], start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return 0
+    if action == "drop":
+        stop_watch()                        # mouse button released: if the window was dragged to a screen edge, snap it
         pr = st.get("_press") or {}
         if pr.get("addr") != addr or (pr.get("at") == win["at"] and pr.get("size") == win["size"]):
             return 0
         cp = json.loads(hc("cursorpos", "-j") or "{}")
         cx, cy = cp.get("x", -1) - mx, cp.get("y", -1) - my
-        E_, C_ = 6, 90
-        l, r_, t, b = cx <= E_, cx >= mw - 1 - E_, cy <= E_, cy >= mh - 1 - E_
-        if t and cx <= C_: action = "tl"
-        elif t and cx >= mw - C_: action = "tr"
-        elif b and cx <= C_: action = "bl"
-        elif b and cx >= mw - C_: action = "br"
-        elif l and cy <= C_: action = "tl"
-        elif l and cy >= mh - C_: action = "bl"
-        elif r_ and cy <= C_: action = "tr"
-        elif r_ and cy >= mh - C_: action = "br"
-        elif t: action = "max"
-        elif l: action = "left"
-        elif r_: action = "right"
-        else: return 0
+        action = zone_for(cx, cy, mw, mh)
+        if action is None: return 0
         st.pop("_press", None)
     cur = st.get(addr, {})
     last = cur.get("last")
