@@ -50,16 +50,16 @@ window { background-color: #03081c; }
 label { color: #ffffff; }
 .time { font-size: 96px; font-weight: 200; }
 .date { font-size: 20px; color: #9db4e6; }
-.avatar { background-color: #1e6bff; border-radius: 40px; }
+.avatar { background-color: #1e6bff; border-radius: 44px; min-width: 88px; min-height: 88px; }
 .avatar label { font-size: 32px; font-weight: 700; }
-.user { font-size: 20px; font-weight: 700; margin: 6px 0 10px 0; }
+.user { font-size: 20px; font-weight: 700; margin: 10px 0 14px 0; }
 .msg { color: #ff8a8a; font-size: 13px; }
-entry { background: rgba(12,20,56,0.85); color: #fff; border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 12px 16px; min-width: 320px; box-shadow: none; }
+entry { background: rgba(12,20,56,0.85); color: #fff; border: 1px solid rgba(255,255,255,0.18); border-radius: 12px; padding: 0 16px; min-height: 48px; box-shadow: none; }
 entry:focus { border-color: #4f93ff; }
-button.login { background-image: none; background-color: #1e6bff; color: #fff; border: none; box-shadow: none; border-radius: 14px; padding: 12px; min-width: 320px; font-weight: 600; }
+button.login { background-image: none; background-color: #1e6bff; color: #fff; border: none; box-shadow: none; border-radius: 12px; padding: 0 12px; min-height: 48px; font-weight: 600; }
 button.login:hover { background-color: #3b82ff; }
-button.link { background-image: none; background-color: transparent; color: #9db4e6; border: none; box-shadow: none; padding: 6px 10px; }
-button.link:hover { color: #fff; }
+button.link { background-image: none; background-color: transparent; color: #9db4e6; border: none; box-shadow: none; border-radius: 12px; min-height: 36px; padding: 0 18px; }
+button.link:hover { color: #fff; background-color: rgba(255,255,255,0.08); }
 """
 
 lock = SL.prepare_lock()
@@ -95,16 +95,16 @@ def build(monitor, primary):
             full = pwd.getpwnam(USER).pw_gecos.split(",")[0] or USER
         except Exception:
             full = USER
-        av = Gtk.Box(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); av.set_size_request(80, 80); av.get_style_context().add_class("avatar"); av.set_margin_top(30)
+        av = Gtk.Box(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); av.set_size_request(88, 88); av.get_style_context().add_class("avatar"); av.set_margin_top(30)
         al = Gtk.Label(label=full[:1].upper(), halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER, hexpand=True, vexpand=True); av.add(al)
         u = Gtk.Label(label=full); u.get_style_context().add_class("user")
-        e = Gtk.Entry(visibility=False, halign=Gtk.Align.CENTER); e.set_alignment(0.0); e.set_size_request(320, -1)
+        e = Gtk.Entry(visibility=False, halign=Gtk.Align.CENTER); e.set_alignment(0.0); e.set_size_request(320, 48)
         e.set_placeholder_text("Password")
         e.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, "view-reveal-symbolic")
         e.connect("icon-press", lambda en, pos, ev: en.set_visibility(not en.get_visibility()))
         m = Gtk.Label(); m.get_style_context().add_class("msg")
-        btn = Gtk.Button(label="Login", halign=Gtk.Align.CENTER); btn.get_style_context().add_class("login")
-        sw = Gtk.Button(label="Switch user", halign=Gtk.Align.CENTER); sw.get_style_context().add_class("link")
+        btn = Gtk.Button(label="Login", halign=Gtk.Align.CENTER); btn.set_size_request(320, 48); btn.get_style_context().add_class("login")
+        sw = Gtk.Button(label="Switch user", halign=Gtk.Align.CENTER); sw.set_margin_top(6); sw.get_style_context().add_class("link")
         sw.connect("clicked", lambda _b: (subprocess.Popen(["hyprctl", "dispatch", "exit"]), unlock()))
         def done(ok):
             if ok: unlock()

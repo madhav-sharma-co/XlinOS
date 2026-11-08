@@ -15,16 +15,19 @@ from gi.repository import Gtk, Gdk, Gio, Gtk4LayerShell as LS
 CSS = b"""
 window { background: transparent; }
 .panel { background: rgba(10,18,52,0.94); border: 1px solid rgba(255,255,255,0.14); border-radius: 22px; padding: 18px; color: #fff; min-width: 340px; }
-.name { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+.name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
 .sub { margin-bottom: 12px; }
 .sub { color: #9db4e6; font-size: 12px; }
-.toggle { background-image: none; background-color: rgba(255,255,255,0.08); box-shadow: none; color: #fff; border: none; border-radius: 14px; padding: 12px 14px; }
+.toggle { background-image: none; background-color: rgba(255,255,255,0.08); box-shadow: none; color: #fff; border: none; border-radius: 12px; min-height: 22px; padding: 11px 14px; }
+.toggle:hover { background-color: rgba(255,255,255,0.14); }
+.toggle.on:hover { background-color: #3a80ff; }
 .toggle.on { background-color: #1e6bff; }
-.act { background-image: none; background-color: rgba(255,255,255,0.08); box-shadow: none; color: #fff; border: none; border-radius: 14px; padding: 10px 8px; }
+.act { background-image: none; background-color: rgba(255,255,255,0.08); box-shadow: none; color: #fff; border: none; border-radius: 12px; min-height: 22px; padding: 11px 8px; }
 .act:hover { background-color: rgba(255,255,255,0.16); }
 .danger { background-color: rgba(255,80,80,0.22); }
-scale trough { background: rgba(255,255,255,0.16); min-height: 6px; border-radius: 3px; border: none; box-shadow: none; }
-scale highlight { background: #1e6bff; border-radius: 3px; }
+scale { min-height: 24px; }
+scale trough { background: rgba(255,255,255,0.16); background-image: none; min-height: 6px; border-radius: 3px; border: none; box-shadow: none; outline: none; }
+scale highlight { background: #1e6bff; background-image: none; border-radius: 3px; border: none; outline: none; }
 scale slider { background: #fff; min-width: 18px; min-height: 18px; border-radius: 9px; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.35); margin: -6px; }
 """
 
@@ -55,7 +58,7 @@ def full_name():
         return u
 
 def slider(label, get, set_):
-    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
     l = Gtk.Label(label=label, xalign=0); l.add_css_class("sub")
     s = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1); s.set_value(get())
     s.connect("value-changed", lambda sc: set_(int(sc.get_value())))
@@ -70,7 +73,7 @@ def activate(app):
     LS.set_margin(w, LS.Edge.TOP, 44); LS.set_margin(w, LS.Edge.RIGHT, 12)
     LS.set_keyboard_mode(w, LS.KeyboardMode.ON_DEMAND)
 
-    root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14); root.add_css_class("panel")
+    root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16); root.add_css_class("panel")
     head = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
     n = Gtk.Label(label=full_name(), xalign=0); n.add_css_class("name")
     b = battery()

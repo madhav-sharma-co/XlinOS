@@ -9,21 +9,21 @@ import xlinos_ui
 
 CSS = (xlinos_ui.window_css() + """
 window { background: transparent; }
-.side { background: rgba(255,255,255,0.04); padding: 10px 8px; min-width: 190px; border-radius: 0 0 0 13px; }
-.side button { background-color: transparent; border: none; box-shadow: none; color: #cdd9f5; border-radius: 9px; padding: 8px 10px; }
+.side { background: rgba(255,255,255,0.04); padding: 10px 8px; min-width: 190px; border-radius: 0 0 0 14px; }
+.side button { background-color: transparent; border: none; box-shadow: none; color: #cdd9f5; border-radius: 10px; padding: 9px 12px; }
 .side button:hover { background-color: rgba(255,255,255,0.08); }
 .side button.sel { background-color: #1e4fd0; color: #fff; }
 .page { padding: 22px 28px; }
 .h1 { font-size: 22px; font-weight: 700; color: #fff; }
 .sub { color: #9db4e6; }
-.card { background: rgba(255,255,255,0.06); border-radius: 14px; padding: 14px 16px; color: #e6eeff; }
+.card { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 16px 18px; color: #e6eeff; }
 .card label.k { color: #9db4e6; }
 scale trough { background: rgba(255,255,255,0.16); min-height: 6px; border-radius: 3px; }
 scale highlight { background: #1e6bff; border-radius: 3px; }
 scale slider { background: #fff; min-width: 18px; min-height: 18px; border-radius: 9px; }
 switch:checked { background: #1e6bff; }
 button.primary { background-color: #1e6bff; color: #fff; border: none; border-radius: 12px; padding: 7px 18px; font-weight: 600; }
-.pwbox { background: rgba(8,14,44,0.98); border-radius: 16px; padding: 22px; border: 1px solid rgba(255,255,255,0.16); color: #fff; }
+.pwbox { background: rgba(8,14,44,0.98); border-radius: 20px; padding: 22px; border: 1px solid rgba(255,255,255,0.16); color: #fff; }
 .err { color: #ff8a8a; }
 """).encode()
 
@@ -116,7 +116,7 @@ def ask_password(then):
     dlg = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); dlg.add_css_class("pwbox")
     dlg.append(Gtk.Label(label="Enter your password to update XlinOS", xalign=0))
     e = Gtk.Entry(visibility=False, placeholder_text="Password", width_chars=28); err = Gtk.Label(xalign=0); err.add_css_class("err")
-    row_ = Gtk.Box(spacing=8, halign=Gtk.Align.END); cancel = Gtk.Button(label="Cancel"); ok = Gtk.Button(label="Continue"); ok.add_css_class("primary")
+    row_ = Gtk.Box(spacing=8, halign=Gtk.Align.END); cancel = Gtk.Button(label="Cancel"); cancel.add_css_class("sec"); ok = Gtk.Button(label="Continue"); ok.add_css_class("primary")
     row_.append(cancel); row_.append(ok); dlg.append(e); dlg.append(err); dlg.append(row_)
     ov.add_overlay(dlg); e.grab_focus()
     def submit(_w):
@@ -128,7 +128,7 @@ def ask_password(then):
 
 def update_card():
     status = Gtk.Label(label="", xalign=0, wrap=True); status.add_css_class("sub")
-    check = Gtk.Button(label="Check for updates"); upd = Gtk.Button(label="Update System"); upd.add_css_class("primary")
+    check = Gtk.Button(label="Check for updates"); check.add_css_class("sec"); upd = Gtk.Button(label="Update System"); upd.add_css_class("primary")
     rb = Gtk.Button(label="Restart now", visible=False); rb.connect("clicked", lambda _b: bg("systemctl reboot"))
     btns = Gtk.Box(spacing=8); btns.append(check); btns.append(upd); btns.append(rb)
     def do_check(_b=None):

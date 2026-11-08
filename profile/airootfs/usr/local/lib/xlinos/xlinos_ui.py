@@ -42,6 +42,11 @@ entry:focus-within { border-color: #4f93ff; }
 scale trough { background: rgba(255,255,255,0.16); min-height: 6px; border-radius: 3px; border: none; box-shadow: none; }
 scale highlight { background: #1e6bff; border-radius: 3px; border: none; }
 scale slider { background: #fff; min-width: 18px; min-height: 18px; border-radius: 9px; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.35); margin: -6px; }
+scale trough, scale highlight { background-image: none; outline: none; }
+button.sec { background-image: none; background-color: rgba(255,255,255,0.10); color: #e6eeff; border: none; box-shadow: none; border-radius: 12px; min-height: 20px; padding: 8px 18px; }
+button.sec:hover { background-color: rgba(255,255,255,0.18); }
+button.primary { background-image: none; background-color: #1e6bff; color: #fff; border: none; box-shadow: none; border-radius: 12px; min-height: 20px; padding: 8px 18px; font-weight: 600; }
+button.primary:hover { background-color: #3a80ff; }
 switch { border-radius: 14px; border: none; box-shadow: none; background: rgba(255,255,255,0.16); }
 switch slider { border-radius: 12px; margin: 2px; min-width: 22px; min-height: 22px; background: #fff; box-shadow: none; }
 scrollbar slider { border-radius: 4px; min-width: 6px; background: rgba(255,255,255,0.22); }
