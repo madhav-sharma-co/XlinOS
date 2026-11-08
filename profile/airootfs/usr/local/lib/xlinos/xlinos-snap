@@ -99,7 +99,7 @@ def main(action):
         st["_press"] = {"addr": addr, "at": win["at"], "size": win["size"]}
         json.dump(st, open(STATE, "w"))
         stop_watch()
-        subprocess.Popen([sys.argv[0], "watch"], start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen([sys.argv[0], "watch"], start_new_session=True, stdout=subprocess.DEVNULL, stderr=open(os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "xlinos-snap-watch.log"), "w"))
         return 0
     if action == "drop":
         stop_watch()                        # mouse button released: if the window was dragged to a screen edge, snap it

@@ -36,7 +36,7 @@ echo "== edge snap"; focus A
 /usr/local/lib/xlinos/xlinos-snap press
 hyprctl eval 'hl.dispatch(hl.dsp.window.move({ x = 300, y = 300 }))' >/dev/null; sleep 0.5
 echo "cursor move:"; hyprctl dispatch movecursor 2 400; hyprctl eval 'hl.dispatch(hl.dsp.cursor.move({ x = 2, y = 400 }))'
-sleep 1.5; hyprctl cursorpos; shot 13a-snap-preview; pgrep -fa xlinos-preview
+sleep 1.5; hyprctl cursorpos; shot 13a-snap-preview; pgrep -fa "xlinos-(preview|snap)"; cat ${XDG_RUNTIME_DIR:-/tmp}/xlinos-snap-watch.log; cat ${XDG_RUNTIME_DIR:-/tmp}/xlinos-snap-watch.pid
 XLINOS_DEBUG=1 /usr/local/lib/xlinos/xlinos-snap drop; sleep 0.8; geo; shot 13-edge-snap
 echo "== config errors"; hyprctl configerrors
 echo "== restore minimised terminal"; /usr/local/lib/xlinos/xlinos-focus os.xlin.terminal xlinos-terminal; sleep 1
