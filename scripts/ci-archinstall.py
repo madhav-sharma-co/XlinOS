@@ -104,5 +104,5 @@ try:
     time.sleep(5)
 finally:
     time.sleep(3); REC["on"] = False; time.sleep(3); p.terminate()
-subprocess.run(f"cd {out} && ffmpeg -y -loglevel error -framerate 6 -i frames/%05d.ppm -vf scale=1024:-2 -c:v libx264 -preset veryfast -crf 29 -pix_fmt yuv420p xlinos-install.mp4", shell=True)
+subprocess.run(f"cd {out} && ffmpeg -y -loglevel error -framerate 6 -i frames/%05d.ppm -vf \"scale=1280:800:force_original_aspect_ratio=decrease,pad=1280:800:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1\" -c:v libx264 -preset veryfast -crf 29 -pix_fmt yuv420p xlinos-install.mp4", shell=True)
 if fails: print("FAILED:", fails); sys.exit(1)
