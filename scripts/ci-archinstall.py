@@ -5,7 +5,8 @@ import glob, os, shutil, socket, subprocess, sys, time
 iso, repo, out = [os.path.abspath(a) for a in sys.argv[1:4]]
 os.makedirs(out + "/shots", exist_ok=True); os.chmod(out, 0o777)
 DUALFLAG = os.environ.get("XL_DUAL") == "1"
-if DUALFLAG: open(out + "/dual", "w").write("1")
+os.makedirs(repo + "/out", exist_ok=True)
+if DUALFLAG: open(repo + "/out/dual", "w").write("1")
 disk = out + "/disk.img"; subprocess.run(["truncate", "-s", "20G", disk], check=True)
 DUAL = os.environ.get("XL_DUAL") == "1"
 if DUAL:   # pretend this disk already has another system: shared EFI partition (with a marker), a "host" partition (with a marker) and a free partition
