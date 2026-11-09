@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# XlinOS installer backend: erases one disk and installs XlinOS on it. Run as root: xlinos-install-run /dev/sdX
+# XlinOS installer backend: erases one disk and installs XlinOS on it. Run as root: xlinos-install-run /dev/sdX [options.json]
+# options.json (all optional): {"locale":"en_US.UTF-8","kb":"us","tz":"Europe/Berlin","fs":"ext4|btrfs","hostname":"xlin"}
 # Prints plain progress lines:  STEP <n>/<total> <text>  then  DONE  or  FAIL <reason>. The full log is /var/log/xlinos-install.log.
 LOG=/var/log/xlinos-install.log
 exec 3>&1 1>>"$LOG" 2>&1
 say() { echo "$*" >&3; }
 fail() { say "FAIL $*"; exit 1; }
 set -x
-DISK="${1:-}"; T=5
+DISK="${1:-}"; OPTS="${2:-}"; T=5
+opt() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2],sys.argv[3]))' "${OPTS:-/dev/null}" "$1" "$2" 2>/dev/null || echo "$2"; }
+[[ -f "$OPTS" ]] || OPTS=""
+FS="$(opt fs ext4)"; [[ "$FS" == btrfs ]] || FS=ext4
 [[ $EUID -eq 0 ]] || fail "The installer must run as the administrator."
 [[ -b "$DISK" ]] || fail "That disk was not found."
 [[ -d /sys/firmware/efi ]] || fail "This computer did not start in UEFI mode. Turn UEFI on in the firmware settings and start the installer again."
@@ -19,13 +23,24 @@ p=""; [[ "$DISK" =~ [0-9]$ ]] && p="p"
 umount -R /mnt 2>/dev/null; swapoff -a 2>/dev/null
 sgdisk -Z "$DISK" && sgdisk -n1:0:+512M -t1:ef00 -n2:0:0 -t2:8300 "$DISK" || fail "Could not partition the disk."
 partprobe "$DISK"; sleep 2; udevadm settle
-mkfs.fat -F32 "${DISK}${p}1" && mkfs.ext4 -qF "${DISK}${p}2" || fail "Could not format the disk."
-mount "${DISK}${p}2" /mnt && mkdir -p /mnt/boot && mount "${DISK}${p}1" /mnt/boot || fail "Could not use the disk."
-python3 - <<'PY' || fail "Installer settings are broken."
-import json
+mkfs.fat -F32 "${DISK}${p}1" || fail "Could not format the disk."
+if [[ "$FS" == btrfs ]]; then mkfs.btrfs -qf "${DISK}${p}2" && mount -o compress=zstd "${DISK}${p}2" /mnt; else mkfs.ext4 -qF "${DISK}${p}2" && mount "${DISK}${p}2" /mnt; fi || fail "Could not format the disk."
+mkdir -p /mnt/boot && mount "${DISK}${p}1" /mnt/boot || fail "Could not use the disk."
+XOPTS="$OPTS" XFS="$FS" python3 - <<'PY' || fail "Installer settings are broken."
+import json, os
 c = json.load(open("/usr/share/xlinos/archinstall-config.json"))
 c["bootloader"] = "systemd-boot"
 c["disk_config"] = {"config_type": "pre_mounted_config", "mountpoint": "/mnt"}
+o = {}
+if os.environ.get("XOPTS"):
+    try: o = json.load(open(os.environ["XOPTS"]))
+    except Exception: pass
+lc = c.setdefault("locale_config", {})
+if o.get("locale"): lc["sys_lang"] = o["locale"]
+if o.get("kb"): lc["kb_layout"] = o["kb"]
+if o.get("tz"): c["timezone"] = o["tz"]
+if o.get("hostname"): c["hostname"] = o["hostname"]
+if os.environ.get("XFS") == "btrfs": c["packages"] = list(c.get("packages", [])) + ["btrfs-progs"]
 json.dump(c, open("/tmp/xlinos-install.json", "w"), indent=1)
 PY
 say "STEP 3/$T Installing the system (this takes a few minutes)"

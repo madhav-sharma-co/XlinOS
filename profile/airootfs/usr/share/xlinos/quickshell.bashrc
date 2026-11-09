@@ -1,6 +1,6 @@
 # XlinOS Quickshell: friendly commands and a clean prompt on top of the normal shell.
 [[ -f ~/.bashrc ]] && . ~/.bashrc
-PS1='\[\e[1;36m\]\u\[\e[0m\]@\[\e[1;34m\]xlinos\[\e[0m\] \[\e[1;33m\]\w\[\e[0m\] \[\e[1;36m\]›\[\e[0m\] '
+PS1='\[\e[1;36m\]\u\[\e[0m\]@\[\e[1;34m\]xlin\[\e[0m\] \[\e[1;33m\]\w\[\e[0m\] \[\e[1;36m\]›\[\e[0m\] '
 alias ls='ls --color=auto -h --group-directories-first'
 alias ll='ls -l'
 alias grep='grep --color=auto'

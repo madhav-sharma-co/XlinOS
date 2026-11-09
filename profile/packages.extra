@@ -52,3 +52,4 @@ sof-firmware
 qemu-guest-agent
 zram-generator
 gtk-session-lock
+btrfs-progs

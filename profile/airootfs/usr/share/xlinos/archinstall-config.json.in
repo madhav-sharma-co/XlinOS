@@ -1,5 +1,5 @@
 {
-  "hostname": "xlinos",
+  "hostname": "xlin",
   "kernels": ["linux"],
   "ntp": true,
   "services": ["NetworkManager", "bluetooth", "power-profiles-daemon", "fstrim.timer"],
