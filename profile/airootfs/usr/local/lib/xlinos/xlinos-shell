@@ -22,7 +22,7 @@ window { background: transparent; }
 .qs { color: #fff; background: transparent; border: none; box-shadow: none; padding: 0 8px; min-height: 0; }
 .qs:hover { background: rgba(255,255,255,0.12); border-radius: 8px; }
 .qs image { -gtk-icon-size: 15px; }
-.dock { background: rgba(12,20,56,0.72); border: 1px solid rgba(255,255,255,0.12); border-radius: 22px; padding: 7px 10px; }
+.dock { background: rgba(12,20,56,0.86); border: 1px solid rgba(255,255,255,0.12); border-radius: 22px; padding: 7px 10px; }
 .dockbtn { background: transparent; border: none; box-shadow: none; padding: 4px; min-width: 0; min-height: 0; border-radius: 16px; }
 .dockbtn:hover { background: rgba(255,255,255,0.12); }
 .dot { background: #fff; border-radius: 3px; min-width: 5px; min-height: 5px; }
@@ -87,7 +87,7 @@ def make_bar(app):
 
 def make_dock(app):
     w = Gtk.ApplicationWindow(application=app)
-    layer(w, LS.Layer.TOP, {LS.Edge.BOTTOM: True}, margins={LS.Edge.BOTTOM: 12})
+    layer(w, LS.Layer.TOP, {LS.Edge.BOTTOM: True}, exclusive=84, margins={LS.Edge.BOTTOM: 12})   # windows and maximise stay above the run bar
     box = Gtk.Box(spacing=8); box.add_css_class("dock")
     dots = {}
     def add(cid, label, icon, cmd, wmclass):
