@@ -4,7 +4,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, Gdk, Gio
+from gi.repository import Gtk, Gdk, Gio, GdkPixbuf
 import xlinos_ui
 
 DIR = os.path.expanduser("~/Pictures")
@@ -57,7 +57,11 @@ def activate(app):
         st["files"] = files()
         if not st["files"]: stack.set_visible_child_name("empty"); return
         for i, f in enumerate(st["files"]):
-            im = Gtk.Picture.new_for_filename(f); im.set_content_fit(Gtk.ContentFit.COVER); im.set_can_shrink(True)
+            try:
+                pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(f, 160, 120, True)      # small copy: the thumbnail is exactly that big
+                im = Gtk.Picture.new_for_paintable(Gdk.Texture.new_for_pixbuf(pb)); im.set_can_shrink(False)
+            except Exception:
+                continue
             b = Gtk.Button(halign=Gtk.Align.START, valign=Gtk.Align.START); b.set_size_request(160, 120); b.add_css_class("thumb"); b.set_child(im); b.set_overflow(Gtk.Overflow.HIDDEN)
             b.connect("clicked", lambda _b, i=i: show(i)); flow.append(b)
         stack.set_visible_child_name("grid")
