@@ -65,6 +65,12 @@ fi
 say "STEP 2/$T Preparing the disk"
 p=""; [[ "$DISK" =~ [0-9]$ ]] && p="p"
 umount -R /mnt 2>/dev/null; swapoff -a 2>/dev/null
+if lsblk -nrpo MOUNTPOINT "$DISK" 2>/dev/null | grep -q '^/run/archiso' && ! grep -qw copytoram=y /proc/cmdline && [[ ! -f /run/archiso/copytoram ]]; then
+  fail "XlinOS was started from a file on this disk. Restart it with copytoram=y so it can run from memory, or pick another disk."
+fi
+# started from an ISO file stored on this same disk (loopback boot)? let go of it first (the system runs from RAM when started with copytoram=y)
+for m in $(lsblk -nrpo MOUNTPOINT "$DISK" 2>/dev/null | grep -v '^$' | sort -r); do umount -R "$m" 2>/dev/null; done
+losetup -D 2>/dev/null
 sgdisk -Z "$DISK" && sgdisk -n1:0:+512M -t1:ef00 -n2:0:0 -t2:8300 "$DISK" || fail "Could not partition the disk."
 partprobe "$DISK"; sleep 2; udevadm settle
 mkfs.fat -F32 "${DISK}${p}1" || fail "Could not format the disk."
