@@ -13,7 +13,7 @@ DISK="${1:-}"; T=5
 cfg=/usr/share/xlinos/archinstall-config.json
 [[ -f "$cfg" ]] || fail "The installer files are missing."
 say "STEP 1/$T Checking the internet connection"
-ping -c1 -W4 archlinux.org >/dev/null || ping -c1 -W4 github.com >/dev/null || fail "No internet connection. Connect to Wi-Fi or a cable and try again (the system is downloaded while installing)."
+curl -sI --max-time 8 -o /dev/null https://github.com || curl -sI --max-time 8 -o /dev/null https://archlinux.org || fail "No internet connection. Connect to Wi-Fi or a cable and try again (the system is downloaded while installing)."
 say "STEP 2/$T Preparing the disk"
 p=""; [[ "$DISK" =~ [0-9]$ ]] && p="p"
 umount -R /mnt 2>/dev/null; swapoff -a 2>/dev/null
