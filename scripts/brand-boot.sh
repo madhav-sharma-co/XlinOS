@@ -16,7 +16,7 @@ if [[ -d "$P/syslinux" ]]; then
 fi
 
 # 3. quiet kernel start: add the options in front of archisobasedir= on every boot entry (BIOS, GRUB, systemd-boot)
-OPTS="quiet loglevel=3 systemd.show_status=auto rd.udev.log_level=3"
+OPTS="quiet loglevel=3 systemd.show_status=false rd.udev.log_level=3"
 grep -rlE "archisobasedir=" "$P"/syslinux "$P"/grub "$P"/efiboot 2>/dev/null \
   | xargs -r sed -i -E "/ quiet( |$)/! s/archisobasedir=/$OPTS archisobasedir=/" || true
 echo "boot menus: branded, splash set, quiet start"
