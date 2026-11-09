@@ -53,5 +53,7 @@ sleep 8; shot 18-media
 mkdir -p ~/Pictures; cp /usr/share/xlinos/wallpapers/xlin-dark.jpg ~/Pictures/XlinOS-wallpaper.jpg
 xlinos-photos >"$OUT/photos.log" 2>&1 &
 sleep 8; shot 19-photos
+xlinos-calendar >"$OUT/calendar.log" 2>&1 &
+sleep 8; shot 20-calendar
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock

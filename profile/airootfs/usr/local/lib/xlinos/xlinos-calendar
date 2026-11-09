@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""XlinOS Calendar: a month view with a simple event list for each day (saved in ~/Documents/Calendar)."""
+import calendar, datetime, json, os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, Gio
+import xlinos_ui
+
+DIR = os.path.expanduser("~/Documents/Calendar"); FILE = os.path.join(DIR, "events.json")
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+.month { color: #fff; font-size: 22px; font-weight: 700; }
+.dow { color: #9db4e6; font-size: 12px; }
+.day { background: rgba(255,255,255,0.05); color: #eaf0ff; border: none; border-radius: 12px; min-height: 44px; min-width: 44px; box-shadow: none; padding: 0; }
+.day:hover { background: rgba(255,255,255,0.12); }
+.day.other { color: #5f73a8; background: transparent; }
+.day.today { background: #1e6bff; color: #fff; font-weight: 700; }
+.day.sel { border: 2px solid #4f93ff; }
+.dot { color: #19d2ff; font-size: 10px; }
+.side { background: rgba(255,255,255,0.04); padding: 14px; min-width: 250px; border-radius: 0 0 14px 0; }
+.head { color: #fff; font-size: 16px; font-weight: 700; }
+.ev { background: rgba(255,255,255,0.07); border-radius: 10px; padding: 8px 10px; color: #eaf0ff; }
+.nav { background: rgba(255,255,255,0.10); border: none; border-radius: 12px; color: #fff; min-width: 36px; min-height: 36px; box-shadow: none; padding: 0; }
+.nav:hover { background: rgba(255,255,255,0.18); }
+entry { background: rgba(255,255,255,0.08); color: #fff; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); padding: 8px 12px; min-height: 22px; }
+""").encode()
+
+def load():
+    try: return json.load(open(FILE))
+    except Exception: return {}
+
+def save(d):
+    os.makedirs(DIR, exist_ok=True); json.dump(d, open(FILE, "w"), indent=1)
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Calendar", 860, 560)
+    today = datetime.date.today()
+    st = {"y": today.year, "m": today.month, "sel": today, "ev": load()}
+    main = Gtk.Box(vexpand=True); body.append(main)
+    left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, hexpand=True, margin_start=18, margin_end=14, margin_bottom=16, margin_top=4)
+    top = Gtk.Box(spacing=8)
+    month = Gtk.Label(xalign=0, hexpand=True); month.add_css_class("month")
+    pv, nx, td = Gtk.Button(label="‹"), Gtk.Button(label="›"), Gtk.Button(label="Today")
+    for b in (pv, nx, td): b.add_css_class("nav")
+    td.set_size_request(70, 36)
+    for w in (month, pv, td, nx): top.append(w)
+    grid = Gtk.Grid(row_spacing=6, column_spacing=6, row_homogeneous=True, column_homogeneous=True, vexpand=True)
+    left.append(top); left.append(grid); main.append(left)
+    side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); side.add_css_class("side")
+    head = Gtk.Label(xalign=0); head.add_css_class("head")
+    evbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+    sc = Gtk.ScrolledWindow(vexpand=True); sc.set_child(evbox)
+    ent = Gtk.Entry(placeholder_text="Add an event")
+    side.append(head); side.append(sc); side.append(ent); main.append(side)
+
+    def key(d): return d.isoformat()
+    def render_events():
+        head.set_text(st["sel"].strftime("%A, %d %B"))
+        while (c := evbox.get_first_child()): evbox.remove(c)
+        items = st["ev"].get(key(st["sel"]), [])
+        if not items:
+            l = Gtk.Label(label="Nothing planned.", xalign=0); l.add_css_class("dow"); evbox.append(l)
+        for i, t in enumerate(items):
+            row = Gtk.Box(spacing=6); lb = Gtk.Label(label=t, xalign=0, hexpand=True, wrap=True); lb.add_css_class("ev")
+            x = Gtk.Button(label="✕"); x.add_css_class("nav"); x.connect("clicked", lambda _b, i=i: delete(i))
+            row.append(lb); row.append(x); evbox.append(row)
+    def delete(i):
+        k = key(st["sel"]); st["ev"][k].pop(i)
+        if not st["ev"][k]: del st["ev"][k]
+        save(st["ev"]); render()
+    def add(_e):
+        t = ent.get_text().strip()
+        if not t: return
+        st["ev"].setdefault(key(st["sel"]), []).append(t); ent.set_text(""); save(st["ev"]); render()
+    ent.connect("activate", add)
+    def pick(d): st["sel"] = d; st["y"], st["m"] = d.year, d.month; render()
+    def render():
+        while (c := grid.get_first_child()): grid.remove(c)
+        month.set_text(datetime.date(st["y"], st["m"], 1).strftime("%B %Y"))
+        for i, n in enumerate(("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")):
+            l = Gtk.Label(label=n); l.add_css_class("dow"); grid.attach(l, i, 0, 1, 1)
+        for r, week in enumerate(calendar.Calendar(0).monthdatescalendar(st["y"], st["m"]), 1):
+            for i, d in enumerate(week):
+                b = Gtk.Button(label=str(d.day)); b.add_css_class("day")
+                if d.month != st["m"]: b.add_css_class("other")
+                if d == today: b.add_css_class("today")
+                if d == st["sel"]: b.add_css_class("sel")
+                if key(d) in st["ev"]: b.set_label("%d •" % d.day)
+                b.connect("clicked", lambda _b, d=d: pick(d)); grid.attach(b, i, r, 1, 1)
+        render_events()
+    def step(n):
+        m = st["m"] + n; st["y"] += (m - 1) // 12; st["m"] = (m - 1) % 12 + 1; render()
+    pv.connect("clicked", lambda _b: step(-1)); nx.connect("clicked", lambda _b: step(1)); td.connect("clicked", lambda _b: pick(today))
+    render(); win.present()
+
+app = Gtk.Application(application_id="os.xlin.calendar", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app.connect("activate", activate); sys.exit(app.run(None))

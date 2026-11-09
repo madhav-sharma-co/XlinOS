@@ -9,6 +9,7 @@ APPS = [
     ("settings", "Settings", "emblem-system-symbolic",        ("#7b6dff", "#4b3fd6"), "xlinos-settings", "os.xlin.settings"),
     ("notes",    "Notes",    "document-edit-symbolic",         ("#19d2ff", "#1196e6"), "xlinos-notes",    "os.xlin.notes"),
     ("photos",   "Photos",   "image-x-generic-symbolic",       ("#ffb347", "#ff7a1a"), "xlinos-photos",   "os.xlin.photos"),
+    ("calendar", "Calendar", "x-office-calendar-symbolic",     ("#ff6b6b", "#e03a4a"), "xlinos-calendar", "os.xlin.calendar"),
     ("media",    "Media",    "media-playback-start-symbolic", ("#ff7ab8", "#e0407a"), "xlinos-media",    "os.xlin.media"),
     ("calculator", "Calculator", "accessories-calculator-symbolic", ("#8a7bff", "#5a45e0"), "xlinos-calculator", "os.xlin.calculator"),
     ("browser",  "Browser",  "applications-internet-symbolic",        ("#19d2ff", "#0a74ff"), "xlinos-browser", ""),
@@ -28,7 +29,7 @@ def css():
 
 
 # ---------------------------------------------------------------- window chrome for XlinOS apps
-NAMES = {"os.xlin.terminal": "Quickshell", "os.xlin.files": "Files", "os.xlin.store": "Store", "os.xlin.settings": "Settings", "os.xlin.notes": "Notes", "os.xlin.calculator": "Calculator", "os.xlin.media": "Media", "os.xlin.photos": "Photos"}
+NAMES = {"os.xlin.terminal": "Quickshell", "os.xlin.files": "Files", "os.xlin.store": "Store", "os.xlin.settings": "Settings", "os.xlin.notes": "Notes", "os.xlin.calculator": "Calculator", "os.xlin.media": "Media", "os.xlin.photos": "Photos", "os.xlin.calendar": "Calendar"}
 
 def friendly(cls):
     return NAMES.get(cls) or (cls.split(".")[-1].capitalize() if cls else "XlinOS")
