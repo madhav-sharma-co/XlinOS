@@ -34,6 +34,22 @@ def disks():
         res.append(("/dev/" + d["name"], int(d.get("size") or 0), (d.get("model") or "Disk").strip()))
     return res
 
+def parts():
+    """Normal partitions that are not mounted (candidates for a side-by-side install) and the shared EFI partition."""
+    try:
+        out = json.loads(subprocess.run(["lsblk", "-J", "-b", "-l", "-o", "PATH,SIZE,TYPE,FSTYPE,LABEL,PARTTYPE,MOUNTPOINTS,RO,PKNAME"], capture_output=True, text=True).stdout)
+    except Exception:
+        return [], None
+    esp, res = None, []
+    for d in out.get("blockdevices", []):
+        if d.get("type") != "part" or d["path"].startswith(("/dev/loop", "/dev/sr")): continue
+        if (d.get("parttype") or "").lower() == "c12a7328-f81f-11d2-ba4b-00a0c93ec93b":
+            esp = esp or d["path"]; continue
+        if any(m for m in (d.get("mountpoints") or []) if m): continue
+        if int(d.get("size") or 0) < 20e9: continue
+        res.append((d["path"], int(d["size"]), d.get("fstype") or "empty", d.get("label") or ""))
+    return res, esp
+
 def human(n):
     return "%.0f GB" % (n / 1e9) if n >= 1e9 else "%.0f MB" % (n / 1e6)
 
@@ -67,7 +83,7 @@ def activate(app):
         for w in widgets: b.append(w)
         return b
     st = {"disk": None, "disk_label": "", "locale": LANGS[0][1], "lang_label": LANGS[0][0], "kb": "us", "kb_label": KEYS[0][0],
-          "tz": "UTC", "fs": "ext4", "fs_label": FSS[0][0], "hostname": "xlin"}
+          "mode": "disk", "efi": None, "tz": "UTC", "fs": "ext4", "fs_label": FSS[0][0], "hostname": "xlin"}
     # menu page (like a settings list: each row shows its current value)
     rows = {}
     menu = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -77,7 +93,7 @@ def activate(app):
         h.append(t); h.append(v); b.set_child(h); rows[key] = v; menu.append(b)
     def refresh():
         rows["lang"].set_text(st["lang_label"]); rows["kb"].set_text(st["kb_label"]); rows["tz"].set_text(st["tz"])
-        rows["disk"].set_text(st["disk_label"] or "Choose a disk"); rows["fs"].set_text(st["fs_label"]); rows["host"].set_text(st["hostname"])
+        rows["disk"].set_text(st["disk_label"] or "Choose where"); rows["fs"].set_text(st["fs_label"]); rows["host"].set_text(st["hostname"])
         install.set_sensitive(bool(st["disk"]))
     # picker page
     pick_title = lbl("", "big"); pick_search = Gtk.SearchEntry(placeholder_text="Search"); pick_search.add_css_class("search")
@@ -97,6 +113,18 @@ def activate(app):
     pick_search.connect("search-changed", fill)
     def open_pick(title, items, apply, search=True):
         pick_title.set_text(title); pk["items"] = items; pk["apply"] = apply; pick_search.set_text(""); pick_search.set_visible(search); fill(); stack.set_visible_child_name("pick")
+    def pick_where():
+        def chosen(l, v):
+            st.update(mode=v, disk=None, disk_label="")
+            GLib.idle_add(pick_disk if v == "disk" else pick_part)
+        open_pick("Install on", [("The whole disk  -  erases everything on it", "disk", ""), ("One free partition  -  keeps your other systems (dual boot)", "partition", "")], chosen, False)
+    def pick_part():
+        ps_, esp = parts()
+        if not ps_ or not esp:
+            open_pick("Choose the partition", [("No free partition of 20 GB or more was found. Make one with GParted first.", "", "")], lambda l, v: None, False); return
+        st["efi"] = esp
+        open_pick("Choose the partition (it will be erased)", [("%s  %s" % (dev, ("(" + lab + ")") if lab else ""), dev, "%s  -  %s" % (human(sz), fs)) for dev, sz, fs, lab in ps_],
+                  lambda l, v: st.update(disk=v or None, disk_label="partition %s" % v) if v else None, False)
     def pick_disk():
         ds = disks()
         if not ds: open_pick("Disk", [("No disk was found", "", "")], lambda l, v: None, False); return
@@ -110,7 +138,7 @@ def activate(app):
     row("lang", "Language", lambda: open_pick("Language", [(n, v, "") for n, v in LANGS], lambda l, v: st.update(locale=v, lang_label=l)))
     row("kb", "Keyboard layout", lambda: open_pick("Keyboard layout", [(n, v, v) for n, v in KEYS], lambda l, v: st.update(kb=v, kb_label=l)))
     row("tz", "Time zone", lambda: open_pick("Time zone", [(z, z, "") for z in zones()], lambda l, v: st.update(tz=v)))
-    row("disk", "Disk", pick_disk)
+    row("disk", "Install on", pick_where)
     row("fs", "File system", lambda: open_pick("File system", [(n, v, "") for n, v in FSS], lambda l, v: st.update(fs=v, fs_label=l), False))
     row("host", "Computer name", lambda: stack.set_visible_child_name("host"))
     note = lbl("You create your user account on the first start.", "sub", xalign=0)
@@ -129,12 +157,13 @@ def activate(app):
     err_t = lbl("", "warn", justify=Gtk.Justification.CENTER)
     stack.add_named(page(lbl("The installation did not finish", "big"), err_t, btn("Back to settings", "primary", lambda: stack.set_visible_child_name("menu"))), "error")
     def confirm():
-        conf_l.set_text("Everything on %s will be erased.\nLanguage %s  -  Keyboard %s  -  %s  -  %s\nThis cannot be undone." % (st["disk"], st["lang_label"], st["kb_label"], st["tz"], st["fs"]))
+        head = ("Only %s will be erased. Your other systems stay." if st["mode"] == "partition" else "Everything on %s will be erased.") % st["disk"]
+        conf_l.set_text(head + "\nLanguage %s  -  Keyboard %s  -  %s  -  %s\nThis cannot be undone." % (st["lang_label"], st["kb_label"], st["tz"], st["fs"]))
         stack.set_visible_child_name("confirm")
     def start():
         stack.set_visible_child_name("run"); step.set_text("Starting…")
         opts = "/tmp/xlinos-install-options.json"
-        json.dump({"locale": st["locale"], "kb": st["kb"], "tz": st["tz"], "fs": st["fs"], "hostname": st["hostname"]}, open(opts, "w"))
+        json.dump({"locale": st["locale"], "kb": st["kb"], "tz": st["tz"], "fs": st["fs"], "hostname": st["hostname"], "target": st["mode"], "efi": st["efi"] or ""}, open(opts, "w"))
         cmd = ["/usr/local/lib/xlinos/xlinos-install-run", st["disk"], opts]
         if os.geteuid() != 0: cmd = ["sudo", "-n"] + cmd
         GLib.timeout_add(120, lambda: (bar.pulse(), True)[1] if stack.get_visible_child_name() == "run" else False)

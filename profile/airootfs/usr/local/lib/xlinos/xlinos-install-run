@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # XlinOS installer backend: erases one disk and installs XlinOS on it. Run as root: xlinos-install-run /dev/sdX [options.json]
+# Partition mode (keeps other systems): xlinos-install-run /dev/nvmeXnYpN opts.json with {"target":"partition","efi":"/dev/nvmeXnYp1"}
+#   formats ONLY that partition, shares the existing EFI partition, installs GRUB as "XlinOS" and leaves other systems untouched.
 # options.json (all optional): {"locale":"en_US.UTF-8","kb":"us","tz":"Europe/Berlin","fs":"ext4|btrfs","hostname":"xlin"}
 # Prints plain progress lines:  STEP <n>/<total> <text>  then  DONE  or  FAIL <reason>. The full log is /var/log/xlinos-install.log.
 LOG=/var/log/xlinos-install.log
@@ -16,8 +18,50 @@ FS="$(opt fs ext4)"; [[ "$FS" == btrfs ]] || FS=ext4
 [[ -d /sys/firmware/efi ]] || fail "This computer did not start in UEFI mode. Turn UEFI on in the firmware settings and start the installer again."
 cfg=/usr/share/xlinos/archinstall-config.json
 [[ -f "$cfg" ]] || fail "The installer files are missing."
+TARGET="$(opt target disk)"
 say "STEP 1/$T Checking the internet connection"
 curl -sI --max-time 8 -o /dev/null https://github.com || curl -sI --max-time 8 -o /dev/null https://archlinux.org || fail "No internet connection. Connect to Wi-Fi or a cable and try again (the system is downloaded while installing)."
+if [[ "$TARGET" == partition ]]; then
+  EFI="$(opt efi "")"
+  [[ -b "$EFI" ]] || fail "The shared start-up (EFI) partition was not found."
+  [[ "$(lsblk -no PARTTYPE "$DISK" 2>/dev/null)" != c12a7328-f81f-11d2-ba4b-00a0c93ec93b ]] || fail "That is the start-up partition. Choose a normal partition."
+  findmnt -rn -S "$DISK" >/dev/null && fail "That partition is in use. Choose a free partition."
+  say "STEP 2/$T Preparing the partition (other systems stay untouched)"
+  umount -R /mnt 2>/dev/null
+  if [[ "$FS" == btrfs ]]; then mkfs.btrfs -qf "$DISK" && mount -o compress=zstd "$DISK" /mnt; else mkfs.ext4 -qF "$DISK" && mount "$DISK" /mnt; fi || fail "Could not format the partition."
+  mkdir -p /mnt/efi && mount "$EFI" /mnt/efi || fail "Could not use the shared start-up partition."
+  say "STEP 3/$T Installing the system (this takes a few minutes)"
+  XOPTS="$OPTS" python3 - <<'PY' || fail "Installer settings are broken."
+import json, os
+c = json.load(open("/usr/share/xlinos/archinstall-config.json"))
+o = json.load(open(os.environ["XOPTS"])) if os.environ.get("XOPTS") else {}
+pk = list(c.get("packages", [])) + ["base", "linux", "linux-firmware", "grub", "efibootmgr", "networkmanager", "btrfs-progs"]
+open("/tmp/xl-pkgs", "w").write(" ".join(dict.fromkeys(pk)))
+post = c["custom_commands"][0]
+open("/tmp/xl-post.sh", "w").write(post + "\n")
+open("/tmp/xl-host", "w").write(o.get("hostname") or c.get("hostname", "xlin"))
+open("/tmp/xl-tz", "w").write(o.get("tz") or "UTC")
+open("/tmp/xl-lang", "w").write(o.get("locale") or "en_US.UTF-8")
+open("/tmp/xl-kb", "w").write(o.get("kb") or "us")
+PY
+  pacstrap -K /mnt $(cat /tmp/xl-pkgs) || fail "Downloading the system failed. Check the internet. The log is in /var/log/xlinos-install.log."
+  genfstab -U /mnt >/mnt/etc/fstab
+  echo "$(cat /tmp/xl-host)" >/mnt/etc/hostname
+  ln -sf "/usr/share/zoneinfo/$(cat /tmp/xl-tz)" /mnt/etc/localtime
+  L="$(cat /tmp/xl-lang)"; sed -i "s/^#\($L \)/\1/" /mnt/etc/locale.gen; echo "LANG=$L" >/mnt/etc/locale.conf; echo "KEYMAP=$(cat /tmp/xl-kb)" >/mnt/etc/vconsole.conf
+  arch-chroot /mnt locale-gen
+  arch-chroot /mnt systemctl enable NetworkManager systemd-timesyncd
+  say "STEP 4/$T Setting up the start menu"
+  arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=XlinOS || fail "Could not set up the start menu."
+  sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3"/; s/^#\?GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/' /mnt/etc/default/grub
+  grep -q '^GRUB_DISTRIBUTOR' /mnt/etc/default/grub && sed -i 's/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR="XlinOS"/' /mnt/etc/default/grub
+  pacstrap /mnt os-prober >/dev/null 2>&1
+  arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg || fail "Could not set up the start menu."
+  cp /tmp/xl-post.sh /mnt/tmp/xl-post.sh && arch-chroot /mnt bash /tmp/xl-post.sh
+  say "STEP 5/$T Done"
+  sync; umount -R /mnt 2>/dev/null
+  say "DONE"; exit 0
+fi
 say "STEP 2/$T Preparing the disk"
 p=""; [[ "$DISK" =~ [0-9]$ ]] && p="p"
 umount -R /mnt 2>/dev/null; swapoff -a 2>/dev/null
