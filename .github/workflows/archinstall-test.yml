@@ -7,6 +7,9 @@ on:
       run_id:
         description: "Build ISO run id (empty = latest successful)"
         required: false
+      dual:
+        description: "1 = dual-boot test (install next to another system)"
+        required: false
 permissions:
   contents: write
   actions: read
@@ -32,6 +35,8 @@ jobs:
           github-token: ${{ github.token }}
       - run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 ovmf python3-pil ffmpeg
       - name: Install and boot
+        env:
+          XL_DUAL: ${{ github.event.inputs.dual }}
         run: |
           sudo chmod 666 /dev/kvm || true
           mkdir -p work && python3 scripts/ci-archinstall.py iso/*.iso "$PWD" "$PWD/work/out" || echo "TEST FAILED" >work/failed

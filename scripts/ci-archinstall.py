@@ -4,7 +4,16 @@ and checks the first-start screen. usage: ci-archinstall.py ISO REPO OUTDIR"""
 import glob, os, shutil, socket, subprocess, sys, time
 iso, repo, out = [os.path.abspath(a) for a in sys.argv[1:4]]
 os.makedirs(out + "/shots", exist_ok=True); os.chmod(out, 0o777)
+DUALFLAG = os.environ.get("XL_DUAL") == "1"
+if DUALFLAG: open(out + "/dual", "w").write("1")
 disk = out + "/disk.img"; subprocess.run(["truncate", "-s", "20G", disk], check=True)
+DUAL = os.environ.get("XL_DUAL") == "1"
+if DUAL:   # pretend this disk already has another system: shared EFI partition (with a marker), a "host" partition (with a marker) and a free partition
+    sh = lambda c: subprocess.run(c, shell=True, check=True)
+    sh(f"sudo sgdisk -n1:0:+512M -t1:ef00 -n2:0:+3G -t2:8300 -n3:0:+10G -t3:8300 {disk}")
+    sh(f"L=$(sudo losetup -fP --show {disk}); sudo mkfs.fat -F32 ${{L}}p1; sudo mkfs.ext4 -qF ${{L}}p2; sudo mkdir -p /mnt/xe /mnt/xh; "
+       f"sudo mount ${{L}}p1 /mnt/xe; echo keep >/tmp/m; sudo cp /tmp/m /mnt/xe/HOST-ESP-MARKER; sudo umount /mnt/xe; "
+       f"sudo mount ${{L}}p2 /mnt/xh; sudo cp /tmp/m /mnt/xh/HOST-ROOT-MARKER; sudo umount /mnt/xh; sudo losetup -d $L; sudo chmod 666 {disk}")
 code = sorted(glob.glob("/usr/share/OVMF/OVMF_CODE*.fd"))[0]
 vars_dst = out + "/VARS.fd"; shutil.copy(code.replace("CODE", "VARS"), vars_dst)
 mon = "/tmp/qemu-mon-ai"
