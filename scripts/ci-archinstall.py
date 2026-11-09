@@ -72,8 +72,8 @@ p, s = qemu(["-cdrom", iso, "-boot", "d"], "phase1")
 try:
     time.sleep(25); shot(s, "1-iso-menu"); cmd(s, "sendkey ret")
     time.sleep(90); shot(s, "2-iso-booted")
-    cmd(s, "sendkey ctrl-alt-f2"); time.sleep(4); shot(s, "2b-tty2")
-    typ(s, "root"); time.sleep(2); cmd(s, "sendkey ret"); time.sleep(4); shot(s, "2b-login")
+    cmd(s, "sendkey ctrl-alt-f2"); time.sleep(10); shot(s, "2b-tty2")
+    typ(s, "root"); time.sleep(4); cmd(s, "sendkey ret"); time.sleep(6); shot(s, "2b-login")
   # the live ISO starts the desktop: open XlinOS Terminal
     for line in ("mkdir /r", "mount -t 9p -o trans=virtio repo /r", "bash /r/scripts/ci/ai.sh"):
         typ(s, line); time.sleep(2)
