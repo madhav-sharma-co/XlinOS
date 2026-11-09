@@ -57,8 +57,8 @@ def activate(app):
         st["files"] = files()
         if not st["files"]: stack.set_visible_child_name("empty"); return
         for i, f in enumerate(st["files"]):
-            im = Gtk.Picture.new_for_filename(f); im.set_size_request(150, 110); im.set_content_fit(Gtk.ContentFit.COVER); im.set_can_shrink(True)
-            b = Gtk.Button(); b.add_css_class("thumb"); b.set_child(im); b.set_overflow(Gtk.Overflow.HIDDEN)
+            im = Gtk.Picture.new_for_filename(f); im.set_content_fit(Gtk.ContentFit.COVER); im.set_can_shrink(True)
+            b = Gtk.Button(halign=Gtk.Align.START, valign=Gtk.Align.START); b.set_size_request(160, 120); b.add_css_class("thumb"); b.set_child(im); b.set_overflow(Gtk.Overflow.HIDDEN)
             b.connect("clicked", lambda _b, i=i: show(i)); flow.append(b)
         stack.set_visible_child_name("grid")
     back.connect("clicked", lambda _b: stack.set_visible_child_name("grid"))
