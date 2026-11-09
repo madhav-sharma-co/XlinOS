@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""XlinOS installer: pick a disk, confirm, watch the progress. The work is done by xlinos-install-run."""
+import json, os, subprocess, sys, threading
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, Gio, GLib
+import xlinos_ui
+
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+.big { color: #fff; font-size: 26px; font-weight: 700; }
+.sub { color: #9db4e6; font-size: 14px; }
+.disk { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 12px 16px; color: #fff; box-shadow: none; }
+.disk:hover { background: rgba(255,255,255,0.12); }
+.disk.sel { background: rgba(30,107,255,0.30); border-color: #3a80ff; }
+.warn { color: #ffb4b4; font-size: 14px; }
+.step { color: #eaf0ff; font-size: 16px; }
+progressbar trough { min-height: 8px; border-radius: 4px; background: rgba(255,255,255,0.14); border: none; }
+progressbar progress { min-height: 8px; border-radius: 4px; background: #1e6bff; border: none; }
+""").encode()
+
+def disks():
+    try:
+        out = json.loads(subprocess.run(["lsblk", "-J", "-d", "-b", "-o", "NAME,SIZE,MODEL,TYPE,RM,RO"], capture_output=True, text=True).stdout)
+    except Exception:
+        return []
+    res = []
+    for d in out.get("blockdevices", []):
+        if d.get("type") != "disk" or str(d.get("ro")) in ("1", "True", "true") or d["name"].startswith(("loop", "sr", "zram")): continue
+        res.append(("/dev/" + d["name"], int(d.get("size") or 0), (d.get("model") or "Disk").strip()))
+    return res
+
+def human(n):
+    return "%.0f GB" % (n / 1e9) if n >= 1e9 else "%.0f MB" % (n / 1e6)
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Install XlinOS", 720, 520)
+    stack = Gtk.Stack(vexpand=True, transition_type=Gtk.StackTransitionType.CROSSFADE); body.append(stack)
+    def page(*widgets):
+        b = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin_start=44, margin_end=44, margin_top=22, margin_bottom=30, valign=Gtk.Align.CENTER)
+        for w in widgets: b.append(w)
+        return b
+    def lbl(t, cls, **k):
+        l = Gtk.Label(label=t, wrap=True, **k); l.add_css_class(cls); return l
+    def btn(t, cls, cb, w=240):
+        b = Gtk.Button(label=t, halign=Gtk.Align.CENTER); b.add_css_class(cls); b.set_size_request(w, 44); b.connect("clicked", lambda _b: cb()); return b
+    st = {"disk": None}
+    # 1 welcome
+    stack.add_named(page(lbl("Install XlinOS", "big"), lbl("Put XlinOS on this computer. It takes a few minutes and needs the internet.", "sub", justify=Gtk.Justification.CENTER),
+                         btn("Continue", "primary", lambda: show_disks())), "welcome")
+    # 2 disks
+    dbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+    go = btn("Continue", "primary", lambda: confirm()); go.set_sensitive(False)
+    stack.add_named(page(lbl("Where should XlinOS go?", "big"), lbl("Choose the disk to install on.", "sub"), dbox, go), "disks")
+    conf_l = lbl("", "warn", justify=Gtk.Justification.CENTER)
+    stack.add_named(page(lbl("Ready to install", "big"), conf_l, btn("Erase the disk and install", "primary", lambda: start(), 300), btn("Back", "sec", lambda: show_disks(), 300)), "confirm")
+    # 3 progress
+    bar = Gtk.ProgressBar(); step = lbl("Starting…", "step")
+    stack.add_named(page(lbl("Installing XlinOS", "big"), step, bar, lbl("Please keep the computer on.", "sub")), "run")
+    done_t = lbl("", "sub", justify=Gtk.Justification.CENTER)
+    stack.add_named(page(lbl("XlinOS is installed", "big"), lbl("Take out the USB stick or disc and restart. You will create your user on the first start.", "sub", justify=Gtk.Justification.CENTER),
+                         btn("Restart now", "primary", lambda: subprocess.Popen(["systemctl", "reboot"]))), "done")
+    err_t = lbl("", "warn", justify=Gtk.Justification.CENTER)
+    stack.add_named(page(lbl("The installation did not finish", "big"), err_t, btn("Try again", "primary", lambda: stack.set_visible_child_name("welcome"))), "error")
+
+    def pick(b, dev):
+        st["disk"] = dev
+        c = dbox.get_first_child()
+        while c: (c.add_css_class("sel") if c is b else c.remove_css_class("sel")); c = c.get_next_sibling()
+        go.set_sensitive(True)
+    def show_disks():
+        while (c := dbox.get_first_child()): dbox.remove(c)
+        st["disk"] = None; go.set_sensitive(False)
+        ds = disks()
+        if not ds: dbox.append(lbl("No disk was found.", "warn"))
+        for dev, size, model in ds:
+            b = Gtk.Button(label="%s   ·   %s   ·   %s" % (model, human(size), dev)); b.add_css_class("disk"); b.connect("clicked", lambda _b, d=dev: pick(_b, d)); dbox.append(b)
+        stack.set_visible_child_name("disks")
+    def confirm():
+        conf_l.set_text("Everything on %s will be erased.\nThis cannot be undone." % st["disk"]); stack.set_visible_child_name("confirm")
+    def start():
+        stack.set_visible_child_name("run"); step.set_text("Starting…")
+        cmd = ["/usr/local/lib/xlinos/xlinos-install-run", st["disk"]]
+        if os.geteuid() != 0: cmd = ["sudo", "-n"] + cmd
+        def pulse():
+            if stack.get_visible_child_name() == "run": bar.pulse(); return True
+            return False
+        GLib.timeout_add(120, pulse)
+        def worker():
+            r = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True)
+            fail = "The installation failed."; ok = False
+            for line in r.stdout:
+                line = line.strip()
+                if line.startswith("STEP"): GLib.idle_add(step.set_text, line.split(" ", 2)[2])
+                elif line.startswith("FAIL"): fail = line[5:] or fail
+                elif line == "DONE": ok = True
+            r.wait()
+            GLib.idle_add(lambda: (done_t.set_text(""), stack.set_visible_child_name("done")) if ok else (err_t.set_text(fail), stack.set_visible_child_name("error")))
+        threading.Thread(target=worker, daemon=True).start()
+    win.present()
+
+app = Gtk.Application(application_id="os.xlin.installer", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app.connect("activate", activate); sys.exit(app.run(None))

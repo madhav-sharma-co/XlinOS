@@ -1,17 +1,9 @@
 #!/usr/bin/env bash
-# Install XlinOS to a disk. Uses archinstall with the XlinOS settings preset (packages, services, Xlin-soft).
-# archinstall asks for the rest: disk, user name and password, language, time zone.
-set -euo pipefail
+# Text-mode XlinOS installer: erases one disk and installs XlinOS. (The graphical one is "Install XlinOS".)
 [[ $EUID -eq 0 ]] || exec sudo "$0" "$@"
-cfg=/usr/share/xlinos/archinstall-config.json
-[[ -f "$cfg" ]] || { echo "Missing $cfg"; exit 1; }
-ping -c1 -W3 archlinux.org >/dev/null 2>&1 || {
-  echo "No internet connection. The installer needs it (packages are downloaded)."
-  echo "Connect first (Wi-Fi: nmtui), then run: sudo xlinos-install"; exit 1; }
-echo "XlinOS installer"
-echo "This will use archinstall. Choose the disk and a user in the menus, then press 'Install'."
-echo "Everything on the disk you choose can be erased."
-read -rp "Continue? [y/N] " a; [[ "$a" =~ ^[Yy] ]] || exit 0
-archinstall --config "$cfg"
-echo
-echo "Done. Remove the USB stick and restart: sudo reboot"
+echo "XlinOS installer"; echo
+lsblk -d -o NAME,SIZE,MODEL | grep -Ev "^(loop|sr|zram)"
+read -rp "Install on which disk (for example sda)? " d; [[ -b "/dev/$d" ]] || { echo "No such disk."; exit 1; }
+read -rp "Everything on /dev/$d will be erased. Type yes to continue: " a; [[ "$a" == yes ]] || exit 0
+/usr/local/lib/xlinos/xlinos-install-run "/dev/$d" | while read -r l; do echo "${l#STEP }"; done
+echo; echo "Remove the USB stick and restart: sudo reboot"

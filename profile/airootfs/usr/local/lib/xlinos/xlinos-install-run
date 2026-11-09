@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# XlinOS installer backend: erases one disk and installs XlinOS on it. Run as root: xlinos-install-run /dev/sdX
+# Prints plain progress lines:  STEP <n>/<total> <text>  then  DONE  or  FAIL <reason>. The full log is /var/log/xlinos-install.log.
+LOG=/var/log/xlinos-install.log
+exec 3>&1 1>>"$LOG" 2>&1
+say() { echo "$*" >&3; }
+fail() { say "FAIL $*"; exit 1; }
+set -x
+DISK="${1:-}"; T=5
+[[ $EUID -eq 0 ]] || fail "The installer must run as the administrator."
+[[ -b "$DISK" ]] || fail "That disk was not found."
+[[ -d /sys/firmware/efi ]] || fail "This computer did not start in UEFI mode. Turn UEFI on in the firmware settings and start the installer again."
+cfg=/usr/share/xlinos/archinstall-config.json
+[[ -f "$cfg" ]] || fail "The installer files are missing."
+say "STEP 1/$T Checking the internet connection"
+ping -c1 -W4 archlinux.org >/dev/null || ping -c1 -W4 github.com >/dev/null || fail "No internet connection. Connect to Wi-Fi or a cable and try again (the system is downloaded while installing)."
+say "STEP 2/$T Preparing the disk"
+p=""; [[ "$DISK" =~ [0-9]$ ]] && p="p"
+umount -R /mnt 2>/dev/null; swapoff -a 2>/dev/null
+sgdisk -Z "$DISK" && sgdisk -n1:0:+512M -t1:ef00 -n2:0:0 -t2:8300 "$DISK" || fail "Could not partition the disk."
+partprobe "$DISK"; sleep 2; udevadm settle
+mkfs.fat -F32 "${DISK}${p}1" && mkfs.ext4 -qF "${DISK}${p}2" || fail "Could not format the disk."
+mount "${DISK}${p}2" /mnt && mkdir -p /mnt/boot && mount "${DISK}${p}1" /mnt/boot || fail "Could not use the disk."
+python3 - <<'PY' || fail "Installer settings are broken."
+import json
+c = json.load(open("/usr/share/xlinos/archinstall-config.json"))
+c["bootloader"] = "systemd-boot"
+c["disk_config"] = {"config_type": "pre_mounted_config", "mountpoint": "/mnt"}
+json.dump(c, open("/tmp/xlinos-install.json", "w"), indent=1)
+PY
+say "STEP 3/$T Installing the system (this takes a few minutes)"
+archinstall --config /tmp/xlinos-install.json --silent || fail "The installation failed. The log is in /var/log/xlinos-install.log."
+say "STEP 4/$T Finishing"
+sync; umount -R /mnt 2>/dev/null
+say "STEP 5/$T Done"
+say "DONE"

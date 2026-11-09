@@ -1,34 +1,24 @@
 # XlinOS
 
-**An Arch Linux based distribution with the [Xlin-soft](https://github.com/madhav-sharma-co/XLIN-Soft) desktop.**
-Boot the live ISO, try the calm, clean Xlin-soft desktop, and install it to a disk.
+**A clean, professional, lightweight, smooth, fast and useful operating system.**
+Start it from a USB stick, try it live, and install it on your computer.
 
-> **Status: 0.1 alpha.** The ISO build and the installer are new and have not been tested on many machines.
-> Try it in a virtual machine first, and please report anything that breaks as a GitHub issue.
+> **Status: 0.1 alpha.** New and not yet tested on many machines. Try it in a virtual machine first and report anything
+> that breaks as a GitHub issue.
 
-## What it is
+## What you get
 
 | Part | What it does |
 |------|--------------|
-| Live ISO | Built with `archiso`. Boots straight into the Xlin-soft desktop (Hyprland) as a live user |
-| Installer | `sudo xlinos-install` (also "Install XlinOS" in the Launcher) runs `archinstall` with XlinOS settings, then sets up Xlin-soft for your user |
-| Xlin-soft | Kept in `/opt/xlin-soft` and set up for each user on first login |
-| Branding | The XlinOS name in `/etc/os-release`, the login message and the installer |
-
-XlinOS is Arch Linux with a different default desktop. Updates come from the normal Arch repositories (`pacman -Syu`),
-and `xlin update` updates Xlin-soft.
+| Desktop | Its own look: status bar, run bar, launcher, quick settings, lock screen, floating windows with snapping |
+| Apps | Terminal, Files, Store, Settings, Notes, Calculator, Photos, Media: all made for XlinOS |
+| Installer | A graphical installer: choose a disk, confirm, wait. You create your user on the first start |
+| Updates | Settings > About > Update System brings the newest XlinOS and system updates |
 
 ## Build the ISO
 
-You need an Arch Linux machine (or an Arch container) and root:
-
-    sudo pacman -S --needed archiso git base-devel
-    sudo ./build.sh                 # the ISO is written to ./out/
-    sudo ./build.sh --aur          # also build AUR packages into a local repo (not needed by default)
-
-Build with a given Xlin-soft tag or branch (default `main`): `sudo XLIN_SOFT_REF=v0.1.1 ./build.sh`
-
-GitHub can build it for you: see [`.github/workflows/build-iso.yml`](.github/workflows/build-iso.yml).
+The ISO is built on a Linux machine (or container) with root. GitHub builds it for you too:
+see [`.github/workflows/build-iso.yml`](.github/workflows/build-iso.yml). Locally: `sudo ./build.sh` (the ISO is written to `./out/`).
 
 ## Try it
 
@@ -39,12 +29,11 @@ More in [docs/TESTING.md](docs/TESTING.md). What is planned is in [docs/ROADMAP.
 
 ## Layout
 
-    build.sh              builds the ISO (starts from archiso's own "releng" profile, then adds XlinOS)
-    profile/              what XlinOS adds: package list, live user, autologin, installer, branding
-    scripts/              build helpers (AUR packages, QEMU test)
-    docs/                 testing and roadmap
+    build.sh              builds the ISO
+    profile/              what XlinOS is made of: package list, desktop, apps, installer, branding
+    scripts/              build helpers and tests
+    docs/                 design, testing and roadmap
 
-## Names and licences
+## Licence
 
-XlinOS is built on Arch Linux. "Arch Linux" and its logo belong to Arch Linux; XlinOS does not use them as its own
-brand. XlinOS and Xlin-soft are MIT licensed (see [LICENSE](LICENSE)); the packages in the ISO keep their own licences.
+XlinOS is MIT licensed (see [LICENSE](LICENSE)); the packages in the ISO keep their own licences.

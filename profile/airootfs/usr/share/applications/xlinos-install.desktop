@@ -2,7 +2,7 @@
 Type=Application
 Name=Install XlinOS
 Comment=Install XlinOS on this computer
-Exec=kitty -e sudo xlinos-install
+Exec=xlinos-installer
 Icon=system-software-install
 Terminal=false
 Categories=System;

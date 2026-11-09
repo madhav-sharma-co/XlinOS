@@ -20,6 +20,18 @@ BUG_REPORT_URL="https://github.com/madhav-sharma-co/XlinOS/issues"
 EOT
 printf 'XlinOS @VERSION@ (\\l)\n\n' >/etc/issue
 
+# boot menu: XlinOS name, quiet start, no waiting
+for f in /boot/loader/entries/*.conf; do
+  [[ -f "$f" ]] || continue
+  sed -i -E 's/^title .*/title   XlinOS/' "$f"
+  grep -q '^options.*quiet' "$f" || sed -i -E '/^options/ s/$/ quiet loglevel=3 systemd.show_status=auto/' "$f"
+done
+if [[ -f /boot/loader/loader.conf ]]; then
+  sed -i -E '/^(timeout|editor|console-mode)/d' /boot/loader/loader.conf
+  printf 'timeout 0\neditor no\nconsole-mode keep\n' >>/boot/loader/loader.conf
+fi
+printf 'XlinOS @VERSION@\n' >/etc/issue.net
+
 # XlinOS login files (login screen, account helper, session starter, browser helper)
 tmp="$(mktemp -d)"
 if git clone --depth 1 ${REF:+--branch "$REF"} https://github.com/madhav-sharma-co/XlinOS.git "$tmp/x"; then
