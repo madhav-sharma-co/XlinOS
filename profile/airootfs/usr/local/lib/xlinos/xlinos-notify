@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""XlinOS notifications: the notification service of the desktop. Shows small glass cards top-right for a few seconds."""
+import os, sys
+LIB = "/usr/lib/libgtk4-layer-shell.so"
+if os.path.exists(LIB) and LIB not in os.environ.get("LD_PRELOAD", ""):
+    os.environ["LD_PRELOAD"] = (os.environ.get("LD_PRELOAD", "") + " " + LIB).strip()
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+import gi
+gi.require_version("Gtk", "4.0"); gi.require_version("Gtk4LayerShell", "1.0")
+from gi.repository import Gtk, Gdk, Gio, GLib, Gtk4LayerShell as LS
+
+XML = """<node><interface name="org.freedesktop.Notifications">
+<method name="GetCapabilities"><arg direction="out" type="as"/></method>
+<method name="Notify"><arg direction="in" type="s"/><arg direction="in" type="u"/><arg direction="in" type="s"/><arg direction="in" type="s"/><arg direction="in" type="s"/><arg direction="in" type="as"/><arg direction="in" type="a{sv}"/><arg direction="in" type="i"/><arg direction="out" type="u"/></method>
+<method name="CloseNotification"><arg direction="in" type="u"/></method>
+<method name="GetServerInformation"><arg direction="out" type="s"/><arg direction="out" type="s"/><arg direction="out" type="s"/><arg direction="out" type="s"/></method>
+<signal name="NotificationClosed"><arg type="u"/><arg type="u"/></signal>
+</interface></node>"""
+CSS = b"""
+window { background: transparent; }
+.toast { background: rgba(12,20,56,0.92); border: 1px solid rgba(255,255,255,0.14); border-radius: 16px; padding: 12px 16px; min-width: 300px; }
+.toast .t { color: #ffffff; font-weight: 700; font-size: 14px; }
+.toast .b { color: #c8d6f5; font-size: 13px; }
+.toast .a { color: #7fb2ff; font-size: 11px; }
+"""
+st = {"id": 0, "toasts": {}, "conn": None}
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win = Gtk.ApplicationWindow(application=app)
+    LS.init_for_window(win); LS.set_layer(win, LS.Layer.OVERLAY); LS.set_namespace(win, "xlinos-notify")
+    LS.set_anchor(win, LS.Edge.TOP, True); LS.set_anchor(win, LS.Edge.RIGHT, True)
+    LS.set_margin(win, LS.Edge.TOP, 44); LS.set_margin(win, LS.Edge.RIGHT, 14); LS.set_exclusive_zone(win, -1)
+    LS.set_keyboard_mode(win, LS.KeyboardMode.NONE)
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); win.set_child(box)
+    app.hold()
+
+    def close(nid, reason):
+        w = st["toasts"].pop(nid, None)
+        if w is not None:
+            box.remove(w)
+            if st["conn"]: st["conn"].emit_signal(None, "/org/freedesktop/Notifications", "org.freedesktop.Notifications", "NotificationClosed", GLib.Variant("(uu)", (nid, reason)))
+        if not st["toasts"]: win.set_visible(False)
+
+    def notify(app_name, rid, icon, summary, body, actions, hints, timeout):
+        if rid and rid in st["toasts"]: nid = rid
+        else: st["id"] += 1; nid = st["id"]
+        if nid in st["toasts"]: box.remove(st["toasts"].pop(nid))
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3); card.add_css_class("toast")
+        if app_name:
+            a = Gtk.Label(label=app_name.upper(), xalign=0); a.add_css_class("a"); card.append(a)
+        t = Gtk.Label(label=summary, xalign=0, wrap=True, max_width_chars=44); t.add_css_class("t"); card.append(t)
+        if body:
+            b = Gtk.Label(label=GLib.markup_escape_text(body) if "<" in body else body, xalign=0, wrap=True, max_width_chars=48); b.add_css_class("b"); card.append(b)
+        click = Gtk.GestureClick(); click.connect("pressed", lambda *_a, n=nid: close(n, 2)); card.add_controller(click)
+        st["toasts"][nid] = card; box.prepend(card); win.set_visible(True); win.present()
+        GLib.timeout_add(timeout if timeout > 0 else 6000, lambda n=nid, c=card: (close(n, 1) if st["toasts"].get(n) is c else None) and False)
+        return nid
+
+    def call(conn, sender, path, iface, method, params, inv):
+        if method == "Notify": inv.return_value(GLib.Variant("(u)", (notify(*params.unpack()),)))
+        elif method == "GetCapabilities": inv.return_value(GLib.Variant("(as)", (["body", "body-markup"],)))
+        elif method == "CloseNotification": close(params.unpack()[0], 3); inv.return_value(None)
+        else: inv.return_value(GLib.Variant("(ssss)", ("XlinOS", "XlinOS", "0.1", "1.2")))
+    node = Gio.DBusNodeInfo.new_for_xml(XML)
+    def acquired(conn, name):
+        st["conn"] = conn
+        conn.register_object("/org/freedesktop/Notifications", node.interfaces[0], call, None, None)
+    Gio.bus_own_name(Gio.BusType.SESSION, "org.freedesktop.Notifications", Gio.BusNameOwnerFlags.REPLACE, acquired, None, lambda *_: app.quit())
+
+app = Gtk.Application(application_id="os.xlin.notify", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app.connect("activate", activate); sys.exit(app.run(None))

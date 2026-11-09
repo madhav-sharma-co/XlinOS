@@ -71,7 +71,10 @@ for i = 1, 4 do
     bind("SUPER + SHIFT + " .. i, hl.dsp.window.move({ workspace = i }))
 end
 
-hl.on("hyprland.start", function() hl.dispatch(hl.dsp.exec_cmd("/usr/local/lib/xlinos/xlinos-shell")) end)
+hl.on("hyprland.start", function()
+    hl.dispatch(hl.dsp.exec_cmd("/usr/local/lib/xlinos/xlinos-shell"))
+    hl.dispatch(hl.dsp.exec_cmd("/usr/local/lib/xlinos/xlinos-notify"))
+end)
 
 -- Drag a window to a screen edge to snap it (like Windows / macOS): remember the window on press, snap on release.
 hl.bind("mouse:272", hl.dsp.exec_cmd("/usr/local/lib/xlinos/xlinos-snap press"), { non_consuming = true })
