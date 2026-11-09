@@ -88,6 +88,7 @@ file_permissions+=(
   ["/usr/local/lib/xlinos/xlinos-calendar"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-photos"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-notify"]="0:0:755"
+  ["/usr/local/lib/xlinos/xlinos-overview"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-notes"]="0:0:755"
   ["/usr/local/bin/xlinos-media"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-media"]="0:0:755"
