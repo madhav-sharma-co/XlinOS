@@ -75,6 +75,8 @@ end
 hl.on("hyprland.start", function()
     hl.dispatch(hl.dsp.exec_cmd("/usr/local/lib/xlinos/xlinos-shell"))
     hl.dispatch(hl.dsp.exec_cmd("/usr/local/lib/xlinos/xlinos-notify"))
+    -- Live USB / ISO session: open the installer welcome straight away
+    hl.dispatch(hl.dsp.exec_cmd("sh -c '[ -d /run/archiso ] && sleep 2 && exec /usr/local/lib/xlinos/xlinos-installer'"))
 end)
 
 -- Drag a window to a screen edge to snap it (like Windows / macOS): remember the window on press, snap on release.
