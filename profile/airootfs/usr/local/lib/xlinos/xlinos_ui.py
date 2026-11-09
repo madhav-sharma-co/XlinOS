@@ -4,7 +4,7 @@ import shutil
 # id, label, symbolic icon, gradient, command, window class (to show the running dot)
 APPS = [
     ("files",    "Files",    "folder-symbolic",             ("#3b8bff", "#1e5bff"), "xlinos-files",   "os.xlin.files"),
-    ("terminal", "Terminal", "utilities-terminal-symbolic", ("#1c2a5c", "#0f1838"), "xlinos-terminal", "os.xlin.terminal"),
+    ("terminal", "Quickshell", "utilities-terminal-symbolic", ("#1c2a5c", "#0f1838"), "xlinos-terminal", "os.xlin.terminal"),
     ("store",    "Store",    "folder-download-symbolic",         ("#b06bff", "#7a3fe0"), "xlinos-store",    "os.xlin.store"),
     ("settings", "Settings", "emblem-system-symbolic",        ("#7b6dff", "#4b3fd6"), "xlinos-settings", "os.xlin.settings"),
     ("notes",    "Notes",    "document-edit-symbolic",         ("#19d2ff", "#1196e6"), "xlinos-notes",    "os.xlin.notes"),
@@ -28,7 +28,7 @@ def css():
 
 
 # ---------------------------------------------------------------- window chrome for XlinOS apps
-NAMES = {"os.xlin.terminal": "Terminal", "os.xlin.files": "Files", "os.xlin.store": "Store", "os.xlin.settings": "Settings", "os.xlin.notes": "Notes", "os.xlin.calculator": "Calculator", "os.xlin.media": "Media", "os.xlin.photos": "Photos"}
+NAMES = {"os.xlin.terminal": "Quickshell", "os.xlin.files": "Files", "os.xlin.store": "Store", "os.xlin.settings": "Settings", "os.xlin.notes": "Notes", "os.xlin.calculator": "Calculator", "os.xlin.media": "Media", "os.xlin.photos": "Photos"}
 
 def friendly(cls):
     return NAMES.get(cls) or (cls.split(".")[-1].capitalize() if cls else "XlinOS")

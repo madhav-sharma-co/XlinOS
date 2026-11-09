@@ -11,7 +11,7 @@ Start it from a USB stick, try it live, and install it on your computer.
 | Part | What it does |
 |------|--------------|
 | Desktop | Its own look: status bar, run bar, launcher, quick settings, lock screen, floating windows with snapping |
-| Apps | Terminal, Files, Store, Settings, Notes, Calculator, Photos, Media: all made for XlinOS |
+| Apps | Quickshell (command line), Files, Store, Settings, Notes, Calculator, Photos, Media: all made for XlinOS |
 | Installer | A graphical installer: choose a disk, confirm, wait. You create your user on the first start |
 | Updates | Settings > About > Update System brings the newest XlinOS and system updates |
 

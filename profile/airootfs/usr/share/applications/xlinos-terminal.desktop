@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
-Name=Terminal
-Comment=Command line
+Name=Quickshell
+Comment=The XlinOS command line
 Exec=xlinos-terminal
 Icon=utilities-terminal
 Terminal=false

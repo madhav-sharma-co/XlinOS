@@ -32,7 +32,7 @@ resized, and snap to halves and quarters.
 | Drag a window to a screen edge or corner to snap it | built; logic tested in CI, real mouse drag not yet; preview planned |
 | Window buttons (close / minimise / maximise) | built into every XlinOS app; other apps keep their own |
 | Status bar, run bar (dock), launcher, quick settings, lock screen | built; notifications and task overview planned |
-| Own apps: Terminal, Files built; Settings, Store, Notes, Calculator, Welcome planned |
+| Own apps: Quickshell (terminal), Files built; Settings, Store, Notes, Calculator, Welcome planned |
 
 ## How we test the desktop
 CI "VM test": boots a cached XlinOS system image in QEMU with this repo shared into it, runs `scripts/ci/scenario.sh`

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""XlinOS Terminal: the built-in command line."""
+"""XlinOS Quickshell: the built-in command line."""
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gi
@@ -15,7 +15,7 @@ def rgba(s):
 def activate(app):
     p = Gtk.CssProvider(); p.load_from_data(CSS)
     Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-    win, body = xlinos_ui.make_window(app, "Terminal", 860, 520)
+    win, body = xlinos_ui.make_window(app, "Quickshell", 860, 520)
     term = Vte.Terminal(vexpand=True, hexpand=True)
     term.set_font(Pango.FontDescription("JetBrainsMono Nerd Font 11"))
     pal = ["#0a1230", "#ff6b6b", "#5fe3a1", "#ffd166", "#4f93ff", "#b794ff", "#19d2ff", "#dbe6ff",
@@ -25,10 +25,10 @@ def activate(app):
     term.set_cursor_blink_mode(Vte.CursorBlinkMode.ON)
     term.set_margin_start(14); term.set_margin_end(10); term.set_margin_bottom(10)
     sh = os.environ.get("SHELL", "/bin/bash")
-    cmd = sys.argv[1:] or [sh]
+    cmd = sys.argv[1:] or ([sh, "--rcfile", "/usr/share/xlinos/quickshell.bashrc", "-i"] if os.path.basename(sh) == "bash" and os.path.exists("/usr/share/xlinos/quickshell.bashrc") else [sh])
     term.spawn_async(Vte.PtyFlags.DEFAULT, os.path.expanduser("~"), cmd, None, GLib.SpawnFlags.DEFAULT, None, None, -1, None, None, None)
     term.connect("child-exited", lambda *_: win.close())
-    term.connect("window-title-changed", lambda t: win.set_title(t.get_window_title() or "Terminal"))
+    term.connect("window-title-changed", lambda t: win.set_title("Quickshell  -  " + t.get_window_title() if t.get_window_title() else "Quickshell"))
     body.append(term); win.present(); term.grab_focus()
 
 app = Gtk.Application(application_id="os.xlin.terminal")
