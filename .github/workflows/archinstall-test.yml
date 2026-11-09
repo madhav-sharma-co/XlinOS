@@ -48,6 +48,7 @@ jobs:
           cp work/out/install.log work/out/*serial.log save/ 2>/dev/null || true
           cp work/failed save/ 2>/dev/null || true
           cp work/out/xlinos-install.mp4 save/ 2>/dev/null || true
+          cp out/dual-check.txt out/xlinos-install.log save/ 2>/dev/null || true
           cd save; git init -q -b ci-shots-archinstall; git config user.name ci; git config user.email ci@users.noreply.github.com
           echo "build run ${{ steps.run.outputs.id }}" >README.txt
           git add -A && git commit -qm "installer test" && git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-shots-archinstall

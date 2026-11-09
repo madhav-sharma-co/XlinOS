@@ -57,7 +57,7 @@ PY
   grep -q '^GRUB_DISTRIBUTOR' /mnt/etc/default/grub && sed -i 's/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR="XlinOS"/' /mnt/etc/default/grub
   pacstrap /mnt os-prober >/dev/null 2>&1
   arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg || fail "Could not set up the start menu."
-  cp /tmp/xl-post.sh /mnt/tmp/xl-post.sh && arch-chroot /mnt bash /tmp/xl-post.sh
+  cp /tmp/xl-post.sh /mnt/tmp/xl-post.sh && { arch-chroot /mnt bash /tmp/xl-post.sh 2>&1 | tee /mnt/var/log/xlinos-post.log; echo "post exit ${PIPESTATUS[0]}"; }
   say "STEP 5/$T Done"
   sync; umount -R /mnt 2>/dev/null
   say "DONE"; exit 0
