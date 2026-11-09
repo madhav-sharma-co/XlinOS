@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Photos
+Comment=Your pictures
+Exec=xlinos-photos
+Icon=image-x-generic
+Terminal=false
+Categories=Graphics;
+StartupWMClass=os.xlin.photos

@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""XlinOS Photos: your pictures as a grid, click one to see it large (arrow keys move on)."""
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, Gio
+import xlinos_ui
+
+DIR = os.path.expanduser("~/Pictures")
+EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp")
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+.thumb { background: rgba(255,255,255,0.05); border: none; border-radius: 12px; padding: 0; box-shadow: none; }
+.thumb:hover { background: rgba(255,255,255,0.12); }
+.hint { color: #9db4e6; font-size: 15px; }
+.nav { background: rgba(255,255,255,0.10); border: none; border-radius: 12px; min-height: 20px; padding: 8px 16px; color: #fff; box-shadow: none; }
+.cap { color: #cdd9f5; }
+""").encode()
+
+def files():
+    out = []
+    for root, _d, fs in os.walk(DIR):
+        out += [os.path.join(root, f) for f in fs if f.lower().endswith(EXT)]
+    return sorted(out)
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    os.makedirs(DIR, exist_ok=True)
+    win, body = xlinos_ui.make_window(app, "Photos", 900, 600)
+    stack = Gtk.Stack(vexpand=True, transition_type=Gtk.StackTransitionType.CROSSFADE)
+    body.append(stack)
+    # grid page
+    gp = Gtk.ScrolledWindow(vexpand=True)
+    flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=8, min_children_per_line=2,
+                       row_spacing=10, column_spacing=10, margin_start=16, margin_end=16, margin_top=10, margin_bottom=16, valign=Gtk.Align.START)
+    gp.set_child(flow); stack.add_named(gp, "grid")
+    hint = Gtk.Label(label="No pictures yet.\nPut images in the Pictures folder and they show up here.", justify=Gtk.Justification.CENTER); hint.add_css_class("hint")
+    stack.add_named(hint, "empty")
+    # viewer page
+    vp = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin_start=16, margin_end=16, margin_bottom=14)
+    pic = Gtk.Picture(vexpand=True, hexpand=True, content_fit=Gtk.ContentFit.CONTAIN)
+    cap = Gtk.Label(); cap.add_css_class("cap")
+    bar = Gtk.Box(spacing=8, halign=Gtk.Align.CENTER)
+    back, prev, nxt = Gtk.Button(label="All photos"), Gtk.Button(label="‹"), Gtk.Button(label="›")
+    for b in (back, prev, nxt): b.add_css_class("nav"); bar.append(b)
+    vp.append(pic); vp.append(cap); vp.append(bar); stack.add_named(vp, "view")
+    st = {"i": 0, "files": []}
+    def show(i):
+        if not st["files"]: return
+        st["i"] = i % len(st["files"]); f = st["files"][st["i"]]
+        pic.set_filename(f); cap.set_text("%s   (%d of %d)" % (os.path.basename(f), st["i"] + 1, len(st["files"])))
+        stack.set_visible_child_name("view")
+    def refresh():
+        while (c := flow.get_first_child()): flow.remove(c)
+        st["files"] = files()
+        if not st["files"]: stack.set_visible_child_name("empty"); return
+        for i, f in enumerate(st["files"]):
+            im = Gtk.Picture.new_for_filename(f); im.set_size_request(150, 110); im.set_content_fit(Gtk.ContentFit.COVER); im.set_can_shrink(True)
+            b = Gtk.Button(); b.add_css_class("thumb"); b.set_child(im); b.set_overflow(Gtk.Overflow.HIDDEN)
+            b.connect("clicked", lambda _b, i=i: show(i)); flow.append(b)
+        stack.set_visible_child_name("grid")
+    back.connect("clicked", lambda _b: stack.set_visible_child_name("grid"))
+    prev.connect("clicked", lambda _b: show(st["i"] - 1)); nxt.connect("clicked", lambda _b: show(st["i"] + 1))
+    kc = Gtk.EventControllerKey()
+    def key(c, kv, kcode, mods):
+        if stack.get_visible_child_name() != "view": return False
+        if kv == Gdk.KEY_Left: show(st["i"] - 1); return True
+        if kv == Gdk.KEY_Right: show(st["i"] + 1); return True
+        if kv == Gdk.KEY_Escape: stack.set_visible_child_name("grid"); return True
+        return False
+    kc.connect("key-pressed", key); win.add_controller(kc)
+    refresh(); win.present()
+
+app = Gtk.Application(application_id="os.xlin.photos", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app.connect("activate", activate); sys.exit(app.run(None))
