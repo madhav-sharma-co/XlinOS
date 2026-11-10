@@ -25,8 +25,14 @@ curl -sI --max-time 8 -o /dev/null https://github.com || curl -sI --max-time 8 -
 if [[ "$TARGET" == partition ]]; then
   EFI="$(opt efi "")"
   [[ -b "$EFI" ]] || fail "The shared start-up (EFI) partition was not found."
-  [[ "$(lsblk -no PARTTYPE "$DISK" 2>/dev/null)" != c12a7328-f81f-11d2-ba4b-00a0c93ec93b ]] || fail "That is the start-up partition. Choose a normal partition."
+  [[ "$(lsblk -dn -o TYPE "$DISK" 2>/dev/null)" == part ]] || fail "Choose a partition, not a whole disk."
+  [[ "$(lsblk -dn -o TYPE "$EFI" 2>/dev/null)" == part ]] || fail "The shared start-up location must be an EFI partition."
+  [[ "$DISK" != "$EFI" ]] || fail "Choose a normal partition, not the EFI partition."
+  [[ "$(lsblk -dn -o PARTTYPE "$DISK" 2>/dev/null | tr '[:upper:]' '[:lower:]')" != c12a7328-f81f-11d2-ba4b-00a0c93ec93b ]] || fail "That is the start-up partition. Choose a normal partition."
+  [[ "$(lsblk -dn -o PARTTYPE "$EFI" 2>/dev/null | tr '[:upper:]' '[:lower:]')" == c12a7328-f81f-11d2-ba4b-00a0c93ec93b ]] || fail "The selected shared partition is not marked as an EFI System Partition."
+  [[ "$(lsblk -dn -o FSTYPE "$EFI" 2>/dev/null)" == vfat ]] || fail "The shared EFI partition must use FAT32 (vfat)."
   findmnt -rn -S "$DISK" >/dev/null && fail "That partition is in use. Choose a free partition."
+  findmnt -rn -S "$EFI" >/dev/null && fail "The shared EFI partition is already mounted. Restart the live system or unmount it before installing."
   say "STEP 2/$T Preparing the partition (other systems stay untouched)"
   umount -R /mnt 2>/dev/null
   if [[ "$FS" == btrfs ]]; then mkfs.btrfs -qf "$DISK" && mount -o compress=zstd "$DISK" /mnt; else mkfs.ext4 -qF "$DISK" && mount "$DISK" /mnt; fi || fail "Could not format the partition."
