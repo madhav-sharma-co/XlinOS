@@ -17,6 +17,9 @@ window { background: transparent; }
 .h1 { font-size: 22px; font-weight: 700; color: #fff; }
 .sub { color: #9db4e6; }
 .card { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 16px 18px; color: #e6eeff; }
+progressbar.updbar trough { min-height: 10px; border-radius: 6px; background: rgba(255,255,255,0.12); }
+progressbar.updbar progress { min-height: 10px; border-radius: 6px; background: #1e6bff; }
+progressbar.updbar text { color: #e6eeff; font-weight: 600; }
 .card label.k { color: #9db4e6; }
 scale trough { background: rgba(255,255,255,0.16); min-height: 6px; border-radius: 3px; }
 scale highlight { background: #1e6bff; border-radius: 3px; }
@@ -132,6 +135,7 @@ def ask_password(then):
 def update_card():
     status = Gtk.Label(label="", xalign=0, wrap=True); status.add_css_class("sub")
     check = Gtk.Button(label="Check for updates"); check.add_css_class("sec"); upd = Gtk.Button(label="Update System"); upd.add_css_class("primary")
+    bar = Gtk.ProgressBar(show_text=True, visible=False); bar.add_css_class("updbar")
     rb = Gtk.Button(label="Restart now", visible=False); rb.connect("clicked", lambda _b: bg("systemctl reboot"))
     btns = Gtk.Box(spacing=8); btns.append(check); btns.append(upd); btns.append(rb)
     def do_check(_b=None):
@@ -148,6 +152,7 @@ def update_card():
     def do_update(_b):
         def go():
             check.set_sensitive(False); upd.set_sensitive(False); status.set_text("Starting…")
+            bar.set_fraction(0); bar.set_text("0%"); bar.set_visible(True)
             def work():
                 p = subprocess.Popen(["sudo", "-S", "-p", "", UPD, "apply"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
                 p.stdin.write(OV["pw"] + "\n"); p.stdin.flush()
@@ -155,18 +160,22 @@ def update_card():
                 for line in p.stdout:
                     line = line.strip()
                     if line.startswith("STEP "): GLib.idle_add(status.set_text, line[5:] + "…")
+                    elif line.startswith("PCT "):
+                        try: v = max(0, min(100, int(line[4:])))
+                        except ValueError: continue
+                        GLib.idle_add(bar.set_fraction, v / 100); GLib.idle_add(bar.set_text, "%d%%" % v)
                     elif line == "DONE": done = True
                 p.wait()
                 def fin():
                     check.set_sensitive(True); upd.set_sensitive(True)
-                    if done and p.returncode == 0: status.set_text("Update finished. Restart to use the new version."); rb.set_visible(True)
+                    if done and p.returncode == 0: status.set_text("Update finished. Restart to use the new version."); rb.set_visible(True); bar.set_fraction(1); bar.set_text("100%")
                     else: status.set_text("The update did not finish. Check the internet and try again.")
                     return False
                 GLib.idle_add(fin)
             threading.Thread(target=work, daemon=True).start()
         ask_password(go)
     check.connect("clicked", do_check); upd.connect("clicked", do_update)
-    return card(Gtk.Label(label="System update", xalign=0), status, btns)
+    return card(Gtk.Label(label="System update", xalign=0), status, bar, btns)
 
 def p_about():
     b = page("About XlinOS")

@@ -10,13 +10,32 @@ case "$1" in
   apply)
     [[ $EUID -eq 0 ]] || { echo "needs administrator rights"; exit 1; }
     set -e
+    echo "PCT 1"
+    echo "STEP Looking for updates"
+    pacman -Sy --noconfirm >/dev/null 2>&1 || true
+    echo "PCT 5"
     echo "STEP Updating system packages"
-    pacman -Syu --noconfirm
+    pct=5
+    pacman -Su --noconfirm 2>&1 | while IFS= read -r line; do
+      case "$line" in
+        *"Retrieving packages"*) pct=15; echo "PCT $pct" ;;
+        \(*/*\)\ *installing*|\(*/*\)\ *upgrading*|\(*/*\)\ *reinstalling*)
+          n="${line#\(}"; i="${n%%/*}"; n="${n#*/}"; n="${n%%)*}"
+          if [[ "$i" =~ ^[0-9]+$ && "$n" =~ ^[0-9]+$ && "$n" -gt 0 ]]; then pct=$((25 + 55 * i / n)); echo "PCT $pct"; fi ;;
+      esac
+    done
+    [[ ${PIPESTATUS[0]} -eq 0 ]] || exit 1
+    echo "PCT 80"
     echo "STEP Getting the latest XlinOS"
     tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
     git clone --depth 1 "$REPO" "$tmp/x"
+    echo "PCT 88"
     echo "STEP Installing XlinOS"
     bash "$tmp/x/scripts/install-files.sh" "$tmp/x"
+    echo "PCT 93"
+    echo "STEP Finishing up"
+    [[ -f "$tmp/x/scripts/setup-splash.sh" ]] && { bash "$tmp/x/scripts/setup-splash.sh" >/dev/null 2>&1 || true; }
+    echo "PCT 100"
     echo "DONE" ;;
   *) echo "usage: xlinos-update check|apply"; exit 2 ;;
 esac
