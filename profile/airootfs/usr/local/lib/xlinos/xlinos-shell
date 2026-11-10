@@ -6,6 +6,11 @@ LIB = "/usr/lib/libgtk4-layer-shell.so"
 if os.path.exists(LIB) and LIB not in os.environ.get("LD_PRELOAD", ""):
     os.environ["LD_PRELOAD"] = (os.environ.get("LD_PRELOAD", "") + " " + LIB).strip()
     os.execv(sys.executable, [sys.executable] + sys.argv)
+# the preload is only for this program: apps it starts (Firefox, ...) must not inherit it
+if LIB in os.environ.get("LD_PRELOAD", ""):
+    _rest = os.environ["LD_PRELOAD"].replace(LIB, "").split()
+    if _rest: os.environ["LD_PRELOAD"] = " ".join(_rest)
+    else: os.environ.pop("LD_PRELOAD", None)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gi
@@ -154,7 +159,8 @@ def make_dock(app):
         cur = list(allids if cfg.get("runbar_pins") is None else cfg.get("runbar_pins"))
         cur = [x for x in cur if x != cid]
         if on: cur.append(cid)
-        cfg.set("runbar_pins", cur); sh("pkill -f lib/xlinos/xlinos-shell; sleep 0.4; /usr/local/lib/xlinos/xlinos-shell")
+        cfg.set("runbar_pins", cur)
+        GLib.idle_add(lambda: os.execv(sys.executable, [sys.executable] + sys.argv))   # restart this shell in place
 
     def add(cid, label, icon, cmd, wmclass, can_pin=True, gradient=True, gicon=None):
         col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, halign=Gtk.Align.CENTER)

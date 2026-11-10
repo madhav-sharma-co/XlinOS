@@ -75,5 +75,16 @@ python3 /usr/local/lib/xlinos/xlinos-quick >"$OUT/quick2.log" 2>&1 &
 sleep 14; shot 32-control-panel; pkill -f lib/xlinos/xlinos-quick
 python3 /usr/local/lib/xlinos/xlinos-launcher >"$OUT/launcher2.log" 2>&1 &
 sleep 6; shot 33-launcher; pkill -f lib/xlinos/xlinos-launcher
+echo "== pin test"
+python3 - <<'PY' >"$OUT/pin.log" 2>&1
+import sys, subprocess, time
+sys.path.insert(0, "/usr/local/lib/xlinos")
+import xlinos_cfg as c, xlinos_ui
+ids = [a[0] for a in xlinos_ui.available()] + ["kitty"]
+c.set("runbar_pins", ids)
+subprocess.run(["pkill", "-f", "lib/xlinos/xlinos-shell"]); time.sleep(0.5)
+subprocess.Popen(["/usr/local/lib/xlinos/xlinos-shell"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+PY
+sleep 8; pgrep -fa xlinos-shell | tee "$OUT/pin-shell.txt"; shot 34-pinned-kitty
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock

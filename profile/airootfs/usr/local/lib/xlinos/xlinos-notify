@@ -5,6 +5,11 @@ LIB = "/usr/lib/libgtk4-layer-shell.so"
 if os.path.exists(LIB) and LIB not in os.environ.get("LD_PRELOAD", ""):
     os.environ["LD_PRELOAD"] = (os.environ.get("LD_PRELOAD", "") + " " + LIB).strip()
     os.execv(sys.executable, [sys.executable] + sys.argv)
+# the preload is only for this program: apps it starts (Firefox, ...) must not inherit it
+if LIB in os.environ.get("LD_PRELOAD", ""):
+    _rest = os.environ["LD_PRELOAD"].replace(LIB, "").split()
+    if _rest: os.environ["LD_PRELOAD"] = " ".join(_rest)
+    else: os.environ.pop("LD_PRELOAD", None)
 import gi
 gi.require_version("Gtk", "4.0"); gi.require_version("Gtk4LayerShell", "1.0")
 from gi.repository import Gtk, Gdk, Gio, GLib, Gtk4LayerShell as LS
