@@ -23,6 +23,7 @@ gtk4-layer-shell
 power-profiles-daemon
 hyprlock
 hypridle
+hyprsunset
 vte4
 polkit
 hyprpolkitagent

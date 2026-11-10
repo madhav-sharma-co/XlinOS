@@ -8,6 +8,8 @@ if os.path.exists(LIB) and LIB not in os.environ.get("LD_PRELOAD", ""):
 import gi
 gi.require_version("Gtk", "4.0"); gi.require_version("Gtk4LayerShell", "1.0")
 from gi.repository import Gtk, Gdk, Gio, GLib, Gtk4LayerShell as LS
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import xlinos_cfg
 
 XML = """<node><interface name="org.freedesktop.Notifications">
 <method name="GetCapabilities"><arg direction="out" type="as"/></method>
@@ -44,6 +46,8 @@ def activate(app):
         if not st["toasts"]: win.set_visible(False)
 
     def notify(app_name, rid, icon, summary, body, actions, hints, timeout):
+        if xlinos_cfg.get("dnd") and hints.get("urgency", 1) != 2:     # Do not disturb: stay quiet unless it is urgent
+            st["id"] += 1; return st["id"]
         if rid and rid in st["toasts"]: nid = rid
         else: st["id"] += 1; nid = st["id"]
         if nid in st["toasts"]: box.remove(st["toasts"].pop(nid))

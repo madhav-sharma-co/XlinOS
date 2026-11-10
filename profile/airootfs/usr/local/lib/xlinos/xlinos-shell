@@ -12,23 +12,29 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gtk4LayerShell", "1.0")
 from gi.repository import Gtk, Gdk, GLib, Gtk4LayerShell as LS
-import xlinos_ui
+import xlinos_ui, xlinos_cfg as cfg
+from gi.repository import Gio
 
 CSS = (b"""
 window { background: transparent; }
-.bar { background: rgba(8,14,44,0.70); color: #fff; padding: 0 14px; }
+.bar { background: rgba(8,14,44,@BAR@); color: #fff; padding: 0 14px; }
 .bar label { font-size: 13px; }
 .appname { font-weight: 700; margin-left: 10px; }
 .qs { color: #fff; background: transparent; border: none; box-shadow: none; padding: 0 8px; min-height: 0; }
 .qs:hover { background: rgba(255,255,255,0.12); border-radius: 8px; }
 .qs image { -gtk-icon-size: 15px; }
-.dock { background: rgba(12,20,56,0.86); border: 1px solid rgba(255,255,255,0.12); border-radius: 22px; padding: 7px 10px; }
+.dock { background: rgba(12,20,56,@DOCK@); border: 1px solid rgba(255,255,255,0.12); border-radius: 22px; padding: 7px 10px; }
 .dockbtn { background: transparent; border: none; box-shadow: none; padding: 4px; min-width: 0; min-height: 0; border-radius: 16px; }
 .dockbtn:hover { background: rgba(255,255,255,0.12); }
+.dockmenu contents { background: rgba(10,18,52,0.98); border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; padding: 6px; }
 .dot { background: #fff; border-radius: 3px; min-width: 5px; min-height: 5px; }
 .clock-time { font-size: 44px; font-weight: 200; color: #fff; }
 .clock-date { font-size: 14px; color: #9db4e6; }
 """ + xlinos_ui.css().encode())
+
+def css_bytes():
+    a = float(cfg.get("transparency"))
+    return cfg.themed(CSS.decode().replace("@BAR@", "%.2f" % max(0.35, a - 0.14)).replace("@DOCK@", "%.2f" % a))
 
 def sh(cmd):
     subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
@@ -74,11 +80,18 @@ def make_bar(app):
         b = Gtk.Button(); b.add_css_class("qs"); b.set_child(Gtk.Image.new_from_icon_name(icon)); b.set_tooltip_text(kind.capitalize())
         b.connect("clicked", lambda _b, k=kind: toggle("xlinos-menu " + k, "/usr/local/lib/xlinos/xlinos-menu " + k))
         right.append(b)
-    menu_btn("network-wireless-symbolic", "wifi"); menu_btn("bluetooth-symbolic", "bluetooth"); menu_btn("audio-volume-high-symbolic", "sound")
+    items = cfg.get("bar_items")
+    if cfg.get("dnd"):
+        dn = Gtk.Image.new_from_icon_name("notifications-disabled-symbolic"); dn.set_margin_start(6); dn.set_margin_end(6); dn.set_tooltip_text("Do not disturb is on"); right.append(dn)
+    if items.get("wifi", True): menu_btn("network-wireless-symbolic", "wifi")
+    if items.get("bluetooth", True): menu_btn("bluetooth-symbolic", "bluetooth")
+    if items.get("sound", True): menu_btn("audio-volume-high-symbolic", "sound")
     qb = Gtk.Button(); qb.add_css_class("qs")
     rb = Gtk.Box(spacing=12)
-    bat = Gtk.Label(); rb.append(bat)
-    clock = Gtk.Label(); rb.append(clock)
+    bat = Gtk.Label(); clock = Gtk.Label()
+    if items.get("battery", True): rb.append(bat)
+    if items.get("clock", True): rb.append(clock)
+    if not (items.get("battery", True) or items.get("clock", True)): rb.append(Gtk.Image.new_from_icon_name("view-more-symbolic"))
     qb.set_child(rb)
     qb.connect("clicked", lambda _b: toggle("lib/xlinos/xlinos-quick", "/usr/local/lib/xlinos/xlinos-quick"))
     right.append(qb)
@@ -95,28 +108,92 @@ def make_bar(app):
     tick(); active(); GLib.timeout_add_seconds(10, tick); GLib.timeout_add(800, active)
     w.set_child(box); w.present()
 
+def desktop_info_for_class(cls):
+    """Find the installed app that owns a window class (for running apps that are not pinned)."""
+    c = (cls or "").lower()
+    for a in Gio.AppInfo.get_all():
+        try:
+            wm = (a.get_string("StartupWMClass") or "").lower() if hasattr(a, "get_string") else ""
+        except Exception:
+            wm = ""
+        aid = (a.get_id() or "").lower().replace(".desktop", "")
+        if c and (c == wm or c == aid or aid.endswith("." + c)): return a
+    return None
+
 def make_dock(app):
     w = Gtk.ApplicationWindow(application=app)
     layer(w, LS.Layer.TOP, {LS.Edge.BOTTOM: True}, exclusive=84, margins={LS.Edge.BOTTOM: 12})   # windows and maximise stay above the run bar
     box = Gtk.Box(spacing=8); box.add_css_class("dock")
-    dots = {}
-    def add(cid, label, icon, cmd, wmclass):
+    state = {"dots": {}, "sig": None}
+    pins = cfg.get("runbar_pins")
+    known = {a[0]: a for a in xlinos_ui.available()}
+    pinned = [known[i] for i in (list(known) if pins is None else pins) if i in known]
+    pinned_cls = {a[5].lower() for a in pinned if a[5]}
+    other_pins = []                         # pinned apps that are not XlinOS's own (pinned from the launcher)
+    for i in ([] if pins is None else pins):
+        if i in known: continue
+        ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+        if ai:
+            wm = (ai.get_string("StartupWMClass") or "").lower(); other_pins.append((i, ai, wm))
+            if wm: pinned_cls.add(wm)
+
+    def menu(btn, wmclass, cid, cmd, label, can_pin):
+        pop = Gtk.Popover(); pop.set_parent(btn); pop.set_position(Gtk.PositionType.TOP); pop.set_has_arrow(False); pop.add_css_class("dockmenu")
+        v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        def item(text, fn):
+            it = Gtk.Button(label=text); it.add_css_class("sec"); it.set_halign(Gtk.Align.FILL)
+            it.connect("clicked", lambda _b: (pop.popdown(), fn())); v.append(it)
+        item("Open " + label, lambda: sh(cmd))
+        if wmclass: item("Close", lambda: sh("hyprctl dispatch closewindow class:%s" % wmclass))
+        if can_pin:
+            now = pins is None or cid in (pins or [])
+            item("Remove from the run bar" if now else "Keep on the run bar", lambda: (setpin(cid, not now)))
+        pop.set_child(v); pop.popup()
+    def setpin(cid, on):
+        allids = [a[0] for a in xlinos_ui.available()]
+        cur = list(allids if cfg.get("runbar_pins") is None else cfg.get("runbar_pins"))
+        cur = [x for x in cur if x != cid]
+        if on: cur.append(cid)
+        cfg.set("runbar_pins", cur); sh("pkill -f lib/xlinos/xlinos-shell; sleep 0.4; /usr/local/lib/xlinos/xlinos-shell")
+
+    def add(cid, label, icon, cmd, wmclass, can_pin=True, gradient=True, gicon=None):
         col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, halign=Gtk.Align.CENTER)
         b = Gtk.Button(); b.add_css_class("dockbtn")
-        t = Gtk.Box(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); t.add_css_class("apptile"); t.add_css_class("t-" + cid)
-        im = Gtk.Image.new_from_icon_name(icon); im.set_pixel_size(26)
+        t = Gtk.Box(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); t.add_css_class("apptile"); t.add_css_class("t-" + cid if gradient else "t-other")
+        if gicon is not None: im = Gtk.Image.new_from_gicon(gicon)
+        else: im = Gtk.Image.new_from_icon_name(icon)
+        im.set_pixel_size(26)
         im.set_hexpand(True); im.set_vexpand(True); im.set_halign(Gtk.Align.CENTER); im.set_valign(Gtk.Align.CENTER)
         t.append(im); b.set_child(t); b.set_tooltip_text(label)
-        b.connect("clicked", lambda _b: sh("/usr/local/lib/xlinos/xlinos-focus '%s' %s" % (wmclass, cmd) if wmclass else cmd))
+        b.connect("clicked", lambda _b: (cfg.push_recent(cid), sh("/usr/local/lib/xlinos/xlinos-focus '%s' %s" % (wmclass, cmd) if wmclass else cmd)))
+        rc = Gtk.GestureClick(button=3); rc.connect("pressed", lambda g, n, x, y: menu(b, wmclass, cid, cmd, label, can_pin)); b.add_controller(rc)
         dot = Gtk.Box(halign=Gtk.Align.CENTER); dot.add_css_class("dot"); dot.set_opacity(0)
         col.append(b); col.append(dot); box.append(col)
-        if wmclass: dots[wmclass] = dot
-    for cid, label, icon, grad, cmd, wmc in xlinos_ui.available():
-        add(cid, label, icon, cmd, wmc)
-    add("apps", "Apps", "view-app-grid-symbolic", "/usr/local/lib/xlinos/xlinos-launcher", "")
+        if wmclass: state["dots"][wmclass.lower()] = dot
+
+    def build(extra):
+        while (c := box.get_first_child()): box.remove(c)
+        state["dots"] = {}
+        for cid, label, icon, grad, cmd, wmc in pinned:
+            add(cid, label, icon, cmd, wmc)
+        for i, ai, wm in other_pins:
+            add(i, ai.get_name(), "", "gtk-launch %s" % i.replace(".desktop", ""), wm, can_pin=True, gradient=False, gicon=ai.get_icon())
+        for cls, ai in extra:        # running apps that are not pinned
+            add("x-" + cls, ai.get_name(), "", "gtk-launch %s" % (ai.get_id() or ""), cls, can_pin=False, gradient=False, gicon=ai.get_icon())
+        add("apps", "Apps", "view-app-grid-symbolic", "/usr/local/lib/xlinos/xlinos-launcher", "", can_pin=False)
+
     def running():
-        cl = {(c.get("class") or "").lower() for c in (hypr("clients") or [])}
-        for k, d in dots.items():
+        clients = hypr("clients") or []
+        cl = {(c.get("class") or "").lower() for c in clients}
+        extra = []
+        for c in sorted(cl):
+            if not c or c in pinned_cls or c.startswith("os.xlin.") or c in ("", "xlinos-launcher"): continue
+            ai = desktop_info_for_class(c)
+            if ai: extra.append((c, ai))
+        sig = tuple(c for c, _ in extra)
+        if sig != state["sig"]:
+            state["sig"] = sig; build(extra)
+        for k, d in state["dots"].items():
             d.set_opacity(1 if k in cl else 0)
         return True
     running(); GLib.timeout_add(1500, running)
@@ -126,8 +203,8 @@ def make_desktop(app):
     w = Gtk.ApplicationWindow(application=app)
     layer(w, LS.Layer.BACKGROUND, {e: True for e in (LS.Edge.TOP, LS.Edge.BOTTOM, LS.Edge.LEFT, LS.Edge.RIGHT)})
     ov = Gtk.Overlay()
-    for f in (os.path.expanduser("~/.config/xlin/wallpapers/xlin-dark.jpg"), "/usr/share/xlinos/wallpapers/xlin-dark.jpg"):
-        if os.path.exists(f):
+    for f in (cfg.get("wallpaper", "") or "", "/usr/share/xlinos/wallpapers/xlin-dark.jpg"):
+        if f and os.path.exists(f):
             pic = Gtk.Picture.new_for_filename(f); pic.set_content_fit(Gtk.ContentFit.COVER); ov.set_child(pic); break
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, valign=Gtk.Align.START, halign=Gtk.Align.END, margin_top=52, margin_end=34)
     t = Gtk.Label(xalign=1); t.add_css_class("clock-time")
@@ -136,10 +213,11 @@ def make_desktop(app):
     def tick():
         t.set_text(time.strftime("%H:%M")); d.set_text(time.strftime("%A, %d %B")); return True
     tick(); GLib.timeout_add_seconds(10, tick)
-    ov.add_overlay(box); w.set_child(ov); w.present()
+    if cfg.get("show_desktop_clock"): ov.add_overlay(box)
+    w.set_child(ov); w.present()
 
 def activate(app):
-    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    p = Gtk.CssProvider(); p.load_from_data(css_bytes())
     Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
     make_desktop(app); make_bar(app); make_dock(app)
 

@@ -11,6 +11,8 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gtk4LayerShell", "1.0")
 from gi.repository import Gtk, Gdk, Gio, Gtk4LayerShell as LS
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import xlinos_cfg
 
 CSS = b"""
 window { background: transparent; }
@@ -22,6 +24,7 @@ window { background: transparent; }
 .toggle:hover { background-color: rgba(255,255,255,0.14); }
 .toggle.on:hover { background-color: #3a80ff; }
 .toggle.on { background-color: #1e6bff; }
+.toggle:checked { background-color: #1e6bff; }
 .act { background-image: none; background-color: rgba(255,255,255,0.08); box-shadow: none; color: #fff; border: none; border-radius: 12px; min-height: 22px; padding: 11px 8px; }
 .act:hover { background-color: rgba(255,255,255,0.16); }
 .danger { background-color: rgba(255,80,80,0.22); }
@@ -65,7 +68,7 @@ def slider(label, get, set_):
     box.append(l); box.append(s); return box
 
 def activate(app):
-    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    p = Gtk.CssProvider(); p.load_from_data(xlinos_cfg.themed(CSS))
     Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
     w = Gtk.ApplicationWindow(application=app)
     LS.init_for_window(w); LS.set_layer(w, LS.Layer.OVERLAY); LS.set_namespace(w, "xlinos-quick")
@@ -80,29 +83,46 @@ def activate(app):
     sub = Gtk.Label(label=("Battery %d%%  %s" % b) if b else "Plugged in", xalign=0); sub.add_css_class("sub")
     head.append(n); head.append(sub); root.append(head)
 
-    row = Gtk.Box(spacing=8, homogeneous=True)
+    grid = Gtk.Grid(column_spacing=8, row_spacing=8, column_homogeneous=True)
     def toggle(text, state, on, off):
         t = Gtk.ToggleButton(label=text); t.add_css_class("toggle"); t.set_active(state)
         if state: t.add_css_class("on")
         def ch(btn):
-            a = btn.get_active(); bg(on if a else off)
+            a = btn.get_active(); (on if a else off)()
             (btn.add_css_class if a else btn.remove_css_class)("on")
         t.connect("toggled", ch); return t
-    wifi = "enabled" in run("nmcli radio wifi")
-    bt = "Powered: yes" in run("bluetoothctl show") or "Powered: yes" in run("bluetoothctl show")
-    row.append(toggle("Wi-Fi", wifi, "nmcli radio wifi on", "nmcli radio wifi off"))
-    row.append(toggle("Bluetooth", bt, "bluetoothctl power on", "bluetoothctl power off"))
-    root.append(row)
-
-    def getvol():
-        try: return int(float(run("wpctl get-volume @DEFAULT_AUDIO_SINK@").split()[1]) * 100)
-        except Exception: return 50
-    root.append(slider("Volume", getvol, lambda v: bg("wpctl set-volume @DEFAULT_AUDIO_SINK@ %d%%" % v)))
-    def getbr():
-        try: return int(run("brightnessctl -m").split(",")[3].rstrip("%"))
-        except Exception: return 70
-    if run("brightnessctl -m"):
-        root.append(slider("Brightness", getbr, lambda v: bg("brightnessctl set %d%%" % v)))
+    vol0, muted0 = xlinos_cfg.volume()
+    items = [
+        ("Wi-Fi", xlinos_cfg.wifi_on(), lambda: xlinos_cfg.bg("nmcli radio wifi on"), lambda: xlinos_cfg.bg("nmcli radio wifi off")),
+        ("Bluetooth", xlinos_cfg.bt_on(), lambda: xlinos_cfg.bg("bluetoothctl power on"), lambda: xlinos_cfg.bg("bluetoothctl power off")),
+        ("Airplane mode", bool(xlinos_cfg.get("airplane")), lambda: xlinos_cfg.set_airplane(True), lambda: xlinos_cfg.set_airplane(False)),
+        ("Do not disturb", bool(xlinos_cfg.get("dnd")), lambda: xlinos_cfg.set_dnd(True), lambda: xlinos_cfg.set_dnd(False)),
+        ("Night light", bool(xlinos_cfg.get("night_light")), lambda: xlinos_cfg.set_night_light(True), lambda: xlinos_cfg.set_night_light(False)),
+        ("Silent", muted0, lambda: xlinos_cfg.bg("wpctl set-mute @DEFAULT_AUDIO_SINK@ 1"), lambda: xlinos_cfg.bg("wpctl set-mute @DEFAULT_AUDIO_SINK@ 0")),
+    ]
+    for i, (text, state, on, off) in enumerate(items):
+        grid.attach(toggle(text, state, on, off), i % 2, i // 2, 1, 1)
+    root.append(grid)
+    root.append(slider("Volume", lambda: vol0, xlinos_cfg.set_volume))
+    br = xlinos_cfg.brightness()
+    if br is not None:
+        root.append(slider("Brightness", lambda: br, xlinos_cfg.set_brightness))
+    modes = xlinos_cfg.power_modes()
+    if modes:
+        pm = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); l = Gtk.Label(label="Power mode", xalign=0); l.add_css_class("sub"); pm.append(l)
+        seg = Gtk.Box(spacing=6, homogeneous=True); cur = xlinos_cfg.run("powerprofilesctl get") or "balanced"
+        names = {"power-saver": "Saver", "balanced": "Balanced", "performance": "Performance"}
+        btns = {}
+        for m in modes:
+            bt = Gtk.ToggleButton(label=names[m]); bt.add_css_class("act"); bt.set_active(m == cur); btns[m] = bt
+            def pick(btn, m=m):
+                if not btn.get_active(): return
+                for k, o in btns.items():
+                    if k != m and o.get_active(): o.set_active(False)
+                xlinos_cfg.power_mode(m)
+            bt.connect("toggled", pick); seg.append(bt)
+        pm.append(seg); root.append(pm)
+    more = Gtk.Button(label="All settings"); more.add_css_class("act"); more.connect("clicked", lambda _b: (xlinos_cfg.bg("xlinos-settings"), app.quit())); root.append(more)
 
     acts = Gtk.Box(spacing=8, homogeneous=True)
     def act(text, cmd, danger=False):

@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gdk, Gio, GLib
-import xlinos_ui
+import xlinos_ui, xlinos_cfg as cfg
 
 CSS = (xlinos_ui.window_css() + """
 window { background: transparent; }
@@ -186,14 +186,161 @@ def p_about():
     b.append(update_card())
     return b
 
-PAGES = [("Network", "network-wireless-symbolic", p_network), ("Sound", "audio-volume-high-symbolic", p_sound),
-         ("Display", "video-display-symbolic", p_display), ("Power", "battery-symbolic", p_power),
-         ("Users", "avatar-default-symbolic", p_users), ("About", "help-about-symbolic", p_about)]
+
+# ---------------------------------------------------------------- helpers for the new pages
+def switch_row(title, sub, active, on_change):
+    r = Gtk.Box(spacing=12); t = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
+    a = Gtk.Label(label=title, xalign=0); t.append(a)
+    if sub:
+        b = Gtk.Label(label=sub, xalign=0, wrap=True); b.add_css_class("sub"); t.append(b)
+    sw = Gtk.Switch(active=bool(active), valign=Gtk.Align.CENTER); sw.connect("state-set", lambda _s, st: on_change(st) or False)
+    r.append(t); r.append(sw); return r
+
+def choice_row(title, options, current, on_pick):
+    """A row of buttons where one is selected: options = [(label, value)]"""
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); box.append(Gtk.Label(label=title, xalign=0))
+    seg = Gtk.Box(spacing=6); btns = []
+    for label, val in options:
+        b = Gtk.ToggleButton(label=label); b.set_active(val == current); btns.append((b, val)); seg.append(b)
+        def pick(btn, v=val):
+            if not btn.get_active(): return
+            for o, ov in btns:
+                if ov != v and o.get_active(): o.set_active(False)
+            on_pick(v)
+        b.connect("toggled", pick)
+    box.append(seg); return box
+
+def restart_shell():
+    cfg.bg("pkill -f lib/xlinos/xlinos-shell; sleep 0.5; /usr/local/lib/xlinos/xlinos-shell")
+
+def p_general():
+    b = page("General", "Sound, screen, notifications, sleep and mouse.")
+    vol, _m = cfg.volume()
+    items = [Gtk.Label(label="Volume", xalign=0), slider(lambda: vol, cfg.set_volume)]
+    br = cfg.brightness()
+    if br is not None: items += [Gtk.Label(label="Brightness", xalign=0), slider(lambda: br, cfg.set_brightness)]
+    b.append(card(*items))
+    b.append(card(switch_row("Do not disturb", "Hide notifications until you switch it off.", cfg.get("dnd"), cfg.set_dnd),
+                  switch_row("Night light", "Warmer screen colours for the evening.", cfg.get("night_light"), cfg.set_night_light),
+                  switch_row("Airplane mode", "Turn off Wi-Fi and Bluetooth.", cfg.get("airplane"), cfg.set_airplane)))
+    def mins(key, label, opts):
+        def pick(v): cfg.set(key, v); cfg.apply_idle()
+        return choice_row(label, [(("%d min" % v) if v else "Never", v) for v in opts], int(cfg.get(key)), pick)
+    b.append(card(mins("lock_minutes", "Lock the screen after", (1, 5, 10, 30, 0)), mins("sleep_minutes", "Sleep after", (5, 15, 30, 60, 0))))
+    def inp(key, v): cfg.set(key, v); cfg.apply_input()
+    b.append(card(switch_row("Natural scrolling", "Content moves with your fingers.", cfg.get("natural_scroll"), lambda v: inp("natural_scroll", v)),
+                  switch_row("Tap to click", "Tap the touchpad to click.", cfg.get("tap_to_click"), lambda v: inp("tap_to_click", v)),
+                  Gtk.Label(label="Pointer speed", xalign=0),
+                  slider(lambda: int((float(cfg.get("pointer_speed")) + 1) * 50), lambda v: inp("pointer_speed", round(v / 50 - 1, 2)))))
+    return b
+
+def p_personal():
+    b = page("Personalisation", "Colours, text size and how things move.")
+    dots = Gtk.Box(spacing=10); cur = cfg.get("accent"); dbtns = []
+    for name, col in cfg.ACCENTS:
+        d = Gtk.ToggleButton(); d.set_tooltip_text(name); d.set_size_request(34, 34); d.set_active(col == cur)
+        pr = Gtk.CssProvider(); pr.load_from_data(("button { background-image: none; background-color: %s; border-radius: 17px; padding: 0; min-width: 34px; min-height: 34px; }"
+                                                    "button:checked { border: 3px solid #ffffff; }" % col).encode())
+        d.get_style_context().add_provider(pr, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 5); dbtns.append((d, col)); dots.append(d)
+        def pick(btn, c=col):
+            if not btn.get_active(): return
+            for o, oc in dbtns:
+                if oc != c and o.get_active(): o.set_active(False)
+            cfg.set("accent", c); restart_shell()
+        d.connect("toggled", pick)
+    b.append(card(Gtk.Label(label="Accent colour (apps use it the next time they open)", xalign=0), dots))
+    b.append(card(choice_row("Text size (applies after you log in again)", [("Small", 0.9), ("Normal", 1.0), ("Large", 1.15), ("Extra large", 1.3)], float(cfg.get("text_scale")), lambda v: cfg.set("text_scale", v))))
+    def anim(v): cfg.set("animations", v); cfg.apply_animations()
+    b.append(card(choice_row("Animations", [("Off", "off"), ("Subtle", "subtle"), ("Smooth", "smooth")], cfg.get("animations"), anim)))
+    t = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 40, 100, 1); t.set_value(float(cfg.get("transparency")) * 100)
+    t.connect("value-changed", lambda sc: cfg.set("transparency", round(sc.get_value() / 100, 2)))
+    rb = Gtk.Button(label="Apply to the bars"); rb.add_css_class("sec"); rb.connect("clicked", lambda _b: restart_shell())
+    b.append(card(Gtk.Label(label="Bar and run bar see-through level (higher = more solid)", xalign=0), t, rb))
+    return b
+
+def p_desktop():
+    b = page("Desktop", "What shows in the status bar, which apps are on the run bar, and your wallpaper.")
+    items = Gtk.Label(label="Status bar", xalign=0)
+    bi = dict(cfg.get("bar_items"))
+    def setitem(k, v): bi[k] = v; cfg.set("bar_items", dict(bi)); restart_shell()
+    rows = [(k, n) for k, n in (("wifi", "Wi-Fi"), ("bluetooth", "Bluetooth"), ("sound", "Sound"), ("battery", "Battery"), ("clock", "Date and time"))]
+    b.append(card(items, *[switch_row("Show " + n, None, bi.get(k, True), lambda v, k=k: setitem(k, v)) for k, n in rows],
+                  switch_row("Clock on the desktop", None, cfg.get("show_desktop_clock"), lambda v: (cfg.set("show_desktop_clock", v), restart_shell()))))
+    pins = cfg.get("runbar_pins"); allapps = [a[0] for a in xlinos_ui.available()]
+    cur = set(allapps if pins is None else pins)
+    def setpin(aid, v):
+        base = list(allapps if cfg.get("runbar_pins") is None else cfg.get("runbar_pins"))
+        base = [x for x in base if x != aid]
+        if v: base = [a for a in allapps if a in set(base) | {aid}] + [x for x in base if x not in allapps]
+        cfg.set("runbar_pins", base); restart_shell()
+    b.append(card(Gtk.Label(label="Apps on the run bar", xalign=0), *[switch_row(a[1], None, a[0] in cur, lambda v, i=a[0]: setpin(i, v)) for a in xlinos_ui.available()]))
+    # wallpapers
+    import glob, shutil
+    pics = sorted(glob.glob("/usr/share/xlinos/wallpapers/*.jpg") + glob.glob("/usr/share/xlinos/wallpapers/*.png") + glob.glob(os.path.expanduser("~/.config/xlinos/wallpapers/*")))
+    wp = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=3, column_spacing=8, row_spacing=8)
+    for f in pics:
+        btn = Gtk.Button(); btn.add_css_class("sec")
+        try:
+            from gi.repository import GdkPixbuf
+            pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(f, 160, 100, True); pic = Gtk.Picture.new_for_paintable(Gdk.Texture.new_for_pixbuf(pb)); pic.set_size_request(160, 100)
+            btn.set_child(pic)
+        except Exception:
+            btn.set_label(os.path.basename(f))
+        btn.connect("clicked", lambda _b, f=f: (cfg.set("wallpaper", f), restart_shell())); wp.append(btn)
+    add = Gtk.Button(label="Add a picture…"); add.add_css_class("primary")
+    def chosen(d, res):
+        try: f = d.open_finish(res)
+        except GLib.Error: return
+        dst = os.path.expanduser("~/.config/xlinos/wallpapers"); os.makedirs(dst, exist_ok=True)
+        t = os.path.join(dst, os.path.basename(f.get_path())); shutil.copy(f.get_path(), t); cfg.set("wallpaper", t); restart_shell()
+    add.connect("clicked", lambda _b: Gtk.FileDialog().open(None, None, chosen))
+    b.append(card(Gtk.Label(label="Wallpaper", xalign=0), wp, add))
+    return b
+
+def p_apps():
+    b = page("Apps and tools", "Choose which app opens each kind of file.")
+    apps = cfg.desktop_apps(); names = [a.get_name() for a in apps]; ids = [a.get_id() for a in apps]
+    items = []
+    for label, mime, _k in cfg.DEFAULT_KINDS:
+        cur = cfg.get_default(mime)
+        dd = Gtk.DropDown.new_from_strings(names); dd.set_hexpand(True)
+        if cur in ids: dd.set_selected(ids.index(cur))
+        def pick(d, _p, m=mime):
+            i = d.get_selected()
+            if i < len(ids): cfg.set_default(m, ids[i])
+        dd.connect("notify::selected", pick)
+        r = Gtk.Box(spacing=12); r.append(Gtk.Label(label=label, xalign=0, width_chars=16)); r.append(dd); items.append(r)
+    b.append(card(*items)); return b
+
+def p_bluetooth():
+    b = page("Bluetooth")
+    on = "Powered: yes" in run("bluetoothctl show")
+    sw = Gtk.Switch(active=on, halign=Gtk.Align.END); sw.connect("state-set", lambda _s, st: bg("rfkill unblock bluetooth; bluetoothctl power " + ("on" if st else "off")) or False)
+    r = Gtk.Box(); r.append(Gtk.Label(label="Bluetooth", xalign=0, hexpand=True)); r.append(sw); b.append(card(r))
+    devs = []
+    for line in run("bluetoothctl devices").splitlines():
+        p = line.split(" ", 2)
+        if len(p) == 3:
+            conn = "Connected: yes" in run("bluetoothctl info " + p[1]); devs.append((p[1], p[2], conn))
+    items = []
+    for mac, name, conn in devs:
+        rr = Gtk.Box(spacing=12); rr.append(Gtk.Label(label=name, xalign=0, hexpand=True))
+        bt = Gtk.Button(label="Disconnect" if conn else "Connect"); bt.add_css_class("sec")
+        bt.connect("clicked", lambda _b, m=mac, c=conn: bg("bluetoothctl %s %s" % ("disconnect" if c else "connect", m))); rr.append(bt); items.append(rr)
+    scan = Gtk.Button(label="Search for new devices"); scan.add_css_class("primary"); scan.connect("clicked", lambda _b: bg("bluetoothctl --timeout 10 scan on"))
+    b.append(card(*(items or [Gtk.Label(label="No devices yet. Press Search, then reopen this page.", xalign=0)])))
+    b.append(scan); return b
+
+PAGES = [("General", "preferences-system-symbolic", p_general), ("Network", "network-wireless-symbolic", p_network), ("Bluetooth", "bluetooth-symbolic", p_bluetooth),
+         ("Sound", "audio-volume-high-symbolic", p_sound), ("Display", "video-display-symbolic", p_display), ("Power", "battery-symbolic", p_power),
+         ("Desktop", "preferences-desktop-wallpaper-symbolic", p_desktop), ("Personalisation", "applications-graphics-symbolic", p_personal),
+         ("Apps and tools", "applications-engineering-symbolic", p_apps), ("Users", "avatar-default-symbolic", p_users), ("About", "help-about-symbolic", p_about)]
 
 def activate(app):
-    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    p = Gtk.CssProvider(); p.load_from_data(cfg.themed(CSS))
     Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-    win, body = xlinos_ui.make_window(app, "Settings", 860, 560)
+    win, body = xlinos_ui.make_window(app, "Settings", 900, 600)
+    side_scroll = None
     main = Gtk.Box(vexpand=True); side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); side.add_css_class("side")
     stack = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
     btns = {}
@@ -203,9 +350,9 @@ def activate(app):
     for name, icon, fn in PAGES:
         b = Gtk.Button(); r = Gtk.Box(spacing=10); r.append(Gtk.Image.new_from_icon_name(icon)); r.append(Gtk.Label(label=name, xalign=0))
         b.set_child(r); b.connect("clicked", lambda _b, n=name, f=fn: show(n, f)); side.append(b); btns[name] = b
-    main.append(side); main.append(stack)
+    sscroll = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER); sscroll.set_child(side); main.append(sscroll); main.append(stack)
     ov = Gtk.Overlay(vexpand=True); ov.set_child(main); OV["ov"] = ov; body.append(ov)
-    start = sys.argv[1].lower() if len(sys.argv) > 1 else "network"
+    start = sys.argv[1].lower() if len(sys.argv) > 1 else "general"
     n, f = next(((n, f) for n, _i, f in PAGES if n.lower() == start), (PAGES[0][0], PAGES[0][2]))
     show(n, f); win.present()
 

@@ -12,7 +12,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gtk4LayerShell", "1.0")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gi.repository import Gtk, Gdk, Gio, Gtk4LayerShell as LS
-import xlinos_ui
+import xlinos_ui, xlinos_cfg
 
 CSS = (b"""
 window { background: rgba(3,8,28,0.93); }
@@ -22,6 +22,12 @@ entry.search { background: rgba(255,255,255,0.10); color: #fff; border-radius: 1
 .tile:hover, .tile:focus { background: rgba(255,255,255,0.14); }
 .tile image { -gtk-icon-size: 56px; }
 .tile label { font-size: 12px; }
+.sect { color: #9db4e6; font-size: 13px; font-weight: 700; margin-top: 8px; }
+.foot { background-image: none; background-color: rgba(255,255,255,0.10); color: #fff; border: none; border-radius: 12px; padding: 8px 20px; box-shadow: none; }
+.foot:hover { background-color: rgba(255,255,255,0.18); }
+.ctx contents { background: rgba(10,18,52,0.98); border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; padding: 6px; }
+.ctxbtn { background: transparent; color: #fff; border: none; box-shadow: none; border-radius: 10px; padding: 8px 14px; }
+.ctxbtn:hover { background: rgba(255,255,255,0.12); }
 """ + xlinos_ui.css().encode())
 
 HIDE = ("thunar", "thunar-bulk", "thunar-settings", "thunar-volman", "pavucontrol", "rofi", "xgps", "qv4l2", "qvidcap", "org.qt-project", "avahi", "bssh", "bvnc", "nm-connection", "kitty", "kitty-open", "lstopo", "cmake", "uuctl", "org.gtk.")
@@ -34,8 +40,10 @@ def apps():
         seen.add(a.get_id()); out.append(a)
     return sorted(out, key=lambda a: a.get_name().lower())
 
+def app_key(a): return (a.get_id() or "").lower().replace(".desktop", "")
+
 def activate(app):
-    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    p = Gtk.CssProvider(); p.load_from_data(xlinos_cfg.themed(CSS))
     Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
     w = Gtk.ApplicationWindow(application=app)
     LS.init_for_window(w); LS.set_layer(w, LS.Layer.OVERLAY); LS.set_namespace(w, "xlinos-launcher")
@@ -43,48 +51,109 @@ def activate(app):
         LS.set_anchor(w, e, True)
     LS.set_exclusive_zone(w, -1); LS.set_keyboard_mode(w, LS.KeyboardMode.EXCLUSIVE)
 
-    entry = Gtk.SearchEntry(placeholder_text="Search apps, files and settings", halign=Gtk.Align.CENTER); entry.add_css_class("search")
-    flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=8, min_children_per_line=3,
-                       homogeneous=True, halign=Gtk.Align.CENTER, valign=Gtk.Align.START, row_spacing=6, column_spacing=6)
-    tiles = []
-    def launch(_b, a):
-        a.launch([], None); app.quit()
+    allapps = apps(); by_id = {app_key(a): a for a in allapps}
     KEYS = {"kitty": "terminal", "xlinos-terminal": "terminal", "browser": "browser", "thunar": "files", "xlinos-settings": "settings", "xlinos-store": "store", "xlinos-notes": "notes", "xlinos-calculator": "calculator", "xlinos-media": "media", "xlinos-photos": "photos", "xlinos-calendar": "calendar", "xlinos-files": "files"}
     ICONS = {a_[0]: a_[2] for a_ in xlinos_ui.APPS}
-    for a in apps():
+    def run_bar_ids(): return [a_[0] for a_ in xlinos_ui.available()]
+
+    def launch(a):
+        xlinos_cfg.push_recent(app_key(a))
+        try: a.launch([], None)
+        except Exception: pass
+        app.quit()
+
+    def refresh_all():
+        build_pins(); build_recent()
+
+    def popmenu(btn, a):
+        pop = Gtk.Popover(); pop.set_parent(btn); pop.set_has_arrow(False); pop.add_css_class("ctx")
+        v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        def item(text, fn):
+            it = Gtk.Button(label=text); it.add_css_class("ctxbtn"); it.connect("clicked", lambda _b: (pop.popdown(), fn())); v.append(it)
+        k = app_key(a)
+        item("Open", lambda: launch(a))
+        lp = xlinos_cfg.get("launcher_pins"); pinned_here = (lp is None and k in default_pins()) or (lp is not None and k in lp)
+        def toggle_launcher():
+            cur = list(default_pins() if xlinos_cfg.get("launcher_pins") is None else xlinos_cfg.get("launcher_pins"))
+            cur = [x for x in cur if x != k] if k in cur else cur + [k]
+            xlinos_cfg.set("launcher_pins", cur); refresh_all()
+        item("Remove from Pinned" if pinned_here else "Pin to the launcher", toggle_launcher)
+        bid = k[7:] if k.startswith("xlinos-") and k[7:] in run_bar_ids() else k      # XlinOS apps use their short run-bar id
+        rp = xlinos_cfg.get("runbar_pins"); on_bar = (rp is None and bid in run_bar_ids()) or (rp is not None and bid in rp)
+        def toggle_bar():
+            allids = run_bar_ids(); cur = list(allids if xlinos_cfg.get("runbar_pins") is None else xlinos_cfg.get("runbar_pins"))
+            cur = [x for x in cur if x != bid] if bid in cur else cur + [bid]
+            xlinos_cfg.set("runbar_pins", cur); xlinos_cfg.bg("pkill -f lib/xlinos/xlinos-shell; sleep 0.4; /usr/local/lib/xlinos/xlinos-shell")
+        item("Remove from the run bar" if on_bar else "Pin to the run bar", toggle_bar)
+        pop.set_child(v); pop.popup()
+
+    def tile_for(a):
         b = Gtk.Button(); b.add_css_class("tile")
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, halign=Gtk.Align.CENTER)
-        aid = (a.get_id() or "").lower()
-        key = next((v for k, v in KEYS.items() if k in aid), None)
-        tile = Gtk.Box(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); tile.add_css_class("apptile")
-        tile.set_size_request(64, 64)
+        aid = app_key(a)
+        key = next((v_ for k_, v_ in KEYS.items() if k_ in aid), None)
+        tile = Gtk.Box(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER); tile.add_css_class("apptile"); tile.set_size_request(64, 64)
         if key:
             tile.add_css_class("t-" + key); img = Gtk.Image.new_from_icon_name(ICONS[key]); img.set_pixel_size(30)
         else:
-            tile.add_css_class("t-other")
-            img = Gtk.Image.new_from_gicon(a.get_icon() or Gio.ThemedIcon.new("application-x-executable")); img.set_pixel_size(34)
+            tile.add_css_class("t-other"); img = Gtk.Image.new_from_gicon(a.get_icon() or Gio.ThemedIcon.new("application-x-executable")); img.set_pixel_size(34)
         img.set_hexpand(True); img.set_vexpand(True); img.set_halign(Gtk.Align.CENTER); img.set_valign(Gtk.Align.CENTER); tile.append(img)
         lab = Gtk.Label(label=a.get_name(), ellipsize=3, max_width_chars=14)
         box.append(tile); box.append(lab); b.set_child(box)
-        b.connect("clicked", launch, a); flow.append(b); tiles.append((a.get_name().lower(), b))
+        b.connect("clicked", lambda _b: launch(a))
+        rc = Gtk.GestureClick(button=3); rc.connect("pressed", lambda g, n, x, y: popmenu(b, a)); b.add_controller(rc)
+        return b
+
+    def default_pins():
+        return [k for k in ("xlinos-files", "xlinos-terminal", "xlinos-store", "xlinos-settings", "xlinos-notes", "xlinos-photos", "xlinos-calendar", "xlinos-media", "xlinos-calculator", "xlinos-browser", "xlinos-edit", "xlinos-screenshot") if k in by_id]
+
+    entry = Gtk.SearchEntry(placeholder_text="Search apps", halign=Gtk.Align.CENTER); entry.add_css_class("search")
+    def heading(text):
+        l = Gtk.Label(label=text, xalign=0); l.add_css_class("sect"); return l
+    def new_flow(maxc=8):
+        return Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=maxc, min_children_per_line=3, homogeneous=True, halign=Gtk.Align.START, valign=Gtk.Align.START, row_spacing=6, column_spacing=6)
+    pins_flow, recent_flow, all_flow = new_flow(), new_flow(), new_flow()
+    pins_head, recent_head, all_head = heading("Pinned"), heading("Recent"), heading("All apps")
+    def clear(f):
+        while (c := f.get_first_child()): f.remove(c)
+    def build_pins():
+        clear(pins_flow); lp = xlinos_cfg.get("launcher_pins"); ids = default_pins() if lp is None else lp
+        n = 0
+        for k in ids:
+            if k in by_id: pins_flow.append(tile_for(by_id[k])); n += 1
+        pins_head.set_visible(n > 0); pins_flow.set_visible(n > 0)
+    def build_recent():
+        clear(recent_flow); n = 0
+        for k in xlinos_cfg.get("recent")[:8]:
+            if k in by_id: recent_flow.append(tile_for(by_id[k])); n += 1
+        recent_head.set_visible(n > 0); recent_flow.set_visible(n > 0)
+    tiles = []
+    for a in allapps:
+        t = tile_for(a); all_flow.append(t); tiles.append((a.get_name().lower(), t))
+    build_pins(); build_recent()
     def filt(_e):
-        q = entry.get_text().lower()
-        for n, b in tiles:
-            b.get_parent().set_visible(q in n)
+        q = entry.get_text().lower().strip()
+        for h, f in ((pins_head, pins_flow), (recent_head, recent_flow)):
+            h.set_visible(not q and f.get_first_child() is not None); f.set_visible(not q and f.get_first_child() is not None)
+        all_head.set_label("Results" if q else "All apps")
+        for n, b in tiles: b.get_parent().set_visible(q in n)
     entry.connect("search-changed", filt)
     def first_match(_e):
         for n, b in tiles:
-            if b.get_parent().get_visible():
-                b.emit("clicked"); return
+            if b.get_parent().get_visible(): b.emit("clicked"); return
     entry.connect("activate", first_match)
-    scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); scroll.set_child(flow)
-    root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=28, margin_top=90, margin_bottom=60, margin_start=80, margin_end=80)
-    root.append(entry); root.append(scroll)
+    inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+    for x in (pins_head, pins_flow, recent_head, recent_flow, all_head, all_flow): inner.append(x)
+    scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); scroll.set_child(inner)
+    foot = Gtk.Box(spacing=10, halign=Gtk.Align.CENTER)
+    for text, cmd in (("Settings", "xlinos-settings"), ("Lock", "xlinos-lock"), ("Restart", "systemctl reboot"), ("Shut down", "systemctl poweroff")):
+        fb = Gtk.Button(label=text); fb.add_css_class("foot"); fb.connect("clicked", lambda _b, c=cmd: (xlinos_cfg.bg(c), app.quit())); foot.append(fb)
+    root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=22, margin_top=70, margin_bottom=40, margin_start=80, margin_end=80)
+    root.append(entry); root.append(scroll); root.append(foot)
     w.set_child(root)
     k = Gtk.EventControllerKey(); k.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
     k.connect("key-pressed", lambda c, kv, kc, st: (app.quit(), True)[1] if kv == Gdk.KEY_Escape else False)
     w.add_controller(k)
-    click = Gtk.GestureClick(); click.connect("pressed", lambda g, n, x, y: None); w.add_controller(click)
     w.present(); entry.grab_focus()
 
 app = Gtk.Application(application_id="os.xlin.launcher", flags=Gio.ApplicationFlags.NON_UNIQUE)

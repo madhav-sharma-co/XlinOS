@@ -68,5 +68,12 @@ sleep 5; shot 28-clock
 xlinos-screenshot >"$OUT/screenshot.log" 2>&1 &
 sleep 5; shot 29-screenshot-app
 xlinos-screenshot full; ls -la ~/Pictures/Screenshots | tee "$OUT/screenshots.txt"
+xlinos-settings general >"$OUT/settings-general.log" 2>&1 &
+sleep 6; shot 30-settings-general; pkill -f xlinos-settings
+for pg in personalisation desktop; do xlinos-settings $pg >"$OUT/settings-$pg.log" 2>&1 & sleep 6; shot 31-settings-$pg; pkill -f xlinos-settings; done
+python3 /usr/local/lib/xlinos/xlinos-quick >"$OUT/quick2.log" 2>&1 &
+sleep 6; shot 32-control-panel; pkill -f lib/xlinos/xlinos-quick
+python3 /usr/local/lib/xlinos/xlinos-launcher >"$OUT/launcher2.log" 2>&1 &
+sleep 6; shot 33-launcher; pkill -f lib/xlinos/xlinos-launcher
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock

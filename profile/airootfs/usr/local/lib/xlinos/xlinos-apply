@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+"""Applies the saved XlinOS settings (animations, touchpad, lock and sleep, night light, power mode). Runs at login."""
+import os, sys, time
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import xlinos_cfg
+time.sleep(2)
+xlinos_cfg.apply_all()

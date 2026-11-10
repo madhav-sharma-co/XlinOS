@@ -8,6 +8,9 @@ cp /usr/share/xlinos/hypr/hyprland.lua "$HOME/.config/hypr/hyprland.lua"
 if command -v systemd-detect-virt >/dev/null && systemd-detect-virt -q; then
   export WLR_RENDERER_ALLOW_SOFTWARE=1 WLR_NO_HARDWARE_CURSORS=1
 fi
+# text size chosen in Settings
+SCALE="$(python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.config/xlinos/settings.json'))).get('text_scale',1.0))" 2>/dev/null)"
+[ -n "$SCALE" ] && export GDK_DPI_SCALE="$SCALE"
 # the compositor prints a lot of text: it goes to a log file, never to the screen
 LOG="${XDG_RUNTIME_DIR:-/tmp}/xlinos-compositor.log"
 command -v start-hyprland >/dev/null 2>&1 && exec start-hyprland >"$LOG" 2>&1
