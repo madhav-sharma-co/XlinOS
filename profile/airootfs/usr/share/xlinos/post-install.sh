@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs inside the new system at the end of the install (archinstall custom_commands).
 # Needs the internet (it fetches the XlinOS desktop files from GitHub).
-set -u
+# Fail the installation if required desktop/login files cannot be installed.
+set -Eeuo pipefail
 REF="@XLINOS_REF@"
 # the XlinOS name (replaces the symlink that the Arch filesystem package installs)
 rm -f /etc/os-release
@@ -34,14 +35,15 @@ printf 'XlinOS @VERSION@\n' >/etc/issue.net
 
 # XlinOS login files (login screen, account helper, session starter, browser helper)
 tmp="$(mktemp -d)"
-if git clone --depth 1 ${REF:+--branch "$REF"} https://github.com/madhav-sharma-co/XlinOS.git "$tmp/x"; then
-  bash "$tmp/x/scripts/install-files.sh" "$tmp/x"
-  systemctl enable greetd.service
-  bash "$tmp/x/scripts/setup-splash.sh" || echo "XlinOS: boot logo setup failed"
+trap 'rm -rf "$tmp"' EXIT
+if [[ -n "$REF" ]]; then
+  git clone --depth 1 --branch "$REF" https://github.com/madhav-sharma-co/XlinOS.git "$tmp/x"
 else
-  echo "XlinOS: could not fetch the login files. Check the internet and run the installer again."
+  git clone --depth 1 https://github.com/madhav-sharma-co/XlinOS.git "$tmp/x"
 fi
-rm -rf "$tmp"
+bash "$tmp/x/scripts/install-files.sh" "$tmp/x"
+systemctl enable greetd.service
+bash "$tmp/x/scripts/setup-splash.sh" || echo "XlinOS: boot logo setup failed"
 
 # Layers 2-4: lean and fast defaults (zram swap, small journal, no boot wait for the network)
 mkdir -p /etc/systemd/journald.conf.d /etc/sysctl.d
@@ -52,4 +54,3 @@ ln -sf /dev/null /etc/systemd/system/NetworkManager-wait-online.service
 
 # members of wheel may use sudo (with a password)
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
-exit 0

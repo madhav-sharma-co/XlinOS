@@ -9,6 +9,7 @@ exec 3>&1 1>>"$LOG" 2>&1
 say() { echo "$*" >&3; }
 fail() { say "FAIL $*"; exit 1; }
 set -x
+set -o pipefail
 DISK="${1:-}"; OPTS="${2:-}"; T=5
 opt() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2],sys.argv[3]))' "${OPTS:-/dev/null}" "$1" "$2" 2>/dev/null || echo "$2"; }
 [[ -f "$OPTS" ]] || OPTS=""
@@ -24,8 +25,14 @@ curl -sI --max-time 8 -o /dev/null https://github.com || curl -sI --max-time 8 -
 if [[ "$TARGET" == partition ]]; then
   EFI="$(opt efi "")"
   [[ -b "$EFI" ]] || fail "The shared start-up (EFI) partition was not found."
-  [[ "$(lsblk -no PARTTYPE "$DISK" 2>/dev/null)" != c12a7328-f81f-11d2-ba4b-00a0c93ec93b ]] || fail "That is the start-up partition. Choose a normal partition."
+  [[ "$(lsblk -dn -o TYPE "$DISK" 2>/dev/null)" == part ]] || fail "Choose a partition, not a whole disk."
+  [[ "$(lsblk -dn -o TYPE "$EFI" 2>/dev/null)" == part ]] || fail "The shared start-up location must be an EFI partition."
+  [[ "$DISK" != "$EFI" ]] || fail "Choose a normal partition, not the EFI partition."
+  [[ "$(lsblk -dn -o PARTTYPE "$DISK" 2>/dev/null | tr '[:upper:]' '[:lower:]')" != c12a7328-f81f-11d2-ba4b-00a0c93ec93b ]] || fail "That is the start-up partition. Choose a normal partition."
+  [[ "$(lsblk -dn -o PARTTYPE "$EFI" 2>/dev/null | tr '[:upper:]' '[:lower:]')" == c12a7328-f81f-11d2-ba4b-00a0c93ec93b ]] || fail "The selected shared partition is not marked as an EFI System Partition."
+  [[ "$(lsblk -dn -o FSTYPE "$EFI" 2>/dev/null)" == vfat ]] || fail "The shared EFI partition must use FAT32 (vfat)."
   findmnt -rn -S "$DISK" >/dev/null && fail "That partition is in use. Choose a free partition."
+  findmnt -rn -S "$EFI" >/dev/null && fail "The shared EFI partition is already mounted. Restart the live system or unmount it before installing."
   say "STEP 2/$T Preparing the partition (other systems stay untouched)"
   umount -R /mnt 2>/dev/null
   if [[ "$FS" == btrfs ]]; then mkfs.btrfs -qf "$DISK" && mount -o compress=zstd "$DISK" /mnt; else mkfs.ext4 -qF "$DISK" && mount "$DISK" /mnt; fi || fail "Could not format the partition."
@@ -45,19 +52,20 @@ open("/tmp/xl-lang", "w").write(o.get("locale") or "en_US.UTF-8")
 open("/tmp/xl-kb", "w").write(o.get("kb") or "us")
 PY
   pacstrap -K /mnt $(cat /tmp/xl-pkgs) || fail "Downloading the system failed. Check the internet. The log is in /var/log/xlinos-install.log."
-  genfstab -U /mnt >/mnt/etc/fstab
+  genfstab -U /mnt >/mnt/etc/fstab || fail "Could not write the installed system's filesystem table."
   echo "$(cat /tmp/xl-host)" >/mnt/etc/hostname
   ln -sf "/usr/share/zoneinfo/$(cat /tmp/xl-tz)" /mnt/etc/localtime
   L="$(cat /tmp/xl-lang)"; sed -i "s/^#\($L \)/\1/" /mnt/etc/locale.gen; echo "LANG=$L" >/mnt/etc/locale.conf; echo "KEYMAP=$(cat /tmp/xl-kb)" >/mnt/etc/vconsole.conf
-  arch-chroot /mnt locale-gen
-  arch-chroot /mnt systemctl enable NetworkManager systemd-timesyncd
+  arch-chroot /mnt locale-gen || fail "Could not generate the selected locale."
+  arch-chroot /mnt systemctl enable NetworkManager systemd-timesyncd || fail "Could not enable the network and time services."
   say "STEP 4/$T Setting up the start menu"
   arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=XlinOS || fail "Could not set up the start menu."
   sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3"/; s/^#\?GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/' /mnt/etc/default/grub
   grep -q '^GRUB_DISTRIBUTOR' /mnt/etc/default/grub && sed -i 's/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR="XlinOS"/' /mnt/etc/default/grub
-  pacstrap /mnt os-prober >/dev/null 2>&1
+  pacstrap /mnt os-prober >/dev/null 2>&1 || fail "Could not install os-prober, which is needed to detect the other operating systems."
   arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg || fail "Could not set up the start menu."
-  cp /tmp/xl-post.sh /mnt/tmp/xl-post.sh && { arch-chroot /mnt bash /tmp/xl-post.sh 2>&1 | tee /mnt/var/log/xlinos-post.log; echo "post exit ${PIPESTATUS[0]}"; }
+  cp /tmp/xl-post.sh /mnt/tmp/xl-post.sh || fail "Could not prepare XlinOS setup."
+  arch-chroot /mnt bash /tmp/xl-post.sh 2>&1 | tee /mnt/var/log/xlinos-post.log || fail "XlinOS desktop setup failed. The log is in /var/log/xlinos-install.log and /var/log/xlinos-post.log."
   say "STEP 5/$T Done"
   sync; umount -R /mnt 2>/dev/null
   say "DONE"; exit 0
