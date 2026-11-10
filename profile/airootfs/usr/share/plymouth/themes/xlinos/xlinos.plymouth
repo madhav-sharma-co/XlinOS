@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=XlinOS
+Description=XlinOS boot logo
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/xlinos
+ScriptFile=/usr/share/plymouth/themes/xlinos/xlinos.script

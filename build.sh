@@ -36,6 +36,12 @@ say "Packages"
 grep -vE '^\s*(#|$)' "$ROOT/profile/packages.extra" >>"$PROFILE/packages.x86_64"
 sort -u -o "$PROFILE/packages.x86_64" "$PROFILE/packages.x86_64"
 
+# --- boot logo: plymouth hook in the live initramfs (after udev)
+for f in "$PROFILE"/airootfs/etc/mkinitcpio.conf.d/*.conf; do
+  [[ -f "$f" ]] && grep -q '^HOOKS=' "$f" && ! grep -q plymouth "$f" && sed -i -E '/^HOOKS=/ s/\budev\b/udev plymouth/' "$f"
+done
+grep -h '^HOOKS' "$PROFILE"/airootfs/etc/mkinitcpio.conf.d/*.conf || true
+
 # --- our files on top of releng's airootfs
 cp -r "$ROOT/profile/airootfs/." "$PROFILE/airootfs/"
 sed -i "s/@VERSION@/$version/g" "$PROFILE/airootfs/etc/os-release" "$PROFILE/airootfs/etc/issue" "$PROFILE/airootfs/etc/motd"

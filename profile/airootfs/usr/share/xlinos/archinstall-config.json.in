@@ -11,7 +11,7 @@
     "gvfs-smb", "grim", "wl-clipboard", "playerctl", "xdg-desktop-portal-hyprland",
     "xdg-desktop-portal-gtk", "gst-plugins-base", "gst-plugins-good", "gst-plugins-bad", "gst-libav",
     "gst-plugin-gtk4", "gtksourceview5", "poppler-glib", "kitty", "zram-generator", "sudo", "git", "greetd", "cage",
-    "mesa", "vulkan-icd-loader", "sof-firmware", "nano"
+    "plymouth", "mesa", "vulkan-icd-loader", "sof-firmware", "nano"
   ],
   "custom_commands": [
     "echo @POST_B64@ | base64 -d | bash"

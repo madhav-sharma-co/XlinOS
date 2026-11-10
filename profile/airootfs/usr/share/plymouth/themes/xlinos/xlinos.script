@@ -1,0 +1,51 @@
+# XlinOS boot / shutdown screen: dark background, the logo, a thin progress line.
+Window.SetBackgroundTopColor(0.012, 0.031, 0.110);
+Window.SetBackgroundBottomColor(0.012, 0.031, 0.110);
+
+W = Window.GetWidth();
+H = Window.GetHeight();
+
+logo.image = Image("logo.png");
+logo.sprite = Sprite(logo.image);
+logo.x = W / 2 - logo.image.GetWidth() / 2;
+logo.y = H / 2 - logo.image.GetHeight() / 2 - 20;
+logo.sprite.SetPosition(logo.x, logo.y, 10);
+logo.sprite.SetOpacity(0);
+
+bar.w = 220;
+bar.x = W / 2 - bar.w / 2;
+bar.y = logo.y + logo.image.GetHeight() + 56;
+px = Image("px.png");
+track.sprite = Sprite(px.Scale(bar.w, 3));
+track.sprite.SetPosition(bar.x, bar.y, 10);
+track.sprite.SetOpacity(0.12);
+fill.sprite = Sprite();
+fill.sprite.SetPosition(bar.x, bar.y, 11);
+fill.sprite.SetOpacity(0.9);
+
+t = 0;
+progress = 0;
+
+fun refresh() {
+  t++;
+  fade = Math.Min(1, t / 40);
+  logo.sprite.SetOpacity(fade * (0.88 + 0.12 * Math.Sin(t / 14)));
+  # a travelling highlight while real progress is not known yet
+  shown = Math.Max(progress, 0.04);
+  fill.sprite.SetImage(px.Scale(Math.Max(2, bar.w * shown), 3));
+}
+Plymouth.SetRefreshFunction(refresh);
+
+fun boot_progress(time, p) {
+  progress = p;
+}
+Plymouth.SetBootProgressFunction(boot_progress);
+
+# passphrase prompt for encrypted disks (kept simple)
+fun display_password_callback(prompt, bullets) {
+  pw.sprite = Sprite(Image.Text("Password: " + bullets, 0.9, 0.95, 1.0));
+  pw.sprite.SetPosition(W / 2 - 80, bar.y + 40, 20);
+}
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+fun display_normal_callback() { pw.sprite = NULL; }
+Plymouth.SetDisplayNormalFunction(display_normal_callback);

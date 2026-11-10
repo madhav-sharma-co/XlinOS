@@ -20,6 +20,8 @@ install -D -m 644 "$A"/usr/share/xlinos/hypr/hyprland.lua /usr/share/xlinos/hypr
 install -D -m 644 "$A"/usr/share/xlinos/quickshell.bashrc /usr/share/xlinos/quickshell.bashrc
 install -D -m 644 "$A"/usr/share/xlinos/hyprlock.conf /usr/share/xlinos/hyprlock.conf
 install -D -m 644 "$A"/usr/share/xlinos/wallpapers/xlin-dark.jpg /usr/share/xlinos/wallpapers/xlin-dark.jpg
+install -D -m 644 "$A"/usr/share/plymouth/themes/xlinos/xlinos.plymouth /usr/share/plymouth/themes/xlinos/xlinos.plymouth
+for f in xlinos.script logo.png px.png; do install -m 644 "$A"/usr/share/plymouth/themes/xlinos/$f /usr/share/plymouth/themes/xlinos/; done
 install -d /etc/greetd
 install -m 644 "$A"/usr/share/xlinos/greetd-config.toml /etc/greetd/config.toml
 install -m 440 "$A"/usr/share/xlinos/sudoers-greeter /etc/sudoers.d/xlinos-greeter

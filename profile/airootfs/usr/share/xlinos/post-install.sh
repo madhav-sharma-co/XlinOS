@@ -37,6 +37,7 @@ tmp="$(mktemp -d)"
 if git clone --depth 1 ${REF:+--branch "$REF"} https://github.com/madhav-sharma-co/XlinOS.git "$tmp/x"; then
   bash "$tmp/x/scripts/install-files.sh" "$tmp/x"
   systemctl enable greetd.service
+  bash "$tmp/x/scripts/setup-splash.sh" || echo "XlinOS: boot logo setup failed"
 else
   echo "XlinOS: could not fetch the login files. Check the internet and run the installer again."
 fi
