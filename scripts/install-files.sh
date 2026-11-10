@@ -22,6 +22,7 @@ install -D -m 644 "$A"/usr/share/xlinos/hyprlock.conf /usr/share/xlinos/hyprlock
 install -D -m 644 "$A"/usr/share/xlinos/wallpapers/xlin-dark.jpg /usr/share/xlinos/wallpapers/xlin-dark.jpg
 install -D -m 644 "$A"/usr/share/plymouth/themes/xlinos/xlinos.plymouth /usr/share/plymouth/themes/xlinos/xlinos.plymouth
 for f in xlinos.script logo.png px.png; do install -m 644 "$A"/usr/share/plymouth/themes/xlinos/$f /usr/share/plymouth/themes/xlinos/; done
+rm -f /usr/share/applications/xlinos-install.desktop /usr/local/bin/xlinos-install /usr/local/bin/xlinos-installer   # the installer is only for the live USB/ISO
 install -d /etc/greetd
 install -m 644 "$A"/usr/share/xlinos/greetd-config.toml /etc/greetd/config.toml
 install -m 440 "$A"/usr/share/xlinos/sudoers-greeter /etc/sudoers.d/xlinos-greeter
