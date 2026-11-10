@@ -46,17 +46,17 @@ open("/tmp/xl-lang", "w").write(o.get("locale") or "en_US.UTF-8")
 open("/tmp/xl-kb", "w").write(o.get("kb") or "us")
 PY
   pacstrap -K /mnt $(cat /tmp/xl-pkgs) || fail "Downloading the system failed. Check the internet. The log is in /var/log/xlinos-install.log."
-  genfstab -U /mnt >/mnt/etc/fstab
+  genfstab -U /mnt >/mnt/etc/fstab || fail "Could not write the installed system's filesystem table."
   echo "$(cat /tmp/xl-host)" >/mnt/etc/hostname
   ln -sf "/usr/share/zoneinfo/$(cat /tmp/xl-tz)" /mnt/etc/localtime
   L="$(cat /tmp/xl-lang)"; sed -i "s/^#\($L \)/\1/" /mnt/etc/locale.gen; echo "LANG=$L" >/mnt/etc/locale.conf; echo "KEYMAP=$(cat /tmp/xl-kb)" >/mnt/etc/vconsole.conf
-  arch-chroot /mnt locale-gen
-  arch-chroot /mnt systemctl enable NetworkManager systemd-timesyncd
+  arch-chroot /mnt locale-gen || fail "Could not generate the selected locale."
+  arch-chroot /mnt systemctl enable NetworkManager systemd-timesyncd || fail "Could not enable the network and time services."
   say "STEP 4/$T Setting up the start menu"
   arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=XlinOS || fail "Could not set up the start menu."
   sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3"/; s/^#\?GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/' /mnt/etc/default/grub
   grep -q '^GRUB_DISTRIBUTOR' /mnt/etc/default/grub && sed -i 's/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR="XlinOS"/' /mnt/etc/default/grub
-  pacstrap /mnt os-prober >/dev/null 2>&1
+  pacstrap /mnt os-prober >/dev/null 2>&1 || fail "Could not install os-prober, which is needed to detect the other operating systems."
   arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg || fail "Could not set up the start menu."
   cp /tmp/xl-post.sh /mnt/tmp/xl-post.sh || fail "Could not prepare XlinOS setup."
   arch-chroot /mnt bash /tmp/xl-post.sh 2>&1 | tee /mnt/var/log/xlinos-post.log || fail "XlinOS desktop setup failed. The log is in /var/log/xlinos-install.log and /var/log/xlinos-post.log."
