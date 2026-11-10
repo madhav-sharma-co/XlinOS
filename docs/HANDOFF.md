@@ -21,6 +21,12 @@ XlinOS is a separate, real OS on an Arch/Linux base. Hyprland runs hidden under 
 2. `gh workflow run archinstall-test.yml --ref main -f run_id=<ISO build run id>` (add `-f dual=1` for the dual-boot test). Fetch results: `git fetch origin ci-shots-archinstall && git archive FETCH_HEAD | tar -x -C dir`.
 3. ISO artifacts cannot be downloaded from the AI sandbox; the owner downloads them from the Actions page while logged in to GitHub. Publishing the ISO as a public release was not allowed without the owner saying yes.
 
+## Settings, control panel and apps (v0.1.0 work)
+- Shared module `xlinos_cfg.py`: settings in `~/.config/xlinos/settings.json` (accent, text size, animations, bar transparency, status-bar items, run bar and launcher pins, recent apps, lock/sleep minutes, touchpad, do not disturb, night light, airplane, power mode, wallpaper) and the system actions behind them. `xlinos-apply` applies them at login.
+- `xlinos-settings` pages: General, Network, Bluetooth, Sound, Display, Power, Desktop, Personalisation, Apps and tools, Users, About. `xlinos-quick` is the control panel (toggles, sliders, power mode). `xlinos-menu wifi|bluetooth|sound` are the status-bar popups. `xlinos-launcher` has pinned, recent, all apps, right-click pin menu and power buttons. `xlinos-shell` run bar has pins, running apps and a right-click menu.
+- New apps ported from the feature list of Xlin-soft (not its look): Text Editor, System Monitor, Screenshot (Print key), Clock.
+- Not done yet: light theme, PDF reader, help/manual app, desktop widgets, window/workspace settings page.
+
 ## Installer
 - GUI: `xlinos-installer` (settings menu: language, keyboard, time zone, install target, file system, computer name). Writes an options JSON and calls `xlinos-install-run <disk-or-partition> <opts.json>`.
 - Whole-disk mode uses archinstall with `pre_mounted_config` + systemd-boot. Proven end to end in CI and on the owner's real laptop.

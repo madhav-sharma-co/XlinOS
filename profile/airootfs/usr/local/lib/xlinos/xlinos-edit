@@ -11,6 +11,7 @@ CSS = (xlinos_ui.window_css() + """
 window { background: transparent; }
 textview, textview text { background: rgba(8,14,44,0.55); color: #eaf0ff; font-family: monospace; font-size: 14px; }
 .bar { padding: 6px 10px; }
+checkbutton, checkbutton label { color: #e6eeff; }
 .status { color: #9db4e6; font-size: 12px; padding: 4px 14px; }
 """).encode()
 
