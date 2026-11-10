@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Text Editor
+Comment=Write and edit text and code
+Exec=xlinos-edit %F
+Icon=text-editor
+Terminal=false
+Categories=Utility;TextEditor;
+StartupWMClass=os.xlin.edit

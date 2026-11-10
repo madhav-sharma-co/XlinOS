@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Screenshot
+Comment=Capture the screen, an area or a window
+Exec=xlinos-screenshot
+Icon=applets-screenshooter
+Terminal=false
+Categories=Utility;
+StartupWMClass=os.xlin.screenshot

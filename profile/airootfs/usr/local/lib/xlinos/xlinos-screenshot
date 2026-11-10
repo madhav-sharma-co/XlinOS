@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+"""XlinOS Screenshot. Without arguments it opens a small window; `xlinos-screenshot area|full|window` takes one straight away."""
+import os, sys, subprocess, time, threading
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+DIR = os.path.expanduser("~/Pictures/Screenshots")
+
+def out(cmd, **k):
+    return subprocess.run(cmd, capture_output=True, text=True, **k)
+
+def take(mode, delay=0):
+    os.makedirs(DIR, exist_ok=True)
+    path = os.path.join(DIR, "Screenshot-%s.png" % time.strftime("%Y-%m-%d_%H-%M-%S"))
+    if delay: time.sleep(delay)
+    region = None
+    if mode == "area":
+        r = out(["slurp"])
+        if r.returncode != 0: return None
+        region = r.stdout.strip()
+    elif mode == "window":
+        import json
+        try:
+            a = json.loads(out(["hyprctl", "-j", "activewindow"]).stdout)
+            region = "%d,%d %dx%d" % (a["at"][0], a["at"][1], a["size"][0], a["size"][1])
+        except Exception:
+            return None
+    cmd = ["grim"] + (["-g", region] if region else []) + [path]
+    if out(cmd).returncode != 0: return None
+    try:
+        subprocess.run(["wl-copy", "--type", "image/png"], stdin=open(path, "rb"), timeout=5)
+    except Exception:
+        pass
+    subprocess.Popen(["notify-send", "-a", "Screenshot", "Screenshot saved", "Copied to the clipboard and saved in Pictures/Screenshots"])
+    return path
+
+if len(sys.argv) > 1 and sys.argv[1] in ("area", "full", "window"):
+    time.sleep(0.3); take(sys.argv[1]); sys.exit(0)
+
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, GLib
+import xlinos_ui
+CSS = (xlinos_ui.window_css() + "window { background: transparent; } .t { color:#fff; font-size:18px; font-weight:700; } .s { color:#9db4e6; }").encode()
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Screenshot", 420, 300)
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_start=24, margin_end=24, margin_bottom=22)
+    t = Gtk.Label(label="Take a screenshot", xalign=0); t.add_css_class("t"); box.append(t)
+    msg = Gtk.Label(label="Saved in Pictures/Screenshots and copied to the clipboard.", xalign=0, wrap=True); msg.add_css_class("s"); box.append(msg)
+    delay = Gtk.DropDown.new_from_strings(["No delay", "3 seconds", "5 seconds", "10 seconds"])
+    box.append(delay)
+    def go(mode):
+        d = (0, 3, 5, 10)[delay.get_selected()]
+        win.minimize() if hasattr(win, "minimize") else None
+        def job():
+            res = take(mode, max(d, 1))
+            GLib.idle_add(lambda: (msg.set_text("Saved: " + res if res else "Nothing was captured."), win.present(), False)[2])
+        threading.Thread(target=job, daemon=True).start()
+    for label, mode in (("Whole screen", "full"), ("Choose an area", "area"), ("Active window", "window")):
+        b = Gtk.Button(label=label); b.connect("clicked", lambda _b, m=mode: go(m)); box.append(b)
+    body.append(box); win.present()
+
+app = Gtk.Application(application_id="os.xlin.screenshot")
+app.connect("activate", activate)
+sys.exit(app.run(None))

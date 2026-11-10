@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""XlinOS Text Editor: open, edit and save plain text and code files."""
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, Gio, GLib
+import xlinos_ui
+
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+textview, textview text { background: rgba(8,14,44,0.55); color: #eaf0ff; font-family: monospace; font-size: 14px; }
+.bar { padding: 6px 10px; }
+.status { color: #9db4e6; font-size: 12px; padding: 4px 14px; }
+""").encode()
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Text Editor", 900, 600)
+    st = {"path": None, "dirty": False}
+    buf = Gtk.TextBuffer()
+    tv = Gtk.TextView(buffer=buf, monospace=True, top_margin=10, left_margin=12, right_margin=12, bottom_margin=10)
+    sc = Gtk.ScrolledWindow(vexpand=True); sc.set_child(tv)
+    status = Gtk.Label(xalign=0); status.add_css_class("status")
+    def title():
+        name = os.path.basename(st["path"]) if st["path"] else "Untitled"
+        win.set_title(("* " if st["dirty"] else "") + name + "  -  Text Editor")
+    def pos(*_):
+        it = buf.get_iter_at_mark(buf.get_insert())
+        status.set_text("Line %d, column %d   %s   %d characters" % (it.get_line() + 1, it.get_line_offset() + 1, st["path"] or "Not saved yet", buf.get_char_count()))
+    def changed(*_):
+        st["dirty"] = True; title(); pos()
+    buf.connect("changed", changed); buf.connect("notify::cursor-position", pos)
+    def load(path):
+        try:
+            data = open(path, encoding="utf-8", errors="replace").read()
+        except Exception as e:
+            status.set_text("Could not open: %s" % e); return
+        buf.handler_block_by_func(changed); buf.set_text(data); buf.handler_unblock_by_func(changed)
+        st.update(path=path, dirty=False); title(); pos()
+    def write(path):
+        try:
+            open(path, "w", encoding="utf-8").write(buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False))
+            st.update(path=path, dirty=False); title(); pos()
+        except Exception as e:
+            status.set_text("Could not save: %s" % e)
+    def save_as():
+        d = Gtk.FileDialog(); d.save(win, None, lambda dlg, res: _done(dlg, res, True))
+    def _done(dlg, res, saving):
+        try:
+            f = dlg.save_finish(res) if saving else dlg.open_finish(res)
+        except GLib.Error:
+            return
+        (write if saving else load)(f.get_path())
+    def save():
+        write(st["path"]) if st["path"] else save_as()
+    def open_():
+        d = Gtk.FileDialog(); d.open(win, None, lambda dlg, res: _done(dlg, res, False))
+    def new():
+        buf.handler_block_by_func(changed); buf.set_text(""); buf.handler_unblock_by_func(changed); st.update(path=None, dirty=False); title(); pos()
+    bar = Gtk.Box(spacing=8); bar.add_css_class("bar")
+    for label, fn in (("New", new), ("Open", open_), ("Save", save), ("Save as", save_as)):
+        b = Gtk.Button(label=label); b.connect("clicked", lambda _b, f=fn: f()); bar.append(b)
+    wrap = Gtk.CheckButton(label="Wrap lines"); wrap.set_active(True); wrap.set_margin_start(10)
+    wrap.connect("toggled", lambda c: tv.set_wrap_mode(Gtk.WrapMode.WORD_CHAR if c.get_active() else Gtk.WrapMode.NONE)); tv.set_wrap_mode(Gtk.WrapMode.WORD_CHAR); bar.append(wrap)
+    body.append(bar); body.append(sc); body.append(status)
+    k = Gtk.EventControllerKey()
+    def key(c, kv, kc, state):
+        if state & Gdk.ModifierType.CONTROL_MASK:
+            if kv in (Gdk.KEY_s, Gdk.KEY_S): save(); return True
+            if kv in (Gdk.KEY_o, Gdk.KEY_O): open_(); return True
+            if kv in (Gdk.KEY_n, Gdk.KEY_N): new(); return True
+        return False
+    k.connect("key-pressed", key); win.add_controller(k)
+    if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]): load(sys.argv[1])
+    else: title(); pos(); st["dirty"] = False; title()
+    win.present(); tv.grab_focus()
+
+app = Gtk.Application(application_id="os.xlin.edit")
+app.connect("activate", activate)
+sys.exit(app.run(None))

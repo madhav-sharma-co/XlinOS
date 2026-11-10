@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""XlinOS Clock: time and date, countdown timer and stopwatch."""
+import os, sys, time, subprocess
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, GLib
+import xlinos_ui
+
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+.time { color: #fff; font-size: 64px; font-weight: 200; }
+.date { color: #9db4e6; font-size: 16px; }
+.digits { color: #fff; font-size: 52px; font-weight: 300; }
+.go { background-color: #1e6bff; color: #fff; }
+spinbutton { background: rgba(255,255,255,0.08); color: #fff; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); }
+""").encode()
+
+def fmt(s):
+    s = max(0, s); return "%02d:%02d:%02d" % (s // 3600, s % 3600 // 60, s % 60)
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Clock", 520, 460)
+    stack = Gtk.Stack(vexpand=True, transition_type=Gtk.StackTransitionType.CROSSFADE)
+    sw = Gtk.StackSwitcher(stack=stack, halign=Gtk.Align.CENTER); body.append(sw); body.append(stack)
+    def page(name, title):
+        b = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER, margin_bottom=24)
+        stack.add_titled(b, name, title); return b
+    # clock
+    c = page("clock", "Clock"); t = Gtk.Label(); t.add_css_class("time"); d = Gtk.Label(); d.add_css_class("date"); c.append(t); c.append(d)
+    def tick(): t.set_text(time.strftime("%H:%M:%S")); d.set_text(time.strftime("%A, %d %B %Y")); return True
+    tick(); GLib.timeout_add(500, tick)
+    # timer
+    tm = page("timer", "Timer"); disp = Gtk.Label(label="00:05:00"); disp.add_css_class("digits"); tm.append(disp)
+    sp = Gtk.Box(spacing=8, halign=Gtk.Align.CENTER)
+    h = Gtk.SpinButton.new_with_range(0, 23, 1); m = Gtk.SpinButton.new_with_range(0, 59, 1); s = Gtk.SpinButton.new_with_range(0, 59, 1); m.set_value(5)
+    for w, l in ((h, "h"), (m, "min"), (s, "s")): sp.append(w); sp.append(Gtk.Label(label=l))
+    tm.append(sp)
+    st = {"end": None, "id": None}
+    btn = Gtk.Button(label="Start"); btn.add_css_class("go"); tm.append(btn)
+    def tt():
+        left = int(round(st["end"] - time.time()))
+        disp.set_text(fmt(left))
+        if left <= 0:
+            st["id"] = None; st["end"] = None; btn.set_label("Start")
+            subprocess.Popen(["notify-send", "-a", "Clock", "Timer finished", "Your timer is done."])
+            subprocess.Popen(["sh", "-c", "paplay /usr/share/sounds/freedesktop/stereo/complete.oga 2>/dev/null"])
+            return False
+        return True
+    def toggle(_b):
+        if st["id"]:
+            GLib.source_remove(st["id"]); st["id"] = None; st["end"] = None; btn.set_label("Start"); return
+        total = int(h.get_value() * 3600 + m.get_value() * 60 + s.get_value())
+        if total <= 0: return
+        st["end"] = time.time() + total; btn.set_label("Stop"); disp.set_text(fmt(total)); st["id"] = GLib.timeout_add(200, tt)
+    btn.connect("clicked", toggle)
+    # stopwatch
+    sp2 = page("stopwatch", "Stopwatch"); sd = Gtk.Label(label="00:00:00.0"); sd.add_css_class("digits"); sp2.append(sd)
+    sw_ = {"t0": None, "acc": 0.0, "id": None}
+    row = Gtk.Box(spacing=10, halign=Gtk.Align.CENTER); go = Gtk.Button(label="Start"); go.add_css_class("go"); rs = Gtk.Button(label="Reset"); row.append(go); row.append(rs); sp2.append(row)
+    def show():
+        e = sw_["acc"] + (time.time() - sw_["t0"] if sw_["t0"] else 0)
+        sd.set_text("%s.%d" % (fmt(int(e)), int(e * 10) % 10)); return True
+    def g(_b):
+        if sw_["t0"]:
+            sw_["acc"] += time.time() - sw_["t0"]; sw_["t0"] = None; GLib.source_remove(sw_["id"]); sw_["id"] = None; go.set_label("Start")
+        else:
+            sw_["t0"] = time.time(); sw_["id"] = GLib.timeout_add(100, show); go.set_label("Stop")
+    def r(_b):
+        if sw_["id"]: GLib.source_remove(sw_["id"])
+        sw_.update(t0=None, acc=0.0, id=None); go.set_label("Start"); sd.set_text("00:00:00.0")
+    go.connect("clicked", g); rs.connect("clicked", r)
+    win.present()
+
+app = Gtk.Application(application_id="os.xlin.clock")
+app.connect("activate", activate)
+sys.exit(app.run(None))

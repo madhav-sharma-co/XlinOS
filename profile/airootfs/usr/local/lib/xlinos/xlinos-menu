@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""XlinOS status-bar menus: xlinos-menu wifi | bluetooth | sound. A small glass popup under the status bar."""
+import os, sys, subprocess, threading, re
+
+LIB = "/usr/lib/libgtk4-layer-shell.so"
+if os.path.exists(LIB) and LIB not in os.environ.get("LD_PRELOAD", ""):
+    os.environ["LD_PRELOAD"] = (os.environ.get("LD_PRELOAD", "") + " " + LIB).strip()
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gtk4LayerShell", "1.0")
+from gi.repository import Gtk, Gdk, GLib, Gtk4LayerShell as LS
+
+KIND = (sys.argv[1] if len(sys.argv) > 1 else "wifi").lower()
+CSS = b"""
+window { background: transparent; }
+.panel { background: rgba(10,18,52,0.96); border: 1px solid rgba(255,255,255,0.14); border-radius: 18px; padding: 14px; color: #fff; min-width: 330px; }
+.title { font-size: 16px; font-weight: 700; }
+.hint { color: #9db4e6; font-size: 12px; }
+.err { color: #ff9a9a; font-size: 12px; }
+.row { background: transparent; border: none; box-shadow: none; color: #fff; border-radius: 12px; padding: 9px 10px; min-height: 22px; }
+.row:hover { background: rgba(255,255,255,0.10); }
+.row.on { background: rgba(30,107,255,0.35); }
+.pill { background: rgba(255,255,255,0.10); border: none; box-shadow: none; color: #fff; border-radius: 12px; padding: 7px 14px; min-height: 20px; }
+.pill:hover { background: rgba(255,255,255,0.18); }
+.pill.go { background: #1e6bff; }
+entry { background: rgba(255,255,255,0.10); color: #fff; border-radius: 10px; border: 1px solid rgba(255,255,255,0.16); padding: 6px 10px; min-height: 20px; }
+switch { background: rgba(255,255,255,0.18); border-radius: 14px; border: none; }
+switch:checked { background: #1e6bff; }
+switch slider { background: #fff; border-radius: 12px; border: none; }
+scale { min-height: 14px; }
+scale trough { background: rgba(255,255,255,0.16); background-image: none; min-height: 6px; border-radius: 3px; border: none; }
+scale highlight { background: #1e6bff; background-image: none; border-radius: 3px; border: none; }
+scale slider { background: #fff; min-width: 18px; min-height: 18px; border-radius: 9px; border: none; margin: -6px; }
+"""
+
+def run(cmd, timeout=12):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
+    except Exception as e:
+        return 1, str(e)
+
+def bg(fn, done=None):
+    def w():
+        res = fn()
+        if done: GLib.idle_add(lambda: (done(res), False)[1])
+    threading.Thread(target=w, daemon=True).start()
+
+def clear(box):
+    while (c := box.get_first_child()): box.remove(c)
+
+class Menu:
+    def __init__(self, app):
+        self.win = Gtk.ApplicationWindow(application=app)
+        LS.init_for_window(self.win); LS.set_layer(self.win, LS.Layer.OVERLAY); LS.set_namespace(self.win, "xlinos-menu")
+        for e in (LS.Edge.TOP, LS.Edge.RIGHT): LS.set_anchor(self.win, e, True)
+        LS.set_margin(self.win, LS.Edge.TOP, 38); LS.set_margin(self.win, LS.Edge.RIGHT, 12)
+        LS.set_keyboard_mode(self.win, LS.KeyboardMode.ON_DEMAND)
+        self.panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); self.panel.add_css_class("panel")
+        self.win.set_child(self.panel)
+        k = Gtk.EventControllerKey(); k.connect("key-pressed", lambda c, kv, kc, st: (app.quit(), True)[1] if kv == Gdk.KEY_Escape else False)
+        self.win.add_controller(k)
+        self.seen_active = False
+        self.win.connect("notify::is-active", self.on_active)
+        self.app = app
+    def on_active(self, w, _p):
+        if w.is_active(): self.seen_active = True
+        elif self.seen_active and not getattr(self, "pinned", False): self.app.quit()
+    def head(self, title, with_switch=None):
+        h = Gtk.Box(spacing=10); t = Gtk.Label(label=title, xalign=0, hexpand=True); t.add_css_class("title"); h.append(t)
+        sw = None
+        if with_switch is not None:
+            sw = Gtk.Switch(active=with_switch, valign=Gtk.Align.CENTER); h.append(sw)
+        self.panel.append(h); return sw
+    def label(self, text, cls="hint"):
+        l = Gtk.Label(label=text, xalign=0, wrap=True); l.add_css_class(cls); self.panel.append(l); return l
+    def scroller(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        s = Gtk.ScrolledWindow(); s.set_child(box); s.set_min_content_height(40); s.set_max_content_height(300); s.set_propagate_natural_height(True)
+        self.panel.append(s); return box
+
+# ------------------------------------------------------------------ Wi-Fi
+def wifi(m):
+    on = run(["nmcli", "radio", "wifi"])[1].strip() == "enabled"
+    sw = m.head("Wi-Fi", on)
+    status = m.label("")
+    lst = m.scroller()
+    pw_row = Gtk.Box(spacing=8); pw_row.set_visible(False)
+    pw = Gtk.Entry(visibility=False, placeholder_text="Password", hexpand=True); go = Gtk.Button(label="Connect"); go.add_css_class("pill"); go.add_css_class("go")
+    pw_row.append(pw); pw_row.append(go); m.panel.append(pw_row)
+    st = {"ssid": None}
+    def connect(ssid, password=None):
+        status.set_text("Connecting to %s…" % ssid); status.remove_css_class("err")
+        def job():
+            cmd = ["nmcli", "dev", "wifi", "connect", ssid] + (["password", password] if password else [])
+            return run(cmd, 30)
+        def done(res):
+            rc, out = res
+            if rc == 0: status.set_text("Connected to %s" % ssid); pw_row.set_visible(False); refresh()
+            else:
+                status.set_text("Could not connect. Check the password." if password else "Could not connect."); status.add_css_class("err")
+        bg(job, done)
+    def pick(ssid, secured, known):
+        if secured and not known:
+            st["ssid"] = ssid; pw.set_text(""); pw_row.set_visible(True); pw.grab_focus(); status.set_text("Password for %s" % ssid)
+        else: connect(ssid)
+    go.connect_after = None
+    go.connect("clicked", lambda _b: st["ssid"] and connect(st["ssid"], pw.get_text()))
+    pw.connect("activate", lambda _e: st["ssid"] and connect(st["ssid"], pw.get_text()))
+    def refresh(rescan=False):
+        def job():
+            if rescan: run(["nmcli", "dev", "wifi", "rescan"], 8)
+            rc, out = run(["nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "dev", "wifi", "list"])
+            known = set(run(["nmcli", "-t", "-f", "NAME", "con", "show"])[1].splitlines())
+            return out, known
+        def done(res):
+            out, known = res; clear(lst); seen = set(); nets = []
+            for line in out.splitlines():
+                p = re.split(r"(?<!\\):", line)
+                if len(p) < 4: continue
+                use, ssid, sig, sec = p[0], p[1].replace("\\:", ":"), p[2], p[3]
+                if not ssid or ssid in seen: continue
+                seen.add(ssid); nets.append((use == "*", ssid, int(sig or 0), bool(sec.strip())))
+            nets.sort(key=lambda n: (not n[0], -n[2]))
+            if not nets: status.set_text("No networks found" if sw.get_active() else "Wi-Fi is off")
+            for cur, ssid, sig, sec in nets[:30]:
+                b = Gtk.Button(); b.add_css_class("row")
+                if cur: b.add_css_class("on")
+                h = Gtk.Box(spacing=10)
+                h.append(Gtk.Image.new_from_icon_name("network-wireless-symbolic"))
+                n = Gtk.Label(label=ssid, xalign=0, hexpand=True); n.set_ellipsize(3); h.append(n)
+                if sec: h.append(Gtk.Image.new_from_icon_name("changes-prevent-symbolic"))
+                h.append(Gtk.Label(label=("Connected" if cur else "%d%%" % sig)))
+                b.set_child(h); b.connect("clicked", lambda _b, s=ssid, se=sec: pick(s, se, s in known)); lst.append(b)
+        bg(job, done)
+    def toggled(s, _p):
+        bg(lambda: run(["nmcli", "radio", "wifi", "on" if s.get_active() else "off"]), lambda _r: GLib.timeout_add(1500, lambda: (refresh(True), False)[1]))
+        if not s.get_active(): clear(lst); status.set_text("Wi-Fi is off")
+    sw.connect("notify::active", toggled)
+    refresh(True)
+    r = Gtk.Button(label="Scan again"); r.add_css_class("pill"); r.connect("clicked", lambda _b: refresh(True)); m.panel.append(r)
+
+# ------------------------------------------------------------------ Bluetooth
+def bluetooth(m):
+    def powered(): return "Powered: yes" in run(["bluetoothctl", "show"])[1]
+    sw = m.head("Bluetooth", powered())
+    status = m.label("")
+    lst = m.scroller()
+    def devices():
+        rc, out = run(["bluetoothctl", "devices"]); res = []
+        for line in out.splitlines():
+            p = line.split(" ", 2)
+            if len(p) == 3 and p[0] == "Device":
+                info = run(["bluetoothctl", "info", p[1]])[1]
+                res.append((p[1], p[2], "Connected: yes" in info, "Paired: yes" in info))
+        return res
+    def refresh():
+        def done(devs):
+            clear(lst)
+            if not sw.get_active(): status.set_text("Bluetooth is off"); return
+            if not devs: status.set_text("No devices yet. Press Search.")
+            else: status.set_text("")
+            for mac, name, conn, paired in sorted(devs, key=lambda d: (not d[2], not d[3], d[1].lower())):
+                b = Gtk.Button(); b.add_css_class("row")
+                if conn: b.add_css_class("on")
+                h = Gtk.Box(spacing=10); h.append(Gtk.Image.new_from_icon_name("bluetooth-symbolic"))
+                n = Gtk.Label(label=name, xalign=0, hexpand=True); n.set_ellipsize(3); h.append(n)
+                h.append(Gtk.Label(label="Connected" if conn else ("Paired" if paired else "New")))
+                b.set_child(h); b.connect("clicked", lambda _b, a=mac, c=conn, p=paired, nm=name: act(a, c, p, nm)); lst.append(b)
+        bg(devices, done)
+    def act(mac, conn, paired, name):
+        status.set_text(("Disconnecting " if conn else "Connecting to ") + name + "…"); status.remove_css_class("err")
+        def job():
+            if conn: return run(["bluetoothctl", "disconnect", mac], 15)
+            if not paired:
+                run(["bluetoothctl", "pair", mac], 25); run(["bluetoothctl", "trust", mac])
+            return run(["bluetoothctl", "connect", mac], 20)
+        def done(res):
+            ok = res[0] == 0 and "Failed" not in res[1]
+            status.set_text("Done" if ok else "Could not " + ("disconnect" if conn else "connect") + ". Put the device in pairing mode and try again.")
+            if not ok: status.add_css_class("err")
+            refresh()
+        bg(job, done)
+    def toggled(s, _p):
+        bg(lambda: (run(["rfkill", "unblock", "bluetooth"]), run(["bluetoothctl", "power", "on" if s.get_active() else "off"])), lambda _r: refresh())
+    sw.connect("notify::active", toggled)
+    def search():
+        status.set_text("Searching for devices (10 seconds)…")
+        def job():
+            run(["bluetoothctl", "power", "on"]); run(["bluetoothctl", "--timeout", "10", "scan", "on"], 15); return devices()
+        bg(job, lambda _d: refresh())
+    s = Gtk.Button(label="Search for devices"); s.add_css_class("pill"); s.connect("clicked", lambda _b: search()); m.panel.append(s)
+    refresh()
+
+# ------------------------------------------------------------------ Sound
+def sound(m):
+    m.head("Sound")
+    def vol():
+        out = run(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])[1]
+        mm = re.search(r"([0-9.]+)", out); return (float(mm.group(1)) if mm else 0.5), "MUTED" in out
+    v, muted = vol()
+    row = Gtk.Box(spacing=10)
+    mute = Gtk.Button(); mute.add_css_class("pill")
+    ic = Gtk.Image.new_from_icon_name("audio-volume-muted-symbolic" if muted else "audio-volume-high-symbolic"); mute.set_child(ic)
+    sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1); sc.set_value(v * 100); sc.set_hexpand(True); sc.set_draw_value(False)
+    lab = Gtk.Label(label="%d%%" % round(v * 100)); lab.set_size_request(40, -1)
+    row.append(mute); row.append(sc); row.append(lab); m.panel.append(row)
+    def changed(s):
+        val = int(s.get_value()); lab.set_text("%d%%" % val)
+        bg(lambda: run(["wpctl", "set-volume", "-l", "1.0", "@DEFAULT_AUDIO_SINK@", "%d%%" % val]))
+    sc.connect("value-changed", changed)
+    def tmute(_b):
+        bg(lambda: run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]), lambda _r: ic.set_from_icon_name("audio-volume-high-symbolic" if not vol()[1] else "audio-volume-muted-symbolic"))
+    mute.connect("clicked", tmute)
+    m.label("Play sound through")
+    lst = m.scroller()
+    def sinks():
+        out = run(["pactl", "-f", "json", "list", "sinks"])[1]; default = run(["pactl", "get-default-sink"])[1].strip()
+        import json
+        try: data = json.loads(out)
+        except Exception: data = []
+        return [(d.get("name"), d.get("description") or d.get("name"), d.get("name") == default) for d in data]
+    def fill(items):
+        clear(lst)
+        if not items: m.label("No sound output found")
+        for name, desc, cur in items:
+            b = Gtk.Button(); b.add_css_class("row")
+            if cur: b.add_css_class("on")
+            h = Gtk.Box(spacing=10); h.append(Gtk.Image.new_from_icon_name("audio-speakers-symbolic"))
+            n = Gtk.Label(label=desc, xalign=0, hexpand=True); n.set_ellipsize(3); h.append(n)
+            b.set_child(h)
+            b.connect("clicked", lambda _b, nm=name: bg(lambda: run(["pactl", "set-default-sink", nm]), lambda _r: bg(sinks, fill)))
+            lst.append(b)
+    bg(sinks, fill)
+    m.label("Microphone")
+    mic = Gtk.Box(spacing=10); mm = Gtk.Button(); mm.add_css_class("pill"); mm.set_child(Gtk.Image.new_from_icon_name("audio-input-microphone-symbolic")); mm.connect("clicked", lambda _b: bg(lambda: run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"])))
+    mic.append(mm); mic.append(Gtk.Label(label="Mute or unmute", xalign=0)); m.panel.append(mic)
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    m = Menu(app)
+    {"wifi": wifi, "bluetooth": bluetooth, "sound": sound}.get(KIND, wifi)(m)
+    m.win.present()
+
+app = Gtk.Application(application_id="os.xlin.menu." + KIND)
+app.connect("activate", activate)
+sys.exit(app.run(None))

@@ -58,5 +58,15 @@ sleep 8; shot 20-calendar
 notify-send -a Calendar "Team call at 5 pm" "Starts in 10 minutes" >"$OUT/notify-send.log" 2>&1; sleep 2; shot 21-notification
 /usr/local/lib/xlinos/xlinos-overview >"$OUT/overview.log" 2>&1 &
 sleep 5; shot 22-overview; pkill -f xlinos-overview
+for k in wifi bluetooth sound; do /usr/local/lib/xlinos/xlinos-menu $k >"$OUT/menu-$k.log" 2>&1 & sleep 6; shot 23-menu-$k; pkill -f "xlinos-menu $k"; done
+printf 'hello XlinOS\n' >/tmp/demo.txt; xlinos-edit /tmp/demo.txt >"$OUT/edit.log" 2>&1 &
+sleep 6; shot 26-editor
+xlinos-monitor >"$OUT/monitor.log" 2>&1 &
+sleep 7; shot 27-monitor
+xlinos-clock >"$OUT/clock.log" 2>&1 &
+sleep 5; shot 28-clock
+xlinos-screenshot >"$OUT/screenshot.log" 2>&1 &
+sleep 5; shot 29-screenshot-app
+xlinos-screenshot full; ls -la ~/Pictures/Screenshots | tee "$OUT/screenshots.txt"
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock

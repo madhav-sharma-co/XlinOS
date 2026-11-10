@@ -30,6 +30,7 @@ udisks2
 gvfs
 gvfs-smb
 grim
+slurp
 wl-clipboard
 playerctl
 xdg-desktop-portal-hyprland

@@ -33,6 +33,11 @@ window { background: transparent; }
 def sh(cmd):
     subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
+def toggle(pattern, cmd):
+    """Close the popup if it is open (no shell, so pkill cannot kill itself), otherwise open it."""
+    if subprocess.run(["pkill", "-f", pattern], capture_output=True).returncode != 0:
+        sh(cmd)
+
 def hypr(*a):
     try:
         return json.loads(subprocess.run(["hyprctl", "-j", *a], capture_output=True, text=True, timeout=2).stdout or "null")
@@ -64,14 +69,19 @@ def make_bar(app):
     if os.path.exists(mark):
         img = Gtk.Image.new_from_file(mark); img.set_pixel_size(18); left.append(img)
     appname = Gtk.Label(label="XlinOS", xalign=0); appname.add_css_class("appname"); left.append(appname)
-    right = Gtk.Button(); right.add_css_class("qs")
+    right = Gtk.Box(spacing=0)
+    def menu_btn(icon, kind):
+        b = Gtk.Button(); b.add_css_class("qs"); b.set_child(Gtk.Image.new_from_icon_name(icon)); b.set_tooltip_text(kind.capitalize())
+        b.connect("clicked", lambda _b, k=kind: toggle("xlinos-menu " + k, "/usr/local/lib/xlinos/xlinos-menu " + k))
+        right.append(b)
+    menu_btn("network-wireless-symbolic", "wifi"); menu_btn("bluetooth-symbolic", "bluetooth"); menu_btn("audio-volume-high-symbolic", "sound")
+    qb = Gtk.Button(); qb.add_css_class("qs")
     rb = Gtk.Box(spacing=12)
-    for n in ("network-wireless-symbolic", "bluetooth-symbolic", "audio-volume-high-symbolic"):
-        rb.append(Gtk.Image.new_from_icon_name(n))
     bat = Gtk.Label(); rb.append(bat)
     clock = Gtk.Label(); rb.append(clock)
-    right.set_child(rb)
-    right.connect("clicked", lambda _b: sh("pkill -f lib/xlinos/xlinos-quick || /usr/local/lib/xlinos/xlinos-quick"))
+    qb.set_child(rb)
+    qb.connect("clicked", lambda _b: toggle("lib/xlinos/xlinos-quick", "/usr/local/lib/xlinos/xlinos-quick"))
+    right.append(qb)
     box.set_start_widget(left); box.set_end_widget(right)
     def tick():
         clock.set_text(time.strftime("%a %-d %b  %-I:%M %p"))

@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""XlinOS System Monitor: processor, memory, disk, battery and the busiest apps (with Stop)."""
+import os, sys, subprocess, time, glob, signal
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, GLib
+import xlinos_ui
+
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+.card { background: rgba(255,255,255,0.07); border-radius: 16px; padding: 14px 16px; }
+.big { color: #fff; font-size: 26px; font-weight: 700; }
+.cap { color: #9db4e6; font-size: 12px; }
+.proc { color: #eaf0ff; padding: 4px 6px; }
+progressbar trough { background: rgba(255,255,255,0.14); min-height: 8px; border-radius: 4px; border: none; }
+progressbar progress { background: #1e6bff; min-height: 8px; border-radius: 4px; border: none; }
+.stop { padding: 3px 12px; min-height: 18px; }
+""").encode()
+
+def cpu_times():
+    f = open("/proc/stat").readline().split()[1:]; v = list(map(int, f)); return sum(v), v[3] + v[4]
+
+def mem():
+    d = {}
+    for line in open("/proc/meminfo"):
+        k, v = line.split(":"); d[k] = int(v.split()[0])
+    return d["MemTotal"] - d["MemAvailable"], d["MemTotal"]
+
+def battery():
+    for d in glob.glob("/sys/class/power_supply/BAT*"):
+        try: return int(open(d + "/capacity").read()), open(d + "/status").read().strip()
+        except Exception: pass
+
+def gb(kb): return "%.1f GB" % (kb / 1048576)
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "System Monitor", 760, 620)
+    page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, margin_start=20, margin_end=20, margin_top=8, margin_bottom=20); body.append(page)
+    def card(title):
+        c = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, hexpand=True); c.add_css_class("card")
+        cap = Gtk.Label(label=title, xalign=0); cap.add_css_class("cap")
+        val = Gtk.Label(xalign=0); val.add_css_class("big"); bar = Gtk.ProgressBar(); sub = Gtk.Label(xalign=0); sub.add_css_class("cap")
+        for w in (cap, val, bar, sub): c.append(w)
+        return c, val, bar, sub
+    row1 = Gtk.Box(spacing=12); row2 = Gtk.Box(spacing=12)
+    cc, cv, cb, cs = card("Processor"); mc, mv, mb, ms = card("Memory"); dc, dv, db, ds = card("Disk"); bc, bv, bb, bs = card("Battery")
+    row1.append(cc); row1.append(mc); row2.append(dc); row2.append(bc); page.append(row1); page.append(row2)
+    cap = Gtk.Label(label="Busiest apps", xalign=0); cap.add_css_class("cap"); page.append(cap)
+    plist = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+    s = Gtk.ScrolledWindow(vexpand=True); s.set_child(plist); page.append(s)
+    st = {"t": cpu_times()}
+    up = Gtk.Label(xalign=0); up.add_css_class("cap"); page.append(up)
+    def tick():
+        t = cpu_times(); dt = t[0] - st["t"][0]; di = t[1] - st["t"][1]; st["t"] = t
+        pct = 0 if dt <= 0 else 100 * (1 - di / dt)
+        cv.set_text("%d%%" % pct); cb.set_fraction(pct / 100); cs.set_text("%d cores  -  load %s" % (os.cpu_count() or 1, " ".join("%.1f" % x for x in os.getloadavg())))
+        u, tot = mem(); mv.set_text("%d%%" % (100 * u / tot)); mb.set_fraction(u / tot); ms.set_text("%s of %s used" % (gb(u), gb(tot)))
+        sv = os.statvfs("/"); total = sv.f_blocks * sv.f_frsize; free = sv.f_bavail * sv.f_frsize
+        dv.set_text("%d%%" % (100 * (total - free) / total)); db.set_fraction((total - free) / total); ds.set_text("%.0f GB free of %.0f GB" % (free / 1e9, total / 1e9))
+        b = battery()
+        if b: bv.set_text("%d%%" % b[0]); bb.set_fraction(b[0] / 100); bs.set_text(b[1])
+        else: bv.set_text("No battery"); bb.set_fraction(0); bs.set_text("")
+        try:
+            secs = float(open("/proc/uptime").read().split()[0]); up.set_text("Running for %dh %dm" % (secs // 3600, secs % 3600 // 60))
+        except Exception: pass
+        return True
+    def procs():
+        def job():
+            out = subprocess.run(["ps", "-eo", "pid,pcpu,pmem,comm", "--sort=-pcpu"], capture_output=True, text=True).stdout.splitlines()[1:11]
+            return [l.split(None, 3) for l in out if len(l.split(None, 3)) == 4]
+        import threading
+        def w():
+            r = job(); GLib.idle_add(show, r)
+        threading.Thread(target=w, daemon=True).start(); return True
+    def show(rows):
+        while (c := plist.get_first_child()): plist.remove(c)
+        for pid, pc, pm, name in rows:
+            h = Gtk.Box(spacing=10); h.add_css_class("proc")
+            n = Gtk.Label(label=name, xalign=0, hexpand=True); n.set_ellipsize(3); h.append(n)
+            h.append(Gtk.Label(label="%s%% CPU" % pc)); h.append(Gtk.Label(label="%s%% memory" % pm))
+            b = Gtk.Button(label="Stop"); b.add_css_class("stop"); b.connect("clicked", lambda _b, p=int(pid): _kill(p)); h.append(b); plist.append(h)
+        return False
+    def _kill(pid):
+        try: os.kill(pid, signal.SIGTERM)
+        except Exception: pass
+    tick(); procs(); GLib.timeout_add(1500, tick); GLib.timeout_add(3000, procs)
+    win.present()
+
+app = Gtk.Application(application_id="os.xlin.monitor")
+app.connect("activate", activate)
+sys.exit(app.run(None))
