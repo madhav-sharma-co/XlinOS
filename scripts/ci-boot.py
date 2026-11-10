@@ -42,7 +42,7 @@ try:
     time.sleep(8); shot("0b-menu")
     time.sleep(8); shot("1-menu")
     cmd("sendkey ret")                       # boot the first entry
-    for name, wait in (("2a-boot-5s", 5), ("2b-boot-12s", 7), ("2c-boot-20s", 8), ("2-booting", 10), ("3-after-70s", 30), ("4-after-2min", 50), ("5-after-3min", 60)):
+    for name, wait in tuple((f"2-t{i:02d}", 5) for i in range(1, 15)) + (("2-booting", 5), ("3-after-70s", 30), ("4-after-2min", 50), ("5-after-3min", 60)):
         time.sleep(wait); shot(name)
 finally:
     p.terminate()
