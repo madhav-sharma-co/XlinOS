@@ -35,7 +35,7 @@ scale highlight { background: #1e6bff; background-image: none; border-radius: 3p
 scale slider { background: #fff; min-width: 18px; min-height: 18px; border-radius: 9px; border: none; margin: -6px; }
 """
 
-def run(cmd, timeout=12):
+def run(cmd, timeout=4):
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         return r.returncode, (r.stdout or "") + (r.stderr or "")
@@ -67,7 +67,7 @@ class Menu:
         self.app = app
     def on_active(self, w, _p):
         if w.is_active(): self.seen_active = True
-        elif self.seen_active and not getattr(self, "pinned", False): self.app.quit()
+        elif self.seen_active and not os.environ.get("XLINOS_MENU_PIN"): self.app.quit()
     def head(self, title, with_switch=None):
         h = Gtk.Box(spacing=10); t = Gtk.Label(label=title, xalign=0, hexpand=True); t.add_css_class("title"); h.append(t)
         sw = None

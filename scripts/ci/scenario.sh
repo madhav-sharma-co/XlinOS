@@ -58,7 +58,7 @@ sleep 8; shot 20-calendar
 notify-send -a Calendar "Team call at 5 pm" "Starts in 10 minutes" >"$OUT/notify-send.log" 2>&1; sleep 2; shot 21-notification
 /usr/local/lib/xlinos/xlinos-overview >"$OUT/overview.log" 2>&1 &
 sleep 5; shot 22-overview; pkill -f xlinos-overview
-for k in wifi bluetooth sound; do /usr/local/lib/xlinos/xlinos-menu $k >"$OUT/menu-$k.log" 2>&1 & sleep 6; shot 23-menu-$k; pkill -f "xlinos-menu $k"; done
+for k in wifi bluetooth sound; do XLINOS_MENU_PIN=1 /usr/local/lib/xlinos/xlinos-menu $k >"$OUT/menu-$k.log" 2>&1 & sleep 12; shot 23-menu-$k; pkill -f "xlinos-menu $k"; done
 printf 'hello XlinOS\n' >/tmp/demo.txt; xlinos-edit /tmp/demo.txt >"$OUT/edit.log" 2>&1 &
 sleep 6; shot 26-editor
 xlinos-monitor >"$OUT/monitor.log" 2>&1 &
@@ -72,7 +72,7 @@ xlinos-settings general >"$OUT/settings-general.log" 2>&1 &
 sleep 6; shot 30-settings-general; pkill -f xlinos-settings
 for pg in personalisation desktop; do xlinos-settings $pg >"$OUT/settings-$pg.log" 2>&1 & sleep 6; shot 31-settings-$pg; pkill -f xlinos-settings; done
 python3 /usr/local/lib/xlinos/xlinos-quick >"$OUT/quick2.log" 2>&1 &
-sleep 6; shot 32-control-panel; pkill -f lib/xlinos/xlinos-quick
+sleep 14; shot 32-control-panel; pkill -f lib/xlinos/xlinos-quick
 python3 /usr/local/lib/xlinos/xlinos-launcher >"$OUT/launcher2.log" 2>&1 &
 sleep 6; shot 33-launcher; pkill -f lib/xlinos/xlinos-launcher
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &

@@ -22,6 +22,9 @@ scale trough { background: rgba(255,255,255,0.16); min-height: 6px; border-radiu
 scale highlight { background: #1e6bff; border-radius: 3px; }
 scale slider { background: #fff; min-width: 18px; min-height: 18px; border-radius: 9px; }
 switch:checked { background: #1e6bff; }
+togglebutton { background-image: none; background-color: rgba(255,255,255,0.10); color: #e6eeff; border: none; box-shadow: none; border-radius: 12px; padding: 7px 16px; min-height: 20px; }
+togglebutton:hover { background-color: rgba(255,255,255,0.18); }
+togglebutton:checked { background-color: #1e6bff; color: #fff; }
 button.primary { background-color: #1e6bff; color: #fff; border: none; border-radius: 12px; padding: 7px 18px; font-weight: 600; }
 .pwbox { background: rgba(8,14,44,0.98); border-radius: 20px; padding: 22px; border: 1px solid rgba(255,255,255,0.16); color: #fff; }
 .err { color: #ff8a8a; }

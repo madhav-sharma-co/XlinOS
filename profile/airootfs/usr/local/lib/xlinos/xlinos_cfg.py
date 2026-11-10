@@ -35,7 +35,7 @@ def set(key, value):
     tmp = PATH + ".tmp"; json.dump(d, open(tmp, "w"), indent=1); os.replace(tmp, PATH)
     _cache["mtime"] = None
 
-def run(cmd, timeout=6):
+def run(cmd, timeout=2):
     try:
         r = subprocess.run(cmd, shell=isinstance(cmd, str), capture_output=True, text=True, timeout=timeout); return r.stdout.strip()
     except Exception:
