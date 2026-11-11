@@ -115,7 +115,7 @@ open("/tmp/test.pdf", "wb").write(out)
 PY
 pkill -f lib/xlinos/xlinos-shell; sleep 1; /usr/local/lib/xlinos/xlinos-shell >"$OUT/shell.log" 2>&1 & sleep 7; xlinos showdesktop; sleep 4; shot 40-widgets; xlinos showdesktop; sleep 2
 { ls -l /tmp/test.pdf /usr/local/bin/xlinos-pdf; python3 -c "import gi; gi.require_version('Poppler','0.18'); print('poppler typelib ok')"; } >"$OUT/pdf.log" 2>&1
-( xlinos-pdf /tmp/test.pdf; echo "pdf exit $?" ) >>"$OUT/pdf.log" 2>&1 &
+( timeout -s ABRT 9 python3 -X faulthandler /usr/local/lib/xlinos/xlinos-pdf /tmp/test.pdf; echo "pdf exit $?" ) >>"$OUT/pdf.log" 2>&1 &
 sleep 6; shot 41-pdf; pkill -f lib/xlinos/xlinos-pdf
 xlinos-help >"$OUT/help.log" 2>&1 &
 sleep 5; shot 42-help; pkill -f lib/xlinos/xlinos-help

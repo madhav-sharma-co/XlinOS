@@ -56,6 +56,7 @@ def activate(app, path=None):
         for i in range(doc.get_n_pages()):
             pa = Page(doc.get_page(i), st["scale"]); st["pages"].append(pa)
             fr = Gtk.Frame(); fr.set_child(pa); col.append(fr)
+        print("pdf: loaded", doc.get_n_pages(), "pages", file=sys.stderr)
         tot.set_text("/ %d" % doc.get_n_pages()); pg.set_text("1"); win.set_title(os.path.basename(path))
     def rescale(s):
         st["scale"] = max(0.3, min(4.0, s))
@@ -98,7 +99,7 @@ def activate(app, path=None):
                 break
     sc.get_vadjustment().connect("value-changed", track)
     if path: load(path)
-    win.present()
+    win.present(); print("pdf: window presented", file=sys.stderr)
 
 ARG = next((a for a in sys.argv[1:] if not a.startswith("-")), None)
 app = Gtk.Application(application_id="os.xlin.pdf")
