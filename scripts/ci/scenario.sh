@@ -100,9 +100,9 @@ sleep 4; shot 39-desktop-folder; cat ~/.config/xlinos/settings.json | tr -d '\n'
 echo "== widgets, pdf, help, check"
 python3 -c "import sys; sys.path.insert(0,'/usr/local/lib/xlinos'); import xlinos_cfg as c; c.set('widgets',['calendar','system','battery','notes','todo']); c.set('todo',[{'t':'Buy milk','d':False},{'t':'Call mum','d':True}])"
 python3 -c "
-from PIL import Image
-im=Image.new('RGB',(600,800),'white'); im.save('/tmp/test.pdf')" 2>/dev/null || python3 -c "open('/tmp/test.pdf','wb').write(b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 400]>>endobj trailer<</Root 1 0 R>>')"
-xlinos restart; sleep 6; xlinos showdesktop; sleep 4; shot 40-widgets; xlinos showdesktop; sleep 2
+import cairo
+sf=cairo.PDFSurface('/tmp/test.pdf',400,500); c=cairo.Context(sf); c.set_font_size(30); c.move_to(40,80); c.show_text('XlinOS PDF test'); sf.finish()"
+pkill -f lib/xlinos/xlinos-shell; sleep 1; /usr/local/lib/xlinos/xlinos-shell >"$OUT/shell.log" 2>&1 & sleep 7; xlinos showdesktop; sleep 4; shot 40-widgets; xlinos showdesktop; sleep 2
 xlinos-pdf /tmp/test.pdf >"$OUT/pdf.log" 2>&1 &
 sleep 6; shot 41-pdf; pkill -f lib/xlinos/xlinos-pdf
 xlinos-help >"$OUT/help.log" 2>&1 &

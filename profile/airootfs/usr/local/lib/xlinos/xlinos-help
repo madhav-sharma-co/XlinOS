@@ -46,7 +46,7 @@ window { background: transparent; }
         for j, bt in enumerate(btns): (bt.add_css_class if j == i else bt.remove_css_class)("sel")
     for i, (t, _b) in enumerate(TOPICS):
         bt = Gtk.Button(label=t); bt.add_css_class("n"); bt.get_child().set_xalign(0); bt.connect("clicked", lambda _b, i=i: show(i)); side.append(bt); btns.append(bt)
-    ss = Gtk.ScrolledWindow(vexpand=True); ss.set_child(side)
+    ss = Gtk.ScrolledWindow(vexpand=True, min_content_width=230, hscrollbar_policy=Gtk.PolicyType.NEVER); ss.set_child(side)
     main.append(ss); main.append(page); body.append(main); show(0); win.present()
 
 app = Gtk.Application(application_id="os.xlin.help")
