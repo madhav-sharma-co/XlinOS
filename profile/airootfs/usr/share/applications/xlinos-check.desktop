@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Fix and Check
+Comment=Check that everything works and repair problems
+Exec=xlinos-check
+Icon=utilities-system-monitor
+Terminal=false
+Categories=System;
+StartupWMClass=os.xlin.check

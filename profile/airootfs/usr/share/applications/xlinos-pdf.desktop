@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=PDF Reader
+Comment=Read PDF files
+Exec=xlinos-pdf %f
+Icon=application-pdf
+Terminal=false
+Categories=Office;Viewer;
+MimeType=application/pdf;
+StartupWMClass=os.xlin.pdf

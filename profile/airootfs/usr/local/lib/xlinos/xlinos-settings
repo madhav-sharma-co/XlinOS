@@ -196,6 +196,10 @@ def p_about():
     except OSError: cm = "development build"
     b.append(card(row("Build", cm)))
     b.append(card(row("Made by", "Madhav Sharma"), row("Presented by", "Axion Co.")))
+    tools = Gtk.Box(spacing=8)
+    for label, cmd in (("Fix and Check", "xlinos-check"), ("Help and manual", "xlinos-help"), ("Shortcut keys", "xlinos-keys")):
+        bt = Gtk.Button(label=label); bt.add_css_class("sec"); bt.connect("clicked", lambda _b, c=cmd: cfg.bg([c])); tools.append(bt)
+    b.append(card(tools))
     b.append(update_card())
     return b
 

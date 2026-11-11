@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """XlinOS shell: top bar, floating dock and desktop clock, drawn like assets/design/."""
-import os, sys, json, subprocess, time, glob
+import os, sys, json, subprocess, time, glob, shutil
 
 LIB = "/usr/lib/libgtk4-layer-shell.so"
 if os.path.exists(LIB) and LIB not in os.environ.get("LD_PRELOAD", ""):
@@ -35,6 +35,14 @@ window { background: transparent; }
 .dot { background: #fff; border-radius: 3px; min-width: 5px; min-height: 5px; }
 .clock-time { font-size: 44px; font-weight: 200; color: #fff; }
 .clock-date { font-size: 14px; color: #9db4e6; }
+.widget { background: rgba(8,14,44,0.62); border-radius: 16px; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.12); }
+.wtitle { color: #9db4e6; font-size: 12px; font-weight: 700; }
+.wbig { color: #fff; font-size: 22px; font-weight: 300; }
+.wtxt { color: #e6eeff; font-size: 13px; }
+.widget textview, .widget textview text { background: transparent; color: #e6eeff; font-size: 13px; }
+.widget entry { background: rgba(255,255,255,0.08); color: #fff; border-radius: 8px; min-height: 0; padding: 4px 8px; }
+.widget calendar { background: transparent; color: #e6eeff; }
+.widget levelbar block.filled { background: #1e6bff; }
 .dicon { padding: 6px 4px; border-radius: 12px; }
 .t-folder { background-image: linear-gradient(135deg, rgba(255,255,255,0.30), rgba(255,255,255,0.14)); }
 .dicon.sel { background: rgba(255,255,255,0.18); }
@@ -307,10 +315,94 @@ def make_desktop(app):
                 b.connect("clicked", lambda _b, k=key: (pop.popdown(), cfg.add_desktop_icon(k), refresh(True))); lst.append(b)
             sc.set_child(lst); v.append(sc)
         pop_at(widget, x, y, build)
+    WIDGETS = [("calendar", "Calendar"), ("system", "System"), ("battery", "Battery"), ("notes", "Notes"), ("todo", "To-do list")]
+    wcol = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, halign=Gtk.Align.END, valign=Gtk.Align.START, margin_top=140, margin_end=34)
+    wcol.set_size_request(250, -1); ov.add_overlay(wcol); wstate = {"timers": []}
+    NOTE = os.path.expanduser("~/.config/xlinos/widget-notes.txt")
+    def mk_widget(kind):
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); card.add_css_class("widget")
+        tt = Gtk.Label(label=dict(WIDGETS)[kind].upper(), xalign=0); tt.add_css_class("wtitle"); card.append(tt)
+        if kind == "calendar":
+            card.append(Gtk.Calendar())
+        elif kind == "system":
+            lab = Gtk.Label(xalign=0); lab.add_css_class("wtxt"); card.append(lab)
+            bars = []
+            for _n in range(3):
+                lb = Gtk.LevelBar(min_value=0, max_value=100); card.append(lb); bars.append(lb)
+            prev = {"t": None}
+            def upd():
+                try:
+                    cp = open("/proc/stat").readline().split()[1:]; tot = sum(map(int, cp)); idle = int(cp[3])
+                    cpu = 0 if not prev["t"] else 100 * (1 - (idle - prev["t"][1]) / max(1, tot - prev["t"][0])); prev["t"] = (tot, idle)
+                    mi = {l.split(":")[0]: int(l.split()[1]) for l in open("/proc/meminfo") if l.split(":")[0] in ("MemTotal", "MemAvailable")}
+                    mem = 100 * (1 - mi["MemAvailable"] / mi["MemTotal"]); du = shutil.disk_usage("/"); dsk = 100 * du.used / du.total
+                    bars[0].set_value(cpu); bars[1].set_value(mem); bars[2].set_value(dsk)
+                    lab.set_text("Processor %d%%   Memory %d%%   Disk %d%%" % (cpu, mem, dsk))
+                except Exception: pass
+                return True
+            upd(); wstate["timers"].append(GLib.timeout_add_seconds(3, upd))
+        elif kind == "battery":
+            lab = Gtk.Label(xalign=0); lab.add_css_class("wbig"); card.append(lab); sub = Gtk.Label(xalign=0); sub.add_css_class("wtxt"); card.append(sub)
+            def upd():
+                bat = glob.glob("/sys/class/power_supply/BAT*")
+                if not bat: lab.set_text("No battery"); sub.set_text("Plugged in"); return True
+                try:
+                    lab.set_text(open(bat[0] + "/capacity").read().strip() + "%"); sub.set_text(open(bat[0] + "/status").read().strip())
+                except Exception: pass
+                return True
+            upd(); wstate["timers"].append(GLib.timeout_add_seconds(20, upd))
+        elif kind == "notes":
+            tv = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR, vexpand=False); tv.set_size_request(-1, 110); buf = tv.get_buffer()
+            try: buf.set_text(open(NOTE).read())
+            except OSError: pass
+            pend = {"id": 0}
+            def save():
+                os.makedirs(os.path.dirname(NOTE), exist_ok=True)
+                open(NOTE, "w").write(buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False)); pend["id"] = 0; return False
+            def changed(_b):
+                if pend["id"]: GLib.source_remove(pend["id"])
+                pend["id"] = GLib.timeout_add(700, save)
+            buf.connect("changed", changed); card.append(tv)
+        elif kind == "todo":
+            lst = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); ent = Gtk.Entry(placeholder_text="Add a task and press Enter")
+            def fill():
+                while (c := lst.get_first_child()): lst.remove(c)
+                for n, t in enumerate(cfg.get("todo") or []):
+                    r = Gtk.Box(spacing=6); cb = Gtk.CheckButton(active=t["d"], label=t["t"]); cb.get_child().add_css_class("wtxt")
+                    def tog(b, n=n):
+                        cur = list(cfg.get("todo") or []); cur[n] = dict(cur[n], d=b.get_active()); cfg.set("todo", cur)
+                    cb.connect("toggled", tog)
+                    x = Gtk.Button(label="×"); x.set_has_frame(False)
+                    def rm(_b, n=n):
+                        cur = list(cfg.get("todo") or []); cur.pop(n); cfg.set("todo", cur); fill()
+                    x.connect("clicked", rm); cb.set_hexpand(True); r.append(cb); r.append(x); lst.append(r)
+            def add(e):
+                t = e.get_text().strip()
+                if t: cfg.set("todo", list(cfg.get("todo") or []) + [{"t": t, "d": False}]); e.set_text(""); fill()
+            ent.connect("activate", add); fill(); card.append(lst); card.append(ent)
+        return card
+    def build_widgets():
+        for t in wstate["timers"]: GLib.source_remove(t)
+        wstate["timers"] = []
+        while (c := wcol.get_first_child()): wcol.remove(c)
+        for k in cfg.get("widgets") or []:
+            if k in dict(WIDGETS): wcol.append(mk_widget(k))
+    def widgets_menu(widget, x, y):
+        def build(item, pop, v):
+            for k, nm in WIDGETS:
+                cb = Gtk.CheckButton(label=nm, active=k in (cfg.get("widgets") or []))
+                def tog(b, k=k):
+                    cur = [w for w in (cfg.get("widgets") or []) if w != k]
+                    if b.get_active(): cur.append(k)
+                    cfg.set("widgets", cur); build_widgets()
+                cb.connect("toggled", tog); v.append(cb)
+        pop_at(widget, x, y, build)
+    build_widgets()
     def menu_desktop(widget, x, y):
         def build(item, pop, v):
             item("New folder", new_folder)
             item("Add an app to the desktop…", lambda: GLib.idle_add(add_app_menu, widget, x, y))
+            item("Widgets…", lambda: GLib.idle_add(widgets_menu, widget, x, y))
             item("Change the wallpaper", lambda: sh("xlinos-settings desktop"))
             item("Open Files", lambda: sh("xlinos-files"))
             item("Settings", lambda: sh("xlinos-settings"))

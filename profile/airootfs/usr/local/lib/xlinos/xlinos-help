@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""XlinOS Help: a short manual for everything in XlinOS."""
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk
+import xlinos_ui
+
+TOPICS = [
+ ("Welcome", "XlinOS is a clean, fast and useful operating system.\n\nEverything you need is in the run bar at the bottom and the launcher (Super + Space). Press Super + / any time to see every shortcut key."),
+ ("Apps and the launcher", "Open the launcher with Super + Space or the grid button on the run bar. Type to search. Right-click an app to open it, pin it to the launcher or run bar, or add it to the desktop.\n\nThe Store installs more apps. Files, Photos, Media, PDF Reader, Text Editor, Notes, Calendar, Calculator, Clock, Screenshot and System Monitor come with XlinOS."),
+ ("The desktop", "Double-click an icon to open it. Right-click the desktop for a new folder, to add app shortcuts, widgets, or change the wallpaper.\n\nDrag one app icon onto another to make an app folder, like on a phone. Drag more apps onto the folder to add them. Double-click the folder to open it and rename it.\n\nFiles you put in your Desktop folder show up too."),
+ ("Widgets", "Right-click the desktop and choose Widgets to show or hide: calendar, system status, battery, notes and a to-do list. They sit on the right side of the desktop. Notes and to-dos are saved automatically."),
+ ("Windows and workspaces", "Super + arrows snap a window to a half or corner, maximise or restore it. Super + Tab shows all windows. Super + 1 to 4 switch workspaces; Super + Shift + 1 to 4 send the window to one. Three-finger swipes on the touchpad also switch workspaces, open the launcher (up) and show the desktop (down).\n\nDrag a window with Super + left button, resize with Super + right button, or drag it to the screen edge to snap."),
+ ("Settings and the control panel", "Settings (Super + S) has General, Network, Bluetooth, Sound, Display, Power, Desktop, Personalisation, Apps and tools, Users and About.\n\nThe control panel (Super + C) has quick switches for Wi-Fi, Bluetooth, airplane mode, do not disturb, night light and silent, sliders for volume and brightness, and the power mode."),
+ ("Look and feel", "Super + D switches between light and dark. Settings → Personalisation has accent colours, text size, animations and how see-through the bars are. Super + W changes the wallpaper."),
+ ("Updating", "Settings → General → System update shows a progress bar from 0 to 100%. Restart when it says it is finished. From the terminal: xlinos update."),
+ ("Command line", "Open Quickshell (Super + Return) and type xlinos help. Useful commands: xlinos status, xlinos theme toggle, xlinos accent green, xlinos wallpaper next, xlinos volume 40, xlinos fix, xlinos doctor."),
+ ("Something is wrong", "Open Fix and Check (from the launcher, or xlinos check) and press Fix everything. It restarts sound, Bluetooth, the desktop shell and the run bar. If a button or panel misbehaves, xlinos restart restarts the desktop; xlinos reset puts all settings back to their defaults."),
+ ("About", "XlinOS was made by Madhav Sharma and is presented by Axion Co."),
+]
+
+def activate(app):
+    css = Gtk.CssProvider()
+    css.load_from_data((xlinos_ui.window_css() + """
+window { background: transparent; }
+.side { background: rgba(255,255,255,0.04); padding: 10px 8px; min-width: 220px; }
+.side button.n { background: transparent; border: none; box-shadow: none; color: #cdd9f5; border-radius: 9px; padding: 8px 10px; }
+.side button.n:hover { background: rgba(255,255,255,0.08); }
+.side button.sel { background: #1e4fd0; color: #fff; }
+.h1 { color: #fff; font-size: 24px; font-weight: 700; }
+.txt { color: #e6eeff; font-size: 15px; }
+""").encode())
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Help", 860, 580)
+    main = Gtk.Box(vexpand=True)
+    side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); side.add_css_class("side")
+    page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True, margin_start=24, margin_end=24, margin_top=16)
+    title = Gtk.Label(xalign=0); title.add_css_class("h1")
+    txt = Gtk.Label(xalign=0, yalign=0, wrap=True, selectable=True); txt.add_css_class("txt")
+    sc = Gtk.ScrolledWindow(vexpand=True); sc.set_child(txt); page.append(title); page.append(sc)
+    btns = []
+    def show(i):
+        t, b = TOPICS[i]; title.set_text(t); txt.set_text(b)
+        for j, bt in enumerate(btns): (bt.add_css_class if j == i else bt.remove_css_class)("sel")
+    for i, (t, _b) in enumerate(TOPICS):
+        bt = Gtk.Button(label=t); bt.add_css_class("n"); bt.get_child().set_xalign(0); bt.connect("clicked", lambda _b, i=i: show(i)); side.append(bt); btns.append(bt)
+    ss = Gtk.ScrolledWindow(vexpand=True); ss.set_child(side)
+    main.append(ss); main.append(page); body.append(main); show(0); win.present()
+
+app = Gtk.Application(application_id="os.xlin.help")
+app.connect("activate", activate); app.run(None)

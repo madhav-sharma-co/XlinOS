@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Help
+Comment=The XlinOS manual
+Exec=xlinos-help
+Icon=help-browser
+Terminal=false
+Categories=Utility;
+StartupWMClass=os.xlin.help

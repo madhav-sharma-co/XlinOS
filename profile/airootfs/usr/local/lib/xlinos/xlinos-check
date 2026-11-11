@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+"""XlinOS Fix and Check: shows what works and repairs what does not."""
+import os, sys, threading
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, GLib
+import xlinos_ui, xlinos_check
+
+def activate(app):
+    css = Gtk.CssProvider()
+    css.load_from_data((xlinos_ui.window_css() + """
+window { background: transparent; }
+.row { background: rgba(255,255,255,0.06); border-radius: 12px; padding: 10px 14px; }
+.ok { color: #5be08a; font-weight: 700; } .bad { color: #ff8a8a; font-weight: 700; }
+.title { color: #fff; font-weight: 600; } .det { color: #9db4e6; }
+.h1 { color: #fff; font-size: 22px; font-weight: 700; }
+""").encode())
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Fix and Check", 640, 640)
+    h = Gtk.Label(label="Fix and Check", xalign=0); h.add_css_class("h1"); body.append(h)
+    sc = Gtk.ScrolledWindow(vexpand=True); col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); sc.set_child(col); body.append(sc)
+    status = Gtk.Label(label="Checking…", xalign=0); status.add_css_class("det"); body.append(status)
+    btns = Gtk.Box(spacing=8)
+    chk = Gtk.Button(label="Check again"); chk.add_css_class("sec")
+    fx = Gtk.Button(label="Fix everything"); fx.add_css_class("primary")
+    btns.append(chk); btns.append(fx); body.append(btns)
+    def show(res):
+        while (c := col.get_first_child()): col.remove(c)
+        bad = 0
+        for _id, name, ok, det in res:
+            r = Gtk.Box(spacing=12); r.add_css_class("row")
+            m = Gtk.Label(label="OK" if ok else "Fix"); m.add_css_class("ok" if ok else "bad"); m.set_size_request(36, -1)
+            tv = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True); t = Gtk.Label(label=name, xalign=0); t.add_css_class("title")
+            d = Gtk.Label(label=det, xalign=0, wrap=True); d.add_css_class("det"); tv.append(t); tv.append(d)
+            r.append(m); r.append(tv); col.append(r); bad += (not ok)
+        status.set_text("Everything is working." if not bad else "%d thing%s need attention. Press Fix everything." % (bad, "s" if bad != 1 else ""))
+        chk.set_sensitive(True); fx.set_sensitive(True)
+    def run_checks(*_):
+        chk.set_sensitive(False); fx.set_sensitive(False); status.set_text("Checking…")
+        threading.Thread(target=lambda: GLib.idle_add(show, xlinos_check.checks()), daemon=True).start()
+    def run_fix(*_):
+        chk.set_sensitive(False); fx.set_sensitive(False)
+        def job():
+            xlinos_check.fix(lambda t: GLib.idle_add(status.set_text, t + "…")); GLib.idle_add(run_checks)
+        threading.Thread(target=job, daemon=True).start()
+    chk.connect("clicked", run_checks); fx.connect("clicked", run_fix); run_checks(); win.present()
+
+app = Gtk.Application(application_id="os.xlin.check")
+app.connect("activate", activate); app.run(None)

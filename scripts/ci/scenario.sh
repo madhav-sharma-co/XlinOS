@@ -97,6 +97,19 @@ python3 -c "import sys; sys.path.insert(0,'/usr/local/lib/xlinos'); import xlino
 sleep 4; xlinos showdesktop; sleep 4; shot 38-desktop-icons
 python3 -c "import sys; sys.path.insert(0,'/usr/local/lib/xlinos'); import xlinos_cfg as c; c.desktop_drop('calendar','settings'); c.desktop_drop('kitty.desktop','folder:Folder')" >"$OUT/folder.log" 2>&1
 sleep 4; shot 39-desktop-folder; cat ~/.config/xlinos/settings.json | tr -d '\n' | cut -c1-400 >"$OUT/folder-json.txt"; xlinos showdesktop; sleep 2
+echo "== widgets, pdf, help, check"
+python3 -c "import sys; sys.path.insert(0,'/usr/local/lib/xlinos'); import xlinos_cfg as c; c.set('widgets',['calendar','system','battery','notes','todo']); c.set('todo',[{'t':'Buy milk','d':False},{'t':'Call mum','d':True}])"
+python3 -c "
+from PIL import Image
+im=Image.new('RGB',(600,800),'white'); im.save('/tmp/test.pdf')" 2>/dev/null || python3 -c "open('/tmp/test.pdf','wb').write(b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 400]>>endobj trailer<</Root 1 0 R>>')"
+xlinos restart; sleep 6; xlinos showdesktop; sleep 4; shot 40-widgets; xlinos showdesktop; sleep 2
+xlinos-pdf /tmp/test.pdf >"$OUT/pdf.log" 2>&1 &
+sleep 6; shot 41-pdf; pkill -f lib/xlinos/xlinos-pdf
+xlinos-help >"$OUT/help.log" 2>&1 &
+sleep 5; shot 42-help; pkill -f lib/xlinos/xlinos-help
+xlinos-check >"$OUT/check.log" 2>&1 &
+sleep 9; shot 43-check; pkill -f lib/xlinos/xlinos-check
+xlinos doctor >"$OUT/doctor.txt" 2>&1
 echo "== light theme"
 xlinos theme light; sleep 6
 xlinos-settings personalisation >"$OUT/light-settings.log" 2>&1 &

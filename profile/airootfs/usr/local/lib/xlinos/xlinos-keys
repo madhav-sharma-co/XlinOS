@@ -12,7 +12,7 @@ KEYS = [
            ("Super + C", "Control panel"), ("Super + T", "Tools (clock, calculator, notes)"), ("Super + M", "System Monitor"),
            ("Super + N", "Notes"), ("Super + B", "Battery and power mode"), ("Super + V", "Clipboard history")]),
  ("System", [("Super + L", "Lock"), ("Super + P", "Power menu"), ("Super + D", "Dark / light"), ("Super + W", "Next wallpaper"),
-             ("Super + /", "This list"), ("Super + Shift + Q", "Log out"),
+             ("Super + /", "This list"), ("Super + F1", "Help (the manual)"), ("Super + Shift + Q", "Log out"),
              ("Print", "Screenshot: choose an area"), ("Shift + Print", "Screenshot: whole screen"), ("Alt + Print", "Screenshot: window"),
              ("Super + Ctrl + Up / Down", "Brightness up / down"), ("Super + Ctrl + Left / Right", "Volume down / up")]),
  ("Windows", [("Super + Q", "Close window"), ("Super + F", "Full screen"), ("Super + Shift + F", "Floating on / off"),

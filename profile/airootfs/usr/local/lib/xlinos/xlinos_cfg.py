@@ -8,7 +8,7 @@ DEFAULTS = {
     "bar_items": {"wifi": True, "bluetooth": True, "sound": True, "battery": True, "clock": True},
     "show_desktop_clock": True,
     "runbar_pins": None,            # None = all XlinOS apps; otherwise a list of app ids / desktop ids
-    "launcher_pins": None, "desktop_icons": None, "recent": [],
+    "launcher_pins": None, "desktop_icons": None, "widgets": [], "todo": [], "recent": [],
     "lock_minutes": 5, "sleep_minutes": 15,
     "natural_scroll": True, "tap_to_click": True, "pointer_speed": 0.0,
     "dnd": False, "night_light": False, "power_mode": "balanced", "airplane": False,

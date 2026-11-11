@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""XlinOS PDF Reader: read PDF files with zoom, page jump and search."""
+import os, sys, math
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Poppler", "0.18")
+from gi.repository import Gtk, Gdk, Gio, GLib, Poppler
+import xlinos_ui
+
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+.bar2 { padding: 4px 6px; }
+.pgl { color: #9db4e6; }
+.hint { color: #9db4e6; font-size: 15px; }
+""").encode()
+
+class Page(Gtk.DrawingArea):
+    def __init__(self, page, scale):
+        super().__init__(); self.page = page; self.set_scale(scale); self.hits = []
+        self.set_draw_func(self.draw)
+    def set_scale(self, s):
+        self.scale = s; w, h = self.page.get_size()
+        self.set_content_width(int(w * s)); self.set_content_height(int(h * s)); self.queue_draw()
+    def draw(self, area, cr, w, h):
+        cr.set_source_rgb(1, 1, 1); cr.paint(); cr.scale(self.scale, self.scale); self.page.render(cr)
+        if self.hits:
+            cr.set_source_rgba(1, 0.8, 0, 0.45)
+            ph = self.page.get_size()[1]
+            for r in self.hits: cr.rectangle(r.x1, ph - r.y2, r.x2 - r.x1, r.y2 - r.y1); cr.fill()
+
+def activate(app, path=None):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "PDF Reader", 900, 680)
+    st = {"doc": None, "scale": 1.2, "pages": []}
+    bar = Gtk.Box(spacing=6); bar.add_css_class("bar2")
+    openb = Gtk.Button(label="Open"); openb.add_css_class("sec")
+    zo = Gtk.Button(label="−"); zi = Gtk.Button(label="+"); fit = Gtk.Button(label="Fit width")
+    for b in (zo, zi, fit): b.add_css_class("sec")
+    pg = Gtk.Entry(width_chars=4, max_width_chars=4); tot = Gtk.Label(label="/ 0"); tot.add_css_class("pgl")
+    search = Gtk.SearchEntry(placeholder_text="Search", hexpand=True)
+    for w in (openb, zo, zi, fit, pg, tot, search): bar.append(w)
+    body.append(bar)
+    sc = Gtk.ScrolledWindow(vexpand=True, hexpand=True); col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, halign=Gtk.Align.CENTER, margin_top=8, margin_bottom=12)
+    sc.set_child(col); body.append(sc)
+    hint = Gtk.Label(label="Open a PDF to read it."); hint.add_css_class("hint"); col.append(hint)
+
+    def load(path):
+        try: doc = Poppler.Document.new_from_file(Gio.File.new_for_path(os.path.abspath(path)).get_uri(), None)
+        except Exception as e:
+            hint.set_text("Could not open this file."); return
+        st["doc"] = doc
+        while (c := col.get_first_child()): col.remove(c)
+        st["pages"] = []
+        for i in range(doc.get_n_pages()):
+            pa = Page(doc.get_page(i), st["scale"]); st["pages"].append(pa)
+            fr = Gtk.Frame(); fr.set_child(pa); col.append(fr)
+        tot.set_text("/ %d" % doc.get_n_pages()); pg.set_text("1"); win.set_title(os.path.basename(path))
+    def rescale(s):
+        st["scale"] = max(0.3, min(4.0, s))
+        for pa in st["pages"]: pa.set_scale(st["scale"])
+    zi.connect("clicked", lambda _b: rescale(st["scale"] * 1.2)); zo.connect("clicked", lambda _b: rescale(st["scale"] / 1.2))
+    def do_fit(_b):
+        if st["pages"]: rescale((sc.get_width() - 40) / st["pages"][0].page.get_size()[0])
+    fit.connect("clicked", do_fit)
+    def goto(_e):
+        try: n = int(pg.get_text()) - 1
+        except ValueError: return
+        if 0 <= n < len(st["pages"]):
+            adj = sc.get_vadjustment(); y = 0
+            for i in range(n): y += st["pages"][i].get_content_height() + 14
+            adj.set_value(y)
+    pg.connect("activate", goto)
+    def find(e):
+        q = search.get_text(); first = None
+        for i, pa in enumerate(st["pages"]):
+            pa.hits = pa.page.find_text(q) if q else []; pa.queue_draw()
+            if pa.hits and first is None: first = i
+        if first is not None: pg.set_text(str(first + 1)); goto(None)
+    search.connect("activate", find); search.connect("search-changed", find)
+    def chooser(_b):
+        d = Gtk.FileDialog(); f = Gtk.FileFilter(); f.set_name("PDF files"); f.add_pattern("*.pdf"); f.add_mime_type("application/pdf")
+        fl = Gio.ListStore.new(Gtk.FileFilter); fl.append(f); d.set_filters(fl)
+        d.open(win, None, lambda dl, res: (lambda fo: load(fo.get_path()) if fo else None)(dl.open_finish(res)))
+    openb.connect("clicked", chooser)
+    ctl = Gtk.EventControllerScroll(flags=Gtk.EventControllerScrollFlags.VERTICAL)
+    def zoomscroll(c, dx, dy):
+        if c.get_current_event_state() & Gdk.ModifierType.CONTROL_MASK: rescale(st["scale"] * (0.9 if dy > 0 else 1.1)); return True
+        return False
+    ctl.connect("scroll", zoomscroll); sc.add_controller(ctl)
+    def track(*_):
+        y = sc.get_vadjustment().get_value(); acc = 0
+        for i, pa in enumerate(st["pages"]):
+            acc += pa.get_content_height() + 14
+            if acc > y + 40:
+                if not pg.has_focus(): pg.set_text(str(i + 1))
+                break
+    sc.get_vadjustment().connect("value-changed", track)
+    if path: load(path)
+    win.present()
+
+app = Gtk.Application(application_id="os.xlin.pdf", flags=Gio.ApplicationFlags.HANDLES_OPEN)
+app.connect("activate", lambda a: activate(a))
+app.connect("open", lambda a, files, n, h: activate(a, files[0].get_path()))
+app.run(sys.argv)
