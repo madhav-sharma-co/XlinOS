@@ -48,7 +48,7 @@ def css():
 
 
 # ---------------------------------------------------------------- window chrome for XlinOS apps
-NAMES = {"os.xlin.terminal": "Quickshell", "os.xlin.files": "Files", "os.xlin.store": "Store", "os.xlin.settings": "Settings", "os.xlin.notes": "Notes", "os.xlin.calculator": "Calculator", "os.xlin.media": "Media", "os.xlin.photos": "Photos", "os.xlin.calendar": "Calendar", "os.xlin.edit": "Text Editor", "os.xlin.monitor": "System Monitor", "os.xlin.screenshot": "Screenshot", "os.xlin.clock": "Clock", "os.xlin.keys": "Shortcuts"}
+NAMES = {"os.xlin.terminal": "Quickshell", "os.xlin.files": "Files", "os.xlin.store": "Store", "os.xlin.settings": "Settings", "os.xlin.notes": "Notes", "os.xlin.calculator": "Calculator", "os.xlin.media": "Media", "os.xlin.photos": "Photos", "os.xlin.calendar": "Calendar", "os.xlin.edit": "Text Editor", "os.xlin.monitor": "System Monitor", "os.xlin.screenshot": "Screenshot", "os.xlin.clock": "Clock", "os.xlin.keys": "Shortcuts", "os.xlin.clipboard": "Clipboard"}
 
 def friendly(cls):
     return NAMES.get(cls) or (cls.split(".")[-1].capitalize() if cls else "XlinOS")

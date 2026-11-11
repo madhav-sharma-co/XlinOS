@@ -7,7 +7,7 @@ import xlinos_cfg as cfg
 LIB = "/usr/local/lib/xlinos/"
 APPS = {"files": "xlinos-files", "terminal": "xlinos-terminal", "settings": "xlinos-settings", "store": "xlinos-store", "notes": "xlinos-notes",
         "calculator": "xlinos-calculator", "calendar": "xlinos-calendar", "media": "xlinos-media", "photos": "xlinos-photos", "edit": "xlinos-edit",
-        "monitor": "xlinos-monitor", "clock": "xlinos-clock", "tools": "xlinos-clock", "screenshot": "xlinos-screenshot", "keys": "xlinos-keys",
+        "monitor": "xlinos-monitor", "clock": "xlinos-clock", "tools": "xlinos-clock", "screenshot": "xlinos-screenshot", "keys": "xlinos-keys", "clipboard": "xlinos-clipboard",
         "launcher": LIB + "xlinos-launcher", "panel": LIB + "xlinos-quick", "lock": "xlinos-lock", "browser": "xlinos-browser"}
 HELP = """xlinos  -  the XlinOS command line
 

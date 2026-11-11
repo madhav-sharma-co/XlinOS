@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""XlinOS Clipboard history: everything you copied lately; click one to copy it again."""
+import os, sys, subprocess
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk, GLib
+import xlinos_ui
+
+CSS = (xlinos_ui.window_css() + """
+window { background: transparent; }
+.clip { background: rgba(255,255,255,0.08); color: #e6eeff; border-radius: 12px; padding: 10px 14px; }
+.clip:hover { background: rgba(255,255,255,0.16); }
+.hint { color: #9db4e6; }
+""").encode()
+
+def entries():
+    try:
+        out = subprocess.run(["cliphist", "list"], capture_output=True, text=True, timeout=3).stdout.splitlines()
+    except Exception:
+        return None
+    return out[:40]
+
+def activate(app):
+    p = Gtk.CssProvider(); p.load_from_data(CSS)
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Clipboard", 520, 560)
+    top = Gtk.Box(spacing=8)
+    hint = Gtk.Label(label="Click something to copy it again.", xalign=0, hexpand=True); hint.add_css_class("hint")
+    clear = Gtk.Button(label="Clear all"); clear.add_css_class("sec")
+    top.append(hint); top.append(clear); body.append(top)
+    sc = Gtk.ScrolledWindow(vexpand=True); col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); sc.set_child(col); body.append(sc)
+    def fill():
+        while (c := col.get_first_child()): col.remove(c)
+        es = entries()
+        if es is None: hint.set_text("Clipboard history is not running yet."); return
+        if not es: hint.set_text("Nothing copied yet. Copy some text and it will show up here.")
+        for line in es:
+            idx, _, text = line.partition("\\t")
+            if text.startswith("[[ binary data"): text = "Picture"
+            b = Gtk.Button(); b.add_css_class("clip")
+            l = Gtk.Label(label=text.strip()[:160], xalign=0, wrap=True, lines=2, ellipsize=3); b.set_child(l)
+            def use(_b, line=line):
+                dec = subprocess.run(["cliphist", "decode"], input=line.encode(), capture_output=True).stdout
+                subprocess.run(["wl-copy"], input=dec); app.quit()
+            b.connect("clicked", use); col.append(b)
+    def do_clear(_b): subprocess.run(["cliphist", "wipe"]); fill()
+    clear.connect("clicked", do_clear); fill(); win.present()
+
+app = Gtk.Application(application_id="os.xlin.clipboard")
+app.connect("activate", activate); app.run(None)
