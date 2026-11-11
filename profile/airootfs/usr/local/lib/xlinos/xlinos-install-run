@@ -23,9 +23,15 @@ say "STEP 1/$T Checking the internet connection"
 curl -sI --max-time 8 -o /dev/null https://github.com || curl -sI --max-time 8 -o /dev/null https://archlinux.org || fail "No internet connection. Connect to Wi-Fi or a cable and try again (the system is downloaded while installing)."
 if [[ "$TARGET" == partition ]]; then
   EFI="$(opt efi "")"
-  [[ -b "$EFI" ]] || fail "The shared start-up (EFI) partition was not found."
-  [[ "$(lsblk -no PARTTYPE "$DISK" 2>/dev/null)" != c12a7328-f81f-11d2-ba4b-00a0c93ec93b ]] || fail "That is the start-up partition. Choose a normal partition."
+  [[ "$(lsblk -no TYPE "$DISK" 2>/dev/null)" == part ]] || fail "Choose a normal partition for the installation."
+  [[ -b "$EFI" && "$(lsblk -no TYPE "$EFI" 2>/dev/null)" == part ]] || fail "The shared start-up (EFI) partition was not found."
+  [[ "$(lsblk -no PARTTYPE "$EFI" 2>/dev/null | tr '[:upper:]' '[:lower:]')" == c12a7328-f81f-11d2-ba4b-00a0c93ec93b ]] || fail "The selected start-up partition is not an EFI System Partition."
+  TARGET_PARENT="$(lsblk -no PKNAME "$DISK" 2>/dev/null)"
+  EFI_PARENT="$(lsblk -no PKNAME "$EFI" 2>/dev/null)"
+  [[ -n "$TARGET_PARENT" && "$TARGET_PARENT" == "$EFI_PARENT" ]] || fail "Choose an EFI partition on the same physical disk as the installation partition."
+  [[ "$DISK" != "$EFI" ]] || fail "Choose a normal partition, not the EFI partition."
   findmnt -rn -S "$DISK" >/dev/null && fail "That partition is in use. Choose a free partition."
+  findmnt -rn -S "$EFI" >/dev/null && fail "The shared EFI partition is already mounted. Close anything using it and try again."
   say "STEP 2/$T Preparing the partition (other systems stay untouched)"
   umount -R /mnt 2>/dev/null
   if [[ "$FS" == btrfs ]]; then mkfs.btrfs -qf "$DISK" && mount -o compress=zstd "$DISK" /mnt; else mkfs.ext4 -qF "$DISK" && mount "$DISK" /mnt; fi || fail "Could not format the partition."
@@ -63,6 +69,7 @@ PY
   say "DONE"; exit 0
 fi
 say "STEP 2/$T Preparing the disk"
+[[ "$(lsblk -no TYPE "$DISK" 2>/dev/null)" == disk ]] || fail "Choose a whole physical disk for this install mode. To keep other systems, use the partition install option."
 p=""; [[ "$DISK" =~ [0-9]$ ]] && p="p"
 umount -R /mnt 2>/dev/null; swapoff -a 2>/dev/null
 if lsblk -nrpo MOUNTPOINT "$DISK" 2>/dev/null | grep -q '^/run/archiso' && ! grep -qw copytoram=y /proc/cmdline && [[ ! -f /run/archiso/copytoram ]]; then
