@@ -368,14 +368,14 @@ def make_desktop(app):
             def fill():
                 while (c := lst.get_first_child()): lst.remove(c)
                 for n, t in enumerate(cfg.get("todo") or []):
-                    r = Gtk.Box(spacing=6); cb = Gtk.CheckButton(active=t["d"], label=t["t"]); cb.get_child().add_css_class("wtxt")
+                    r = Gtk.Box(spacing=6); cb = Gtk.CheckButton(active=t["d"]); lbl = Gtk.Label(label=t["t"], xalign=0, hexpand=True, wrap=True); lbl.add_css_class("wtxt")
                     def tog(b, n=n):
                         cur = list(cfg.get("todo") or []); cur[n] = dict(cur[n], d=b.get_active()); cfg.set("todo", cur)
                     cb.connect("toggled", tog)
                     x = Gtk.Button(label="×"); x.set_has_frame(False)
                     def rm(_b, n=n):
                         cur = list(cfg.get("todo") or []); cur.pop(n); cfg.set("todo", cur); fill()
-                    x.connect("clicked", rm); cb.set_hexpand(True); r.append(cb); r.append(x); lst.append(r)
+                    x.connect("clicked", rm); r.append(cb); r.append(lbl); r.append(x); lst.append(r)
             def add(e):
                 t = e.get_text().strip()
                 if t: cfg.set("todo", list(cfg.get("todo") or []) + [{"t": t, "d": False}]); e.set_text(""); fill()
