@@ -11,7 +11,7 @@ KEYS = [
  ("Apps", [("Super + Space", "Launcher"), ("Super + Return", "Terminal"), ("Super + E", "Files"), ("Super + S", "Settings"),
            ("Super + C", "Control panel"), ("Super + T", "Tools (clock, calculator, notes)"), ("Super + M", "System Monitor"),
            ("Super + N", "Notes"), ("Super + B", "Battery and power mode")]),
- ("System", [("Super + L", "Lock"), ("Super + P", "Power menu"), ("Super + W", "Next wallpaper"),
+ ("System", [("Super + L", "Lock"), ("Super + P", "Power menu"), ("Super + D", "Dark / light"), ("Super + W", "Next wallpaper"),
              ("Super + /", "This list"), ("Super + Shift + Q", "Log out"),
              ("Print", "Screenshot: choose an area"), ("Shift + Print", "Screenshot: whole screen"), ("Alt + Print", "Screenshot: window"),
              ("Super + Ctrl + Up / Down", "Brightness up / down"), ("Super + Ctrl + Left / Right", "Volume down / up")]),

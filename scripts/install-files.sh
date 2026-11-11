@@ -19,7 +19,7 @@ install -D -m 644 "$A"/usr/share/xlinos/xlinos-mark.png /usr/share/xlinos/xlinos
 install -D -m 644 "$A"/usr/share/xlinos/hypr/hyprland.lua /usr/share/xlinos/hypr/hyprland.lua
 install -D -m 644 "$A"/usr/share/xlinos/quickshell.bashrc /usr/share/xlinos/quickshell.bashrc
 install -D -m 644 "$A"/usr/share/xlinos/hyprlock.conf /usr/share/xlinos/hyprlock.conf
-install -D -m 644 "$A"/usr/share/xlinos/wallpapers/xlin-dark.jpg /usr/share/xlinos/wallpapers/xlin-dark.jpg
+install -d /usr/share/xlinos/wallpapers; install -m 644 "$A"/usr/share/xlinos/wallpapers/*.jpg /usr/share/xlinos/wallpapers/
 install -D -m 644 "$A"/usr/share/plymouth/themes/xlinos/xlinos.plymouth /usr/share/plymouth/themes/xlinos/xlinos.plymouth
 for f in xlinos.script logo.png px.png; do install -m 644 "$A"/usr/share/plymouth/themes/xlinos/$f /usr/share/plymouth/themes/xlinos/; done
 rm -f /usr/share/applications/xlinos-install.desktop /usr/local/bin/xlinos-install /usr/local/bin/xlinos-installer   # the installer is only for the live USB/ISO

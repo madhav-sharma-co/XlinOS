@@ -209,7 +209,7 @@ def make_desktop(app):
     w = Gtk.ApplicationWindow(application=app)
     layer(w, LS.Layer.BACKGROUND, {e: True for e in (LS.Edge.TOP, LS.Edge.BOTTOM, LS.Edge.LEFT, LS.Edge.RIGHT)})
     ov = Gtk.Overlay()
-    for f in (cfg.get("wallpaper", "") or "", "/usr/share/xlinos/wallpapers/xlin-dark.jpg"):
+    for f in (cfg.get("wallpaper", "") or "", "/usr/share/xlinos/wallpapers/xlin-light.jpg" if cfg.is_light() else "/usr/share/xlinos/wallpapers/xlin-dark.jpg"):
         if f and os.path.exists(f):
             pic = Gtk.Picture.new_for_filename(f); pic.set_content_fit(Gtk.ContentFit.COVER); ov.set_child(pic); break
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, valign=Gtk.Align.START, halign=Gtk.Align.END, margin_top=52, margin_end=34)

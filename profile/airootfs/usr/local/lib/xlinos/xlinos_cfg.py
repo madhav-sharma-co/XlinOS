@@ -4,7 +4,7 @@ import json, os, subprocess, shutil
 
 PATH = os.path.expanduser("~/.config/xlinos/settings.json")
 DEFAULTS = {
-    "accent": "#1e6bff", "text_scale": 1.0, "animations": "smooth", "transparency": 0.86,
+    "accent": "#1e6bff", "theme": "dark", "text_scale": 1.0, "animations": "smooth", "transparency": 0.86,
     "bar_items": {"wifi": True, "bluetooth": True, "sound": True, "battery": True, "clock": True},
     "show_desktop_clock": True,
     "runbar_pins": None,            # None = all XlinOS apps; otherwise a list of app ids / desktop ids
@@ -113,12 +113,31 @@ def toggle_pin(key, app_id):
     set(key, pins); return app_id in pins
 
 # ---------------------------------------------------------------- look: accent and text size
+import re as _re
+_LIGHT_TEXT = _re.compile(r"(?<![\w-])color:\s*(?:#fff(?:fff)?|#e6eeff|#dbe6ff|#cdd9f5)\b", _re.I)
+_LIGHT_FIX = """
+button.primary, button.primary label, .go, .go label, .act:checked, .act:checked label, button:checked, button:checked label,
+.tl, .apptile, .apptile image, .accent, .accent label, .acc, .acc label { color: #ffffff; }
+"""
+def light(css):
+    """Turn the dark XlinOS palette into the light one (css is str or bytes) and return str."""
+    s = css.decode() if isinstance(css, bytes) else css
+    s = _re.sub(r"rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*([0-9.]+)\s*\)", lambda m: "rgba(15,35,95,%.2f)" % min(1.0, float(m.group(1)) * 0.85), s)
+    s = _re.sub(r"rgba\(\s*(?:8\s*,\s*14\s*,\s*44|10\s*,\s*18\s*,\s*52)\s*,", "rgba(246,248,255,", s)
+    s = _LIGHT_TEXT.sub("color: #14203f", s)
+    for a, b in (("#9db4e6", "#5b6c96"), ("#8fb0ff", "#2c5fd0"), ("#1c2a5c", "#dde5f8"), ("#3a4a8a", "#c3cde8"), ("#3a4a7a", "#b9c4e0")):
+        s = s.replace(a, b)
+    return s + _LIGHT_FIX
+
+def is_light(): return get("theme") == "light"
+
 def themed(css):
     """Swap the default blue for the chosen accent (css is str or bytes) and return bytes."""
     s = css.decode() if isinstance(css, bytes) else css
     a = get("accent")
     if a and a.lower() != "#1e6bff":
         s = s.replace("#1e6bff", a).replace("#3a80ff", a).replace("#1e4fd0", a)
+    if is_light(): s = light(s)
     return s.encode()
 
 ACCENTS = [("Blue", "#1e6bff"), ("Violet", "#7b5cff"), ("Pink", "#e0407a"), ("Orange", "#ff7a1a"), ("Green", "#22b868"), ("Teal", "#12b5c8")]

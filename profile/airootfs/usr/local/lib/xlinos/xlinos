@@ -16,6 +16,7 @@ HELP = """xlinos  -  the XlinOS command line
                                      media photos edit monitor clock screenshot keys launcher panel lock browser
   xlinos edit|photos|media <file>    open a file in the matching app
   xlinos keys                        all shortcut keys
+  xlinos theme light|dark|toggle
   xlinos accent <blue|violet|pink|orange|green|teal>
   xlinos animations off|subtle|smooth
   xlinos opacity <0.4 .. 1>          transparency of the bar and run bar
@@ -98,6 +99,10 @@ def main(a):
     elif c in ("edit", "photos", "media") and rest: spawn([APPS[c]] + rest)
     elif c == "screenshot": spawn(["xlinos-screenshot"] + (rest or []))
     elif c in APPS: spawn([APPS[c]] + rest)
+    elif c == "theme":
+        cur = cfg.get("theme", "dark"); new = rest[0] if rest and rest[0] in ("light", "dark") else ("dark" if cur == "light" else "light") if rest[:1] == ["toggle"] else None
+        if new is None: out("theme is %s   (xlinos theme light|dark|toggle)" % cur)
+        else: cfg.set("theme", new); restart_shell(); out("theme " + new)
     elif c == "accent":
         m = {n.lower(): h for n, h in cfg.ACCENTS}
         if rest and rest[0].lower() in m: cfg.set("accent", m[rest[0].lower()]); restart_shell(); out("accent " + rest[0])

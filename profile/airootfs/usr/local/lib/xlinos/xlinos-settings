@@ -251,10 +251,12 @@ def p_general():
 
 def p_personal():
     b = page("Personalisation", "Colours, text size and how things move.")
+    def set_theme(v): cfg.set("theme", v); restart_shell()
+    b.append(card(choice_row("Theme (apps use it the next time they open; Super+D switches)", [("Dark", "dark"), ("Light", "light")], cfg.get("theme", "dark"), set_theme)))
     dots = Gtk.Box(spacing=10); cur = cfg.get("accent"); dbtns = []
     for name, col in cfg.ACCENTS:
         d = Gtk.ToggleButton(); d.set_tooltip_text(name); d.set_size_request(34, 34); d.set_active(col == cur)
-        pr = Gtk.CssProvider(); pr.load_from_data(("button { background-image: none; background-color: %s; border-radius: 17px; padding: 0; min-width: 34px; min-height: 34px; }"
+        pr = Gtk.CssProvider(); pr.load_from_data(("/*raw*/ button { background-image: none; background-color: %s; border-radius: 17px; padding: 0; min-width: 34px; min-height: 34px; }"
                                                     "button:checked { border: 3px solid #ffffff; }" % col).encode())
         d.get_style_context().add_provider(pr, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 5); dbtns.append((d, col)); dots.append(d)
         def pick(btn, c=col):

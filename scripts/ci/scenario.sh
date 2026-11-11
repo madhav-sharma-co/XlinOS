@@ -91,5 +91,15 @@ hyprctl configerrors >"$OUT/configerrors.txt" 2>&1; cat "$OUT/configerrors.txt"
 xlinos status >"$OUT/xlinos-status.txt" 2>&1; xlinos doctor >>"$OUT/xlinos-status.txt" 2>&1; cat "$OUT/xlinos-status.txt"
 xlinos-keys >"$OUT/keys.log" 2>&1 &
 sleep 5; shot 35-keys; pkill -f lib/xlinos/xlinos-keys
+echo "== light theme"
+xlinos theme light; sleep 6
+xlinos-settings personalisation >"$OUT/light-settings.log" 2>&1 &
+xlinos-files >"$OUT/light-files.log" 2>&1 &
+sleep 8; shot 36-light-settings-files
+pkill -f lib/xlinos/xlinos-settings; pkill -f lib/xlinos/xlinos-files
+xlinos-notes >"$OUT/light-notes.log" 2>&1 &
+python3 /usr/local/lib/xlinos/xlinos-launcher >"$OUT/light-launcher.log" 2>&1 &
+sleep 8; shot 37-light-launcher-notes; pkill -f lib/xlinos/xlinos-launcher; pkill -f lib/xlinos/xlinos-notes
+xlinos theme dark; sleep 4
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock

@@ -1,6 +1,25 @@
 """Shared XlinOS look for the shell: coloured app tiles used by the dock and the launcher."""
 import shutil
 
+def _install_theme_hook():
+    """Every XlinOS window passes its style sheet through here, so accent colour and light/dark apply everywhere."""
+    try:
+        import gi
+        gi.require_version("Gtk", "4.0")
+        from gi.repository import Gtk
+        import xlinos_cfg
+        orig = Gtk.CssProvider.load_from_data
+        def patched(self, data, *a):
+            try:
+                raw = data.decode() if isinstance(data, bytes) else data
+                if "/*raw*/" not in raw: data = xlinos_cfg.themed(data)
+            except Exception: pass
+            return orig(self, data, *a)
+        Gtk.CssProvider.load_from_data = patched
+    except Exception:
+        pass
+_install_theme_hook()
+
 # id, label, symbolic icon, gradient, command, window class (to show the running dot)
 APPS = [
     ("files",    "Files",    "folder-symbolic",             ("#3b8bff", "#1e5bff"), "xlinos-files",   "os.xlin.files"),
