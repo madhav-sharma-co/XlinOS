@@ -139,7 +139,7 @@ def make_dock(app):
         if i in known: continue
         ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
         if ai:
-            wm = (ai.get_string("StartupWMClass") or "").lower(); other_pins.append((i, ai, wm))
+            wm = (ai.get_string("StartupWMClass") or i.replace(".desktop", "").split(".")[-1]).lower(); other_pins.append((i, ai, wm))
             if wm: pinned_cls.add(wm)
 
     def menu(btn, wmclass, cid, cmd, label, can_pin):

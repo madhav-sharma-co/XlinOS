@@ -195,6 +195,7 @@ def p_about():
     try: cm = open("/usr/share/xlinos/commit").read().strip()[:7]
     except OSError: cm = "development build"
     b.append(card(row("Build", cm)))
+    b.append(card(row("Made by", "Madhav Sharma"), row("Presented by", "Axion Co.")))
     b.append(update_card())
     return b
 

@@ -67,10 +67,26 @@ def activate(app):
             secs = float(open("/proc/uptime").read().split()[0]); up.set_text("Running for %dh %dm" % (secs // 3600, secs % 3600 // 60))
         except Exception: pass
         return True
+    def nice_name(args):
+        """Friendly process names: XlinOS apps by their name, system parts without base-system names."""
+        a = args.split()
+        base = [os.path.basename(x) for x in a[:3]]
+        for x in base:
+            if x.startswith("xlinos-"): return "XlinOS " + x[7:].replace("-", " ").title()
+        first = base[0] if base else args
+        if first.lower() in ("hyprland", "start-hyprland"): return "XlinOS desktop"
+        if first.startswith("python") and len(base) > 1: first = base[1]
+        for bad, good in (("pacman", "package manager"), ("archinstall", "installer")):
+            if first == bad: return good
+        return first
     def procs():
         def job():
-            out = subprocess.run(["ps", "-eo", "pid,pcpu,pmem,comm", "--sort=-pcpu"], capture_output=True, text=True).stdout.splitlines()[1:11]
-            return [l.split(None, 3) for l in out if len(l.split(None, 3)) == 4]
+            out = subprocess.run(["ps", "-eo", "pid,pcpu,pmem,args", "--sort=-pcpu"], capture_output=True, text=True).stdout.splitlines()[1:11]
+            rows = []
+            for l in out:
+                f = l.split(None, 3)
+                if len(f) == 4: rows.append(f[:3] + [nice_name(f[3])])
+            return rows
         import threading
         def w():
             r = job(); GLib.idle_add(show, r)
