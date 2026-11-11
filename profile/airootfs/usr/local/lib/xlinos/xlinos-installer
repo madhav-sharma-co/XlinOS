@@ -7,7 +7,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gdk, Gio, GLib
 import xlinos_ui
 
-CSS = (xlinos_ui.window_css() + """
+CSS = (xlinos_ui.window_css() + """/*nolight*/
 window { background: transparent; }
 .big { color: #fff; font-size: 26px; font-weight: 700; }
 .sub { color: #9db4e6; font-size: 14px; }

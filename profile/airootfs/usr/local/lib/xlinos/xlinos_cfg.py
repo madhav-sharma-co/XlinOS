@@ -137,7 +137,7 @@ def themed(css):
     a = get("accent")
     if a and a.lower() != "#1e6bff":
         s = s.replace("#1e6bff", a).replace("#3a80ff", a).replace("#1e4fd0", a)
-    if is_light(): s = light(s)
+    if is_light() and "/*nolight*/" not in s: s = light(s)
     return s.encode()
 
 ACCENTS = [("Blue", "#1e6bff"), ("Violet", "#7b5cff"), ("Pink", "#e0407a"), ("Orange", "#ff7a1a"), ("Green", "#22b868"), ("Teal", "#12b5c8")]

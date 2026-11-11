@@ -45,7 +45,7 @@ def check(password):
     pam.pam_end(h, 0)
     return ok
 
-CSS = b"""
+CSS = b"""/*nolight*/
 window { background-color: #03081c; }
 label { color: #ffffff; }
 .time { font-size: 96px; font-weight: 200; }

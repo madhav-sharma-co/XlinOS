@@ -9,7 +9,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gdk, GLib, Gtk
 from xlinos_login import Accounts, Greetd, suggest_username
 
-CSS = b"""
+CSS = b"""/*nolight*/
 window.xl { background-image: linear-gradient(#0a2060, #03081c); color: #ffffff; font-family: Inter, sans-serif; }
 .xl .clock { font-size: 84px; font-weight: 200; }
 .xl .date { font-size: 18px; color: #9db4e6; margin-bottom: 26px; }

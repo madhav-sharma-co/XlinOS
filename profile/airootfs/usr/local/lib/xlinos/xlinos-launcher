@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gi.repository import Gtk, Gdk, Gio, Gtk4LayerShell as LS
 import xlinos_ui, xlinos_cfg
 
-CSS = (b"""
+CSS = (b"""/*nolight*/
 window { background: rgba(3,8,28,0.93); }
 entry.search { background: rgba(255,255,255,0.10); color: #fff; border-radius: 16px; border: 1px solid rgba(255,255,255,0.16);
                padding: 10px 18px; min-width: 460px; font-size: 16px; }
