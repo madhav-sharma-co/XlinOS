@@ -86,5 +86,10 @@ subprocess.run(["pkill", "-f", "lib/xlinos/xlinos-shell"]); time.sleep(0.5)
 subprocess.Popen(["/usr/local/lib/xlinos/xlinos-shell"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 PY
 sleep 8; pgrep -fa xlinos-shell | tee "$OUT/pin-shell.txt"; shot 34-pinned-kitty
+echo "== keys + cli"
+hyprctl configerrors >"$OUT/configerrors.txt" 2>&1; cat "$OUT/configerrors.txt"
+xlinos status >"$OUT/xlinos-status.txt" 2>&1; xlinos doctor >>"$OUT/xlinos-status.txt" 2>&1; cat "$OUT/xlinos-status.txt"
+xlinos-keys >"$OUT/keys.log" 2>&1 &
+sleep 5; shot 35-keys; pkill -f lib/xlinos/xlinos-keys
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock
