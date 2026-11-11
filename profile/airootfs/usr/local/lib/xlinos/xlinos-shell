@@ -36,6 +36,7 @@ window { background: transparent; }
 .clock-time { font-size: 44px; font-weight: 200; color: #fff; }
 .clock-date { font-size: 14px; color: #9db4e6; }
 .dicon { padding: 6px 4px; border-radius: 12px; }
+.t-folder { background-image: linear-gradient(135deg, rgba(255,255,255,0.30), rgba(255,255,255,0.14)); }
 .dicon.sel { background: rgba(255,255,255,0.18); }
 .dlabel { color: #fff; font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,0.75); }
 .dmenu { background: rgba(8,14,44,0.97); border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); padding: 6px; }
@@ -213,16 +214,24 @@ def make_dock(app):
 
 DESKTOP = os.path.expanduser("~/Desktop")
 
+def desktop_resolve(i, known):
+    if i in known:
+        a = known[i]; return {"kind": "xapp", "id": i, "label": a[1], "icon": a[2], "cmd": a[4]}
+    ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+    if ai: return {"kind": "app", "id": i, "label": ai.get_name(), "gicon": ai.get_icon(), "cmd": "gtk-launch %s" % i.replace(".desktop", "")}
+    return None
+
 def desktop_entries():
-    """Everything shown on the desktop: app shortcuts chosen by the user, then files and folders in ~/Desktop."""
+    """Everything shown on the desktop: app shortcuts and app folders chosen by the user, then files and folders in ~/Desktop."""
     known = {a[0]: a for a in xlinos_ui.available()}
     items = []
     for i in cfg.desktop_icons():
-        if i in known:
-            a = known[i]; items.append({"kind": "xapp", "id": i, "label": a[1], "icon": a[2], "cmd": a[4]})
+        if isinstance(i, str):
+            e = desktop_resolve(i, known)
+            if e: items.append(e)
         else:
-            ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
-            if ai: items.append({"kind": "app", "id": i, "label": ai.get_name(), "gicon": ai.get_icon(), "cmd": "gtk-launch %s" % i.replace(".desktop", "")})
+            kids = [e for e in (desktop_resolve(y, known) for y in i["items"]) if e]
+            if kids: items.append({"kind": "folder", "id": "folder:" + i["folder"], "name": i["folder"], "label": i["folder"], "kids": kids})
     try:
         for n in sorted(os.listdir(DESKTOP), key=str.lower):
             if n.startswith("."): continue
@@ -275,7 +284,7 @@ def make_desktop(app):
         items = desktop_entries()
         try: mt = os.stat(DESKTOP).st_mtime
         except OSError: mt = 0
-        sig = (tuple((i.get("id") or i.get("path"), i["label"]) for i in items), mt, rows)
+        sig = (tuple((i.get("id") or i.get("path"), i["label"], tuple(k["id"] for k in i.get("kids", []))) for i in items), mt, rows)
         if sig == state["sig"] and not force: return True
         state["sig"] = sig
         while (c := flow.get_first_child()): flow.remove(c)
@@ -289,7 +298,7 @@ def make_desktop(app):
     def add_app_menu(widget, x, y):
         def build(item, pop, v):
             sc = Gtk.ScrolledWindow(min_content_height=320, min_content_width=260); lst = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            have = set(cfg.desktop_icons())
+            have = cfg._all_ids()
             for a in sorted([a for a in Gio.AppInfo.get_all() if a.should_show()], key=lambda a: a.get_name().lower()):
                 aid = a.get_id() or ""; nm = aid.replace(".desktop", "")
                 key = "files" if False else (nm[7:] if nm.startswith("xlinos-") and nm[7:] in [q[0] for q in xlinos_ui.available()] else aid)
@@ -306,29 +315,78 @@ def make_desktop(app):
             item("Open Files", lambda: sh("xlinos-files"))
             item("Settings", lambda: sh("xlinos-settings"))
         pop_at(widget, x, y, build)
+    def small_icon(e, px):
+        if e["kind"] == "xapp": im = Gtk.Image.new_from_icon_name(e["icon"])
+        elif e.get("gicon") is not None: im = Gtk.Image.new_from_gicon(e["gicon"])
+        else: im = Gtk.Image.new_from_icon_name(e.get("icon", "application-x-executable-symbolic"))
+        im.set_pixel_size(px); return im
+    def open_folder(widget, it):
+        pop = Gtk.Popover(); pop.set_parent(widget); pop.set_position(Gtk.PositionType.BOTTOM); pop.set_has_arrow(False); pop.add_css_class("dmenu")
+        v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        name = Gtk.Entry(text=it["name"], width_chars=16); v.append(name)
+        def done(*_):
+            cfg.desktop_rename_folder(it["name"], name.get_text()); refresh(True)
+        name.connect("activate", lambda *_: (done(), pop.popdown()))
+        g = Gtk.FlowBox(max_children_per_line=3, min_children_per_line=1, selection_mode=Gtk.SelectionMode.NONE, homogeneous=True)
+        for k in it["kids"]:
+            c = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, halign=Gtk.Align.CENTER); c.add_css_class("dicon"); c.set_size_request(84, 84)
+            t = Gtk.Box(halign=Gtk.Align.CENTER); t.add_css_class("apptile")
+            t.add_css_class("t-" + k["id"] if k["kind"] == "xapp" else "t-other"); t.append(small_icon(k, 28)); t.get_first_child().set_hexpand(True)
+            l = Gtk.Label(label=k["label"], max_width_chars=11, ellipsize=3); l.add_css_class("dlabel"); c.append(t); c.append(l)
+            def kopen(gc, n, x, y, k=k): gc.set_state(Gtk.EventSequenceState.CLAIMED); pop.popdown(); sh(k["cmd"])
+            c1 = Gtk.GestureClick(button=1); c1.connect("released", kopen); c.add_controller(c1)
+            def kout(gc, n, x, y, k=k):
+                gc.set_state(Gtk.EventSequenceState.CLAIMED); pop.popdown(); cfg.desktop_take_out(k["id"]); refresh(True)
+            c3 = Gtk.GestureClick(button=3); c3.connect("pressed", kout); c.add_controller(c3)
+            g.append(c)
+        v.append(g)
+        hint = Gtk.Label(label="Click to open. Right-click an app to take it out of the folder.", wrap=True, max_width_chars=30); hint.add_css_class("dlabel"); v.append(hint)
+        pop.set_child(v); pop.connect("closed", lambda p: (done(), GLib.idle_add(p.unparent))); pop.popup()
     def make_icon(it):
         col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, halign=Gtk.Align.CENTER); col.add_css_class("dicon"); col.set_size_request(88, 92)
         tile = Gtk.Box(halign=Gtk.Align.CENTER); tile.add_css_class("apptile")
-        if it["kind"] == "xapp": tile.add_css_class("t-" + it["id"]); im = Gtk.Image.new_from_icon_name(it["icon"])
+        if it["kind"] == "folder":
+            tile.add_css_class("t-folder")
+            grid = Gtk.Grid(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER, row_spacing=3, column_spacing=3, hexpand=True, vexpand=True)
+            for n, k in enumerate(it["kids"][:4]): grid.attach(small_icon(k, 20), n % 2, n // 2, 1, 1)
+            tile.append(grid); im = None
+        elif it["kind"] == "xapp": tile.add_css_class("t-" + it["id"]); im = Gtk.Image.new_from_icon_name(it["icon"])
         elif it.get("gicon") is not None: tile.add_css_class("t-other"); im = Gtk.Image.new_from_gicon(it["gicon"])
         else: tile.add_css_class("t-files" if it["kind"] == "dir" else "t-other"); im = Gtk.Image.new_from_icon_name(it["icon"])
-        im.set_pixel_size(28); im.set_hexpand(True); im.set_vexpand(True); tile.append(im)
+        if im is not None: im.set_pixel_size(28); im.set_hexpand(True); im.set_vexpand(True); tile.append(im)
         lb = Gtk.Label(label=it["label"], max_width_chars=12, ellipsize=3, justify=Gtk.Justification.CENTER); lb.add_css_class("dlabel")
         col.append(tile); col.append(lb)
         def click(g, n, x, y):
             g.set_state(Gtk.EventSequenceState.CLAIMED)
             if state["sel"] is not None: state["sel"].remove_css_class("sel")
             col.add_css_class("sel"); state["sel"] = col
-            if n >= 2: cfg.push_recent(it.get("id") or ""); sh(it["cmd"])
+            if n >= 2:
+                if it["kind"] == "folder": open_folder(col, it)
+                else: cfg.push_recent(it.get("id") or ""); sh(it["cmd"])
         g1 = Gtk.GestureClick(button=1); g1.connect("pressed", click); col.add_controller(g1)
         def rclick(g, n, x, y):
             g.set_state(Gtk.EventSequenceState.CLAIMED)
             def build(item, pop, v):
+                if it["kind"] == "folder":
+                    item("Open", lambda: GLib.idle_add(open_folder, col, it))
+                    item("Undo the folder (apps go back to the desktop)", lambda: (cfg.desktop_dissolve_folder(it["name"]), refresh(True)))
+                    return
                 item("Open", lambda: sh(it["cmd"]))
                 if it["kind"] in ("xapp", "app"): item("Remove from the desktop", lambda: (cfg.remove_desktop_icon(it["id"]), refresh(True)))
                 else: item("Move to Trash", lambda: (sh("gio trash '%s'" % it["path"]), GLib.timeout_add(600, lambda: (refresh(True), False)[1])))
             pop_at(col, x, y, build)
         g3 = Gtk.GestureClick(button=3); g3.connect("pressed", rclick); col.add_controller(g3)
+        # drag an app onto another app: they become a folder; onto a folder: it goes in
+        if it["kind"] in ("xapp", "app"):
+            ds = Gtk.DragSource(); ds.set_actions(Gdk.DragAction.MOVE)
+            ds.connect("prepare", lambda s_, x, y: Gdk.ContentProvider.new_for_value(it["id"]))
+            ds.connect("drag-begin", lambda s_, d: s_.set_icon(Gtk.WidgetPaintable.new(tile), 26, 26)); col.add_controller(ds)
+        if it["kind"] in ("xapp", "app", "folder"):
+            dt = Gtk.DropTarget.new(str, Gdk.DragAction.MOVE)
+            dt.connect("enter", lambda t_, x, y: (col.add_css_class("sel"), Gdk.DragAction.MOVE)[1]); dt.connect("leave", lambda t_: col.remove_css_class("sel"))
+            def dropped(t_, val, x, y):
+                col.remove_css_class("sel"); cfg.desktop_drop(val, it["id"]); GLib.idle_add(refresh, True); return True
+            dt.connect("drop", dropped); col.add_controller(dt)
         return col
     bgc = Gtk.GestureClick(button=3); bgc.connect("pressed", lambda g, n, x, y: menu_desktop(ov, x, y)); ov.add_controller(bgc)
     bg1 = Gtk.GestureClick(button=1)

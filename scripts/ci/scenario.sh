@@ -94,7 +94,9 @@ sleep 5; shot 35-keys; pkill -f lib/xlinos/xlinos-keys
 echo "== desktop icons"
 mkdir -p ~/Desktop/Projects; echo hi >~/Desktop/hello.txt
 python3 -c "import sys; sys.path.insert(0,'/usr/local/lib/xlinos'); import xlinos_cfg as c; c.add_desktop_icon('kitty.desktop'); c.add_desktop_icon('calendar')"
-sleep 4; xlinos showdesktop; sleep 4; shot 38-desktop-icons; xlinos showdesktop; sleep 2
+sleep 4; xlinos showdesktop; sleep 4; shot 38-desktop-icons
+python3 -c "import sys; sys.path.insert(0,'/usr/local/lib/xlinos'); import xlinos_cfg as c; c.desktop_drop('calendar','settings'); c.desktop_drop('kitty.desktop','folder:Folder')" >"$OUT/folder.log" 2>&1
+sleep 4; shot 39-desktop-folder; cat ~/.config/xlinos/settings.json | tr -d '\n' | cut -c1-400 >"$OUT/folder-json.txt"; xlinos showdesktop; sleep 2
 echo "== light theme"
 xlinos theme light; sleep 6
 xlinos-settings personalisation >"$OUT/light-settings.log" 2>&1 &

@@ -105,13 +105,66 @@ def set_brightness(v): bg("brightnessctl set %d%%" % max(1, v))
 def push_recent(app_id, limit=12):
     r = [a for a in get("recent") if a != app_id]; r.insert(0, app_id); set("recent", r[:limit])
 DEFAULT_DESKTOP = ["files", "settings"]
+# the desktop list holds app ids (text) and app folders: {"folder": "Name", "items": [app ids]}
 def desktop_icons():
     v = get("desktop_icons"); return list(DEFAULT_DESKTOP if v is None else v)
+def desk_id(x): return x if isinstance(x, str) else "folder:" + x["folder"]
+def _all_ids():
+    out = set()
+    for x in desktop_icons():
+        if isinstance(x, str): out.add(x)
+        else: out.update(x["items"])
+    return out
 def add_desktop_icon(i):
-    cur = desktop_icons()
-    if i not in cur: cur.append(i)
-    set("desktop_icons", cur)
-def remove_desktop_icon(i): set("desktop_icons", [x for x in desktop_icons() if x != i])
+    if i in _all_ids(): return
+    set("desktop_icons", desktop_icons() + [i])
+def remove_desktop_icon(i):
+    out = []
+    for x in desktop_icons():
+        if isinstance(x, str):
+            if x != i: out.append(x)
+        else:
+            x = dict(x, items=[y for y in x["items"] if y != i])
+            if len(x["items"]) > 1: out.append(x)
+            else: out.extend(x["items"])            # a folder with one app left is dissolved
+    set("desktop_icons", out)
+def _unique_folder(base="Folder"):
+    names = {x["folder"] for x in desktop_icons() if not isinstance(x, str)}
+    n, k = base, 1
+    while n in names: k += 1; n = "%s %d" % (base, k)
+    return n
+def desktop_drop(dragged, target):
+    """Drop one app on another: they become a folder (like on a phone); drop on a folder: the app goes in."""
+    if dragged == target or dragged.startswith("folder:"): return
+    cur = desktop_icons(); out = []
+    for x in cur:
+        if isinstance(x, str) and x == dragged: continue
+        if not isinstance(x, str): x = dict(x, items=[y for y in x["items"] if y != dragged])
+        out.append(x)
+    res = []
+    for x in out:
+        if desk_id(x) == target:
+            if isinstance(x, str): x = {"folder": _unique_folder(), "items": [x, dragged]}
+            else: x = dict(x, items=x["items"] + [dragged])
+        res.append(x)
+    # folders emptied down to one app turn back into that app
+    fin = []
+    for x in res:
+        if not isinstance(x, str) and len(x["items"]) < 2: fin.extend(x["items"])
+        else: fin.append(x)
+    set("desktop_icons", fin)
+def desktop_take_out(app_id): remove_desktop_icon(app_id); add_desktop_icon(app_id)
+def desktop_rename_folder(old, new):
+    new = (new or "").strip()
+    if not new or new == old: return
+    if any(not isinstance(x, str) and x["folder"] == new for x in desktop_icons()): new = _unique_folder(new)
+    set("desktop_icons", [x if isinstance(x, str) or x["folder"] != old else dict(x, folder=new) for x in desktop_icons()])
+def desktop_dissolve_folder(name):
+    out = []
+    for x in desktop_icons():
+        if not isinstance(x, str) and x["folder"] == name: out.extend(x["items"])
+        else: out.append(x)
+    set("desktop_icons", out)
 
 def toggle_pin(key, app_id):
     pins = get(key)
