@@ -53,8 +53,8 @@ def status():
     out(rel.get("PRETTY_NAME", "XlinOS"))
     out("Wi-Fi        %s" % ("on" if cfg.wifi_on() else "off"))
     out("Bluetooth    %s" % ("on" if cfg.bt_on() else "off"))
-    out("Volume       %s%%" % cfg.volume())
-    out("Brightness   %s%%" % cfg.brightness())
+    v, muted = cfg.volume(); out("Volume       %s%%%s" % (v, " (muted)" if muted else ""))
+    b = cfg.brightness(); out("Brightness   %s" % ("%s%%" % b if b is not None else "n/a"))
     out("Power mode   %s" % cfg.get("power_mode"))
     out("Theme accent %s   animations %s   transparency %s" % (cfg.get("accent"), cfg.get("animations"), cfg.get("transparency")))
     bat = glob.glob("/sys/class/power_supply/BAT*/capacity")
@@ -131,10 +131,10 @@ def main(a):
     elif c == "volume":
         if rest and rest[0] == "mute": cfg.toggle_mute()
         elif rest and rest[0].isdigit(): cfg.set_volume(int(rest[0]))
-        out("Volume %s%%" % cfg.volume())
+        v, muted = cfg.volume(); out("Volume %s%%%s" % (v, " (muted)" if muted else ""))
     elif c == "brightness":
         if rest and rest[0].isdigit(): cfg.set_brightness(int(rest[0]))
-        out("Brightness %s%%" % cfg.brightness())
+        b = cfg.brightness(); out("Brightness %s" % ("%s%%" % b if b is not None else "n/a"))
     elif c == "battery":
         bat = glob.glob("/sys/class/power_supply/BAT*/capacity")
         out("%s%%" % open(bat[0]).read().strip() if bat else "no battery")
