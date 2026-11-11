@@ -40,15 +40,21 @@ def parts():
         out = json.loads(subprocess.run(["lsblk", "-J", "-b", "-l", "-o", "PATH,SIZE,TYPE,FSTYPE,LABEL,PARTTYPE,MOUNTPOINTS,RO,PKNAME"], capture_output=True, text=True).stdout)
     except Exception:
         return [], None
-    esp, res = None, []
+    esp_by_disk, res = {}, []
     for d in out.get("blockdevices", []):
         if d.get("type") != "part" or d["path"].startswith(("/dev/loop", "/dev/sr")): continue
+        parent = d.get("pkname")
         if (d.get("parttype") or "").lower() == "c12a7328-f81f-11d2-ba4b-00a0c93ec93b":
-            esp = esp or d["path"]; continue
+            if parent:
+                esp_by_disk.setdefault(parent, d["path"])
+            continue
         if any(m for m in (d.get("mountpoints") or []) if m): continue
-        if int(d.get("size") or 0) < 20e9: continue
-        res.append((d["path"], int(d["size"]), d.get("fstype") or "empty", d.get("label") or ""))
-    return res, esp
+        if int(d.get("size") or 0) < 20e9 or not parent: continue
+        # A dual-boot target is offered only when its own physical disk has an EFI partition.
+        esp = esp_by_disk.get(parent)
+        if esp:
+            res.append((d["path"], int(d["size"]), d.get("fstype") or "empty", d.get("label") or "", esp))
+    return res
 
 def human(n):
     return "%.0f GB" % (n / 1e9) if n >= 1e9 else "%.0f MB" % (n / 1e6)
@@ -119,12 +125,15 @@ def activate(app):
             GLib.idle_add(pick_disk if v == "disk" else pick_part)
         open_pick("Install on", [("The whole disk  -  erases everything on it", "disk", ""), ("One free partition  -  keeps your other systems (dual boot)", "partition", "")], chosen, False)
     def pick_part():
-        ps_, esp = parts()
-        if not ps_ or not esp:
-            open_pick("Choose the partition", [("No free partition of 20 GB or more was found. Make one with GParted first.", "", "")], lambda l, v: None, False); return
-        st["efi"] = esp
-        open_pick("Choose the partition (it will be erased)", [("%s  %s" % (dev, ("(" + lab + ")") if lab else ""), dev, "%s  -  %s" % (human(sz), fs)) for dev, sz, fs, lab in ps_],
-                  lambda l, v: st.update(disk=v or None, disk_label="partition %s" % v) if v else None, False)
+        ps_ = parts()
+        if not ps_:
+            open_pick("Choose the partition", [("No free partition of 20 GB or more with an EFI partition on the same disk was found. Make one with GParted first.", "", "")], lambda l, v: None, False); return
+        items = [("%s  %s" % (dev, ("(" + lab + ")") if lab else ""), dev, "%s  -  %s  -  EFI %s" % (human(sz), fs, efi)) for dev, sz, fs, lab, efi in ps_]
+        efi_for_partition = {dev: efi for dev, _sz, _fs, _lab, efi in ps_}
+        def choose_partition(label, value):
+            if value:
+                st.update(disk=value, disk_label="partition %s" % value, efi=efi_for_partition[value])
+        open_pick("Choose the partition (it will be erased)", items, choose_partition, False)
     def pick_disk():
         ds = disks()
         if not ds: open_pick("Disk", [("No disk was found", "", "")], lambda l, v: None, False); return
