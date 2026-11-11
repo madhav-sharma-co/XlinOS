@@ -17,7 +17,7 @@ KEYS = [
              ("Super + Ctrl + Up / Down", "Brightness up / down"), ("Super + Ctrl + Left / Right", "Volume down / up")]),
  ("Windows", [("Super + Q", "Close window"), ("Super + F", "Full screen"), ("Super + Shift + F", "Floating on / off"),
               ("Alt + Tab", "Next window"), ("Super + Tab", "Overview of all windows"), ("Super + H", "Bring back hidden windows"),
-              ("Super + Shift + D", "Show the desktop"),
+              ("Super + Shift + D", "Show the desktop"), ("Double-click / right-click an icon", "Open it / its menu (right-click the desktop to add apps and folders)"),
               ("Super + arrows", "Snap: halves, maximise, restore"), ("Super + Shift + arrows", "Move focus to the next window"),
               ("Super + Ctrl + Shift + arrows", "Resize the window"),
               ("Super + left-drag / right-drag", "Move / resize a window")]),

@@ -95,6 +95,10 @@ def activate(app):
             cur = [x for x in cur if x != bid] if bid in cur else cur + [bid]
             xlinos_cfg.set("runbar_pins", cur); restart_shell()
         item("Remove from the run bar" if on_bar else "Pin to the run bar", toggle_bar)
+        def add_desktop():
+            did = bid if (k.startswith("xlinos-") and k[7:] in run_bar_ids()) else (a.get_id() or k)
+            xlinos_cfg.add_desktop_icon(did)
+        item("Add to the desktop", add_desktop)
         pop.set_child(v); pop.popup()
 
     def tile_for(a):

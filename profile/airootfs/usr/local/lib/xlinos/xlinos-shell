@@ -35,6 +35,12 @@ window { background: transparent; }
 .dot { background: #fff; border-radius: 3px; min-width: 5px; min-height: 5px; }
 .clock-time { font-size: 44px; font-weight: 200; color: #fff; }
 .clock-date { font-size: 14px; color: #9db4e6; }
+.dicon { padding: 6px 4px; border-radius: 12px; }
+.dicon.sel { background: rgba(255,255,255,0.18); }
+.dlabel { color: #fff; font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,0.75); }
+.dmenu { background: rgba(8,14,44,0.97); border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); padding: 6px; }
+.dmenu button { background: transparent; color: #e6eeff; border-radius: 8px; padding: 6px 12px; min-height: 0; }
+.dmenu button:hover { background: rgba(255,255,255,0.14); }
 """ + xlinos_ui.css().encode())
 
 def css_bytes():
@@ -205,6 +211,31 @@ def make_dock(app):
     running(); GLib.timeout_add(1500, running)
     w.set_child(box); w.present()
 
+DESKTOP = os.path.expanduser("~/Desktop")
+
+def desktop_entries():
+    """Everything shown on the desktop: app shortcuts chosen by the user, then files and folders in ~/Desktop."""
+    known = {a[0]: a for a in xlinos_ui.available()}
+    items = []
+    for i in cfg.desktop_icons():
+        if i in known:
+            a = known[i]; items.append({"kind": "xapp", "id": i, "label": a[1], "icon": a[2], "cmd": a[4]})
+        else:
+            ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+            if ai: items.append({"kind": "app", "id": i, "label": ai.get_name(), "gicon": ai.get_icon(), "cmd": "gtk-launch %s" % i.replace(".desktop", "")})
+    try:
+        for n in sorted(os.listdir(DESKTOP), key=str.lower):
+            if n.startswith("."): continue
+            pth = os.path.join(DESKTOP, n)
+            if n.endswith(".desktop"):
+                ai = Gio.DesktopAppInfo.new_from_filename(pth)
+                if ai: items.append({"kind": "file", "path": pth, "label": ai.get_name(), "gicon": ai.get_icon(), "cmd": "gtk-launch '%s'" % pth}); continue
+            isd = os.path.isdir(pth)
+            items.append({"kind": "dir" if isd else "file", "path": pth, "label": n, "icon": "folder-symbolic" if isd else "text-x-generic-symbolic",
+                          "cmd": "xlinos-files '%s'" % pth if isd else "xdg-open '%s'" % pth})
+    except OSError: pass
+    return items
+
 def make_desktop(app):
     w = Gtk.ApplicationWindow(application=app)
     layer(w, LS.Layer.BACKGROUND, {e: True for e in (LS.Edge.TOP, LS.Edge.BOTTOM, LS.Edge.LEFT, LS.Edge.RIGHT)})
@@ -220,6 +251,91 @@ def make_desktop(app):
         t.set_text(time.strftime("%H:%M")); d.set_text(time.strftime("%A, %d %B")); return True
     tick(); GLib.timeout_add_seconds(10, tick)
     if cfg.get("show_desktop_clock"): ov.add_overlay(box)
+
+    # ---- icons: app shortcuts and files, like a normal desktop (double-click to open, right-click for a menu)
+    try:
+        mh = Gdk.Display.get_default().get_monitors().get_item(0).get_geometry().height
+    except Exception:
+        mh = 800
+    rows = max(3, (mh - 38 - 84 - 40) // 100)
+    flow = Gtk.FlowBox(orientation=Gtk.Orientation.VERTICAL, max_children_per_line=rows, min_children_per_line=1, selection_mode=Gtk.SelectionMode.NONE,
+                       homogeneous=True, valign=Gtk.Align.START, halign=Gtk.Align.START, margin_top=50, margin_start=18, row_spacing=6, column_spacing=6)
+    flow.set_hexpand(False); ov.add_overlay(flow)
+    state = {"sig": None, "sel": None}
+    def pop_at(parent, x, y, build):
+        pop = Gtk.Popover(); pop.set_parent(parent); pop.set_has_arrow(False); pop.add_css_class("dmenu")
+        r = Gdk.Rectangle(); r.x, r.y, r.width, r.height = int(x), int(y), 1, 1; pop.set_pointing_to(r)
+        v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        def item(text, fn):
+            b = Gtk.Button(label=text); b.set_halign(Gtk.Align.FILL); b.get_child().set_xalign(0)
+            b.connect("clicked", lambda _b: (pop.popdown(), fn())); v.append(b)
+        build(item, pop, v)
+        pop.set_child(v); pop.connect("closed", lambda p: GLib.idle_add(p.unparent)); pop.popup()
+    def refresh(force=False):
+        items = desktop_entries()
+        try: mt = os.stat(DESKTOP).st_mtime
+        except OSError: mt = 0
+        sig = (tuple((i.get("id") or i.get("path"), i["label"]) for i in items), mt, rows)
+        if sig == state["sig"] and not force: return True
+        state["sig"] = sig
+        while (c := flow.get_first_child()): flow.remove(c)
+        for it in items: flow.append(make_icon(it))
+        return True
+    def new_folder():
+        os.makedirs(DESKTOP, exist_ok=True)
+        n, k = "New folder", 1
+        while os.path.exists(os.path.join(DESKTOP, n)): k += 1; n = "New folder %d" % k
+        os.makedirs(os.path.join(DESKTOP, n)); refresh(True)
+    def add_app_menu(widget, x, y):
+        def build(item, pop, v):
+            sc = Gtk.ScrolledWindow(min_content_height=320, min_content_width=260); lst = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            have = set(cfg.desktop_icons())
+            for a in sorted([a for a in Gio.AppInfo.get_all() if a.should_show()], key=lambda a: a.get_name().lower()):
+                aid = a.get_id() or ""; nm = aid.replace(".desktop", "")
+                key = "files" if False else (nm[7:] if nm.startswith("xlinos-") and nm[7:] in [q[0] for q in xlinos_ui.available()] else aid)
+                if not aid or key in have: continue
+                b = Gtk.Button(label=a.get_name()); b.get_child().set_xalign(0)
+                b.connect("clicked", lambda _b, k=key: (pop.popdown(), cfg.add_desktop_icon(k), refresh(True))); lst.append(b)
+            sc.set_child(lst); v.append(sc)
+        pop_at(widget, x, y, build)
+    def menu_desktop(widget, x, y):
+        def build(item, pop, v):
+            item("New folder", new_folder)
+            item("Add an app to the desktop…", lambda: GLib.idle_add(add_app_menu, widget, x, y))
+            item("Change the wallpaper", lambda: sh("xlinos-settings desktop"))
+            item("Open Files", lambda: sh("xlinos-files"))
+            item("Settings", lambda: sh("xlinos-settings"))
+        pop_at(widget, x, y, build)
+    def make_icon(it):
+        col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, halign=Gtk.Align.CENTER); col.add_css_class("dicon"); col.set_size_request(88, 92)
+        tile = Gtk.Box(halign=Gtk.Align.CENTER); tile.add_css_class("apptile")
+        if it["kind"] == "xapp": tile.add_css_class("t-" + it["id"]); im = Gtk.Image.new_from_icon_name(it["icon"])
+        elif it.get("gicon") is not None: tile.add_css_class("t-other"); im = Gtk.Image.new_from_gicon(it["gicon"])
+        else: tile.add_css_class("t-files" if it["kind"] == "dir" else "t-other"); im = Gtk.Image.new_from_icon_name(it["icon"])
+        im.set_pixel_size(28); im.set_hexpand(True); im.set_vexpand(True); tile.append(im)
+        lb = Gtk.Label(label=it["label"], max_width_chars=12, ellipsize=3, justify=Gtk.Justification.CENTER); lb.add_css_class("dlabel")
+        col.append(tile); col.append(lb)
+        def click(g, n, x, y):
+            g.set_state(Gtk.EventSequenceState.CLAIMED)
+            if state["sel"] is not None: state["sel"].remove_css_class("sel")
+            col.add_css_class("sel"); state["sel"] = col
+            if n >= 2: cfg.push_recent(it.get("id") or ""); sh(it["cmd"])
+        g1 = Gtk.GestureClick(button=1); g1.connect("pressed", click); col.add_controller(g1)
+        def rclick(g, n, x, y):
+            g.set_state(Gtk.EventSequenceState.CLAIMED)
+            def build(item, pop, v):
+                item("Open", lambda: sh(it["cmd"]))
+                if it["kind"] in ("xapp", "app"): item("Remove from the desktop", lambda: (cfg.remove_desktop_icon(it["id"]), refresh(True)))
+                else: item("Move to Trash", lambda: (sh("gio trash '%s'" % it["path"]), GLib.timeout_add(600, lambda: (refresh(True), False)[1])))
+            pop_at(col, x, y, build)
+        g3 = Gtk.GestureClick(button=3); g3.connect("pressed", rclick); col.add_controller(g3)
+        return col
+    bgc = Gtk.GestureClick(button=3); bgc.connect("pressed", lambda g, n, x, y: menu_desktop(ov, x, y)); ov.add_controller(bgc)
+    bg1 = Gtk.GestureClick(button=1)
+    def bg_click(g, n, x, y):
+        if state["sel"] is not None: state["sel"].remove_css_class("sel"); state["sel"] = None
+    bg1.connect("pressed", bg_click); ov.add_controller(bg1)
+    refresh(True); GLib.timeout_add(2000, refresh)
     w.set_child(ov); w.present()
 
 def activate(app):

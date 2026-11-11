@@ -8,7 +8,7 @@ DEFAULTS = {
     "bar_items": {"wifi": True, "bluetooth": True, "sound": True, "battery": True, "clock": True},
     "show_desktop_clock": True,
     "runbar_pins": None,            # None = all XlinOS apps; otherwise a list of app ids / desktop ids
-    "launcher_pins": None, "recent": [],
+    "launcher_pins": None, "desktop_icons": None, "recent": [],
     "lock_minutes": 5, "sleep_minutes": 15,
     "natural_scroll": True, "tap_to_click": True, "pointer_speed": 0.0,
     "dnd": False, "night_light": False, "power_mode": "balanced", "airplane": False,
@@ -104,6 +104,15 @@ def set_brightness(v): bg("brightnessctl set %d%%" % max(1, v))
 # ---------------------------------------------------------------- pins and recent apps
 def push_recent(app_id, limit=12):
     r = [a for a in get("recent") if a != app_id]; r.insert(0, app_id); set("recent", r[:limit])
+DEFAULT_DESKTOP = ["files", "settings"]
+def desktop_icons():
+    v = get("desktop_icons"); return list(DEFAULT_DESKTOP if v is None else v)
+def add_desktop_icon(i):
+    cur = desktop_icons()
+    if i not in cur: cur.append(i)
+    set("desktop_icons", cur)
+def remove_desktop_icon(i): set("desktop_icons", [x for x in desktop_icons() if x != i])
+
 def toggle_pin(key, app_id):
     pins = get(key)
     if pins is None: pins = []
