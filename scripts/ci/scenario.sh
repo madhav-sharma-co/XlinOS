@@ -114,9 +114,9 @@ out += ("trailer<</Size 6/Root 1 0 R>>\nstartxref\n%d\n%%%%EOF\n" % x).encode()
 open("/tmp/test.pdf", "wb").write(out)
 PY
 pkill -f lib/xlinos/xlinos-shell; sleep 1; /usr/local/lib/xlinos/xlinos-shell >"$OUT/shell.log" 2>&1 & sleep 7; xlinos showdesktop; sleep 4; shot 40-widgets; xlinos showdesktop; sleep 2
-{ ls -l /tmp/test.pdf /usr/local/bin/xlinos-pdf; python3 -c "import gi; gi.require_version('Poppler','0.18'); print('poppler typelib ok')"; } >"$OUT/pdf.log" 2>&1
-( python3 -c "import faulthandler,runpy,sys; faulthandler.dump_traceback_later(10, exit=False); sys.argv=['xlinos-pdf','/tmp/test.pdf']; runpy.run_path('/usr/local/lib/xlinos/xlinos-pdf', run_name='__main__')"; echo "pdf exit $?" ) >>"$OUT/pdf.log" 2>&1 &
-sleep 16; shot 41-pdf; pkill -f lib/xlinos/xlinos-pdf
+ls -l /tmp/test.pdf >"$OUT/pdf.log" 2>&1
+PYTHONFAULTHANDLER=1 xlinos-pdf /tmp/test.pdf >"$OUT/pdf-run.log" 2>&1 &
+sleep 18; shot 41-pdf; pkill -ABRT -f lib/xlinos/xlinos-pdf; sleep 2; pkill -f lib/xlinos/xlinos-pdf
 xlinos-help >"$OUT/help.log" 2>&1 &
 sleep 5; shot 42-help; pkill -f lib/xlinos/xlinos-help
 xlinos-check >"$OUT/check.log" 2>&1 &
