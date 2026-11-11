@@ -103,7 +103,7 @@ python3 -c "
 import cairo
 sf=cairo.PDFSurface('/tmp/test.pdf',400,500); c=cairo.Context(sf); c.set_font_size(30); c.move_to(40,80); c.show_text('XlinOS PDF test'); sf.finish()"
 pkill -f lib/xlinos/xlinos-shell; sleep 1; /usr/local/lib/xlinos/xlinos-shell >"$OUT/shell.log" 2>&1 & sleep 7; xlinos showdesktop; sleep 4; shot 40-widgets; xlinos showdesktop; sleep 2
-xlinos-pdf /tmp/test.pdf >"$OUT/pdf.log" 2>&1 &
+ls -l /tmp/test.pdf >"$OUT/pdf.log" 2>&1; xlinos-pdf /tmp/test.pdf >>"$OUT/pdf.log" 2>&1 &
 sleep 6; shot 41-pdf; pkill -f lib/xlinos/xlinos-pdf
 xlinos-help >"$OUT/help.log" 2>&1 &
 sleep 5; shot 42-help; pkill -f lib/xlinos/xlinos-help

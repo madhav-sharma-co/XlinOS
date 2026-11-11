@@ -49,7 +49,7 @@ def activate(app, path=None):
     def load(path):
         try: doc = Poppler.Document.new_from_file(Gio.File.new_for_path(os.path.abspath(path)).get_uri(), None)
         except Exception as e:
-            hint.set_text("Could not open this file."); return
+            print("pdf open failed:", e, file=sys.stderr); hint.set_text("Could not open this file."); return
         st["doc"] = doc
         while (c := col.get_first_child()): col.remove(c)
         st["pages"] = []

@@ -43,6 +43,8 @@ window { background: transparent; }
 .widget entry { background: rgba(255,255,255,0.08); color: #fff; border-radius: 8px; min-height: 0; padding: 4px 8px; }
 .widget calendar { background: transparent; color: #e6eeff; }
 .widget levelbar block.filled { background: #1e6bff; }
+.widget levelbar block.empty, .widget levelbar trough { background: rgba(255,255,255,0.12); }
+.widget levelbar block { min-height: 6px; }
 .dicon { padding: 6px 4px; border-radius: 12px; }
 .t-folder { background-image: linear-gradient(135deg, rgba(255,255,255,0.30), rgba(255,255,255,0.14)); }
 .dicon.sel { background: rgba(255,255,255,0.18); }
@@ -317,7 +319,10 @@ def make_desktop(app):
         pop_at(widget, x, y, build)
     WIDGETS = [("calendar", "Calendar"), ("system", "System"), ("battery", "Battery"), ("notes", "Notes"), ("todo", "To-do list")]
     wcol = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, halign=Gtk.Align.END, valign=Gtk.Align.START, margin_top=140, margin_end=34)
-    wcol.set_size_request(250, -1); ov.add_overlay(wcol); wstate = {"timers": []}
+    wcol.set_size_request(250, -1); wstate = {"timers": []}
+    wscroll = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, propagate_natural_height=True, max_content_height=max(200, mh - 140 - 110),
+                                 halign=Gtk.Align.END, valign=Gtk.Align.START, margin_top=140, margin_end=22)
+    wcol.set_margin_top(0); wcol.set_margin_end(12); wscroll.set_child(wcol); ov.add_overlay(wscroll)
     NOTE = os.path.expanduser("~/.config/xlinos/widget-notes.txt")
     def mk_widget(kind):
         card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); card.add_css_class("widget")
