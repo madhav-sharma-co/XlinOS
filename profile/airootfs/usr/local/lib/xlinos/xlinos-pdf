@@ -100,7 +100,7 @@ def activate(app, path=None):
     if path: load(path)
     win.present()
 
-app = Gtk.Application(application_id="os.xlin.pdf", flags=Gio.ApplicationFlags.HANDLES_OPEN)
-app.connect("activate", lambda a: activate(a))
-app.connect("open", lambda a, files, n, h: activate(a, files[0].get_path()))
-app.run(sys.argv)
+ARG = next((a for a in sys.argv[1:] if not a.startswith("-")), None)
+app = Gtk.Application(application_id="os.xlin.pdf")
+app.connect("activate", lambda a: activate(a, ARG))
+sys.exit(app.run(None))
