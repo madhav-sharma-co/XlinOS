@@ -99,9 +99,20 @@ python3 -c "import sys; sys.path.insert(0,'/usr/local/lib/xlinos'); import xlino
 sleep 4; shot 39-desktop-folder; cat ~/.config/xlinos/settings.json | tr -d '\n' | cut -c1-400 >"$OUT/folder-json.txt"; xlinos showdesktop; sleep 2
 echo "== widgets, pdf, help, check"
 python3 -c "import sys; sys.path.insert(0,'/usr/local/lib/xlinos'); import xlinos_cfg as c; c.set('widgets',['calendar','system','battery','notes','todo']); c.set('todo',[{'t':'Buy milk','d':False},{'t':'Call mum','d':True}])"
-python3 -c "
-import cairo
-sf=cairo.PDFSurface('/tmp/test.pdf',400,500); c=cairo.Context(sf); c.set_font_size(30); c.move_to(40,80); c.show_text('XlinOS PDF test'); sf.finish()"
+python3 - <<'PY'
+objs = ["<</Type/Catalog/Pages 2 0 R>>", "<</Type/Pages/Kids[3 0 R]/Count 1>>",
+        "<</Type/Page/Parent 2 0 R/MediaBox[0 0 400 500]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>",
+        None, "<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>"]
+stream = b"BT /F1 28 Tf 40 440 Td (XlinOS PDF test) Tj ET"
+out = b"%PDF-1.4\n"; offs = []
+for i, o in enumerate(objs, 1):
+    offs.append(len(out))
+    body = ("<</Length %d>>\nstream\n" % len(stream)).encode() + stream + b"\nendstream" if o is None else o.encode()
+    out += ("%d 0 obj\n" % i).encode() + body + b"\nendobj\n"
+x = len(out); out += b"xref\n0 6\n0000000000 65535 f \n" + b"".join(("%010d 00000 n \n" % o).encode() for o in offs)
+out += ("trailer<</Size 6/Root 1 0 R>>\nstartxref\n%d\n%%%%EOF\n" % x).encode()
+open("/tmp/test.pdf", "wb").write(out)
+PY
 pkill -f lib/xlinos/xlinos-shell; sleep 1; /usr/local/lib/xlinos/xlinos-shell >"$OUT/shell.log" 2>&1 & sleep 7; xlinos showdesktop; sleep 4; shot 40-widgets; xlinos showdesktop; sleep 2
 ls -l /tmp/test.pdf >"$OUT/pdf.log" 2>&1; xlinos-pdf /tmp/test.pdf >>"$OUT/pdf.log" 2>&1 &
 sleep 6; shot 41-pdf; pkill -f lib/xlinos/xlinos-pdf
