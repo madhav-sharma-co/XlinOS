@@ -41,13 +41,14 @@ def parts():
     except Exception:
         return [], None
     esp_by_disk, res = {}, []
-    for d in out.get("blockdevices", []):
-        if d.get("type") != "part" or d["path"].startswith(("/dev/loop", "/dev/sr")): continue
+    devices = [d for d in out.get("blockdevices", []) if d.get("type") == "part" and not d["path"].startswith(("/dev/loop", "/dev/sr"))]
+    for d in devices:
         parent = d.get("pkname")
-        if (d.get("parttype") or "").lower() == "c12a7328-f81f-11d2-ba4b-00a0c93ec93b":
-            if parent:
-                esp_by_disk.setdefault(parent, d["path"])
-            continue
+        if parent and (d.get("parttype") or "").lower() == "c12a7328-f81f-11d2-ba4b-00a0c93ec93b":
+            esp_by_disk.setdefault(parent, d["path"])
+    for d in devices:
+        if (d.get("parttype") or "").lower() == "c12a7328-f81f-11d2-ba4b-00a0c93ec93b": continue
+        parent = d.get("pkname")
         if any(m for m in (d.get("mountpoints") or []) if m): continue
         if int(d.get("size") or 0) < 20e9 or not parent: continue
         # A dual-boot target is offered only when its own physical disk has an EFI partition.
