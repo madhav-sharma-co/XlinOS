@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""XlinOS Shortcuts: every key combination, searchable."""
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, Gdk
+import xlinos_ui
+
+KEYS = [
+ ("Apps", [("Super + Space", "Launcher"), ("Super + Return", "Terminal"), ("Super + E", "Files"), ("Super + S", "Settings"),
+           ("Super + C", "Control panel"), ("Super + T", "Tools (clock, calculator, notes)"), ("Super + M", "System Monitor"),
+           ("Super + N", "Notes"), ("Super + B", "Battery and power mode")]),
+ ("System", [("Super + L", "Lock"), ("Super + P", "Power menu"), ("Super + W", "Next wallpaper"),
+             ("Super + /", "This list"), ("Super + Shift + Q", "Log out"),
+             ("Print", "Screenshot: choose an area"), ("Shift + Print", "Screenshot: whole screen"), ("Alt + Print", "Screenshot: window"),
+             ("Super + Ctrl + Up / Down", "Brightness up / down"), ("Super + Ctrl + Left / Right", "Volume down / up")]),
+ ("Windows", [("Super + Q", "Close window"), ("Super + F", "Full screen"), ("Super + Shift + F", "Floating on / off"),
+              ("Alt + Tab", "Next window"), ("Super + Tab", "Overview of all windows"), ("Super + H", "Bring back hidden windows"),
+              ("Super + Shift + D", "Show the desktop"),
+              ("Super + arrows", "Snap: halves, maximise, restore"), ("Super + Shift + arrows", "Move focus to the next window"),
+              ("Super + Ctrl + Shift + arrows", "Resize the window"),
+              ("Super + left-drag / right-drag", "Move / resize a window")]),
+ ("Workspaces", [("Super + 1 .. 4", "Go to workspace"), ("Super + Shift + 1 .. 4", "Send window to workspace"),
+                 ("Super + Alt + Left / Right", "Previous / next workspace"), ("Super + Scroll", "Next / previous workspace"),
+                 ("3-finger swipe left / right", "Switch workspace"), ("3-finger swipe up", "Launcher"), ("3-finger swipe down", "Show the desktop")]),
+]
+
+def activate(app):
+    css = Gtk.CssProvider()
+    css.load_from_data((xlinos_ui.window_css() + """
+window { background: transparent; }
+.key { background: rgba(255,255,255,0.10); color: #fff; border-radius: 8px; padding: 3px 10px; font-weight: 600; }
+.what { color: #e6eeff; }
+.grp { color: #8fb0ff; font-weight: 700; margin-top: 14px; }
+entry { background: rgba(255,255,255,0.08); color: #fff; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); padding: 6px 12px; }
+""").encode())
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    win, body = xlinos_ui.make_window(app, "Shortcuts", 760, 640)
+    search = Gtk.SearchEntry(placeholder_text="Search shortcuts"); body.append(search)
+    sc = Gtk.ScrolledWindow(vexpand=True); col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_end=12); sc.set_child(col); body.append(sc)
+    rows = []
+    for grp, items in KEYS:
+        h = Gtk.Label(label=grp, xalign=0); h.add_css_class("grp"); col.append(h); rows.append((h, grp, True))
+        for k, w in items:
+            r = Gtk.Box(spacing=14); kb = Gtk.Label(label=k, xalign=0); kb.add_css_class("key"); kb.set_size_request(280, -1)
+            wl = Gtk.Label(label=w, xalign=0, hexpand=True); wl.add_css_class("what"); r.append(kb); r.append(wl); col.append(r); rows.append((r, k + " " + w, False))
+    def filt(_e):
+        q = search.get_text().lower().strip()
+        for w, text, head in rows: w.set_visible(not q or (not head and q in text.lower()) or (head and not q))
+    search.connect("search-changed", filt)
+    win.present()
+
+app = Gtk.Application(application_id="os.xlin.keys")
+app.connect("activate", activate); app.run(None)

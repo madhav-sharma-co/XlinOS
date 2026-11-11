@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""xlinos: the XlinOS command line. Run `xlinos help`."""
+import os, sys, subprocess, glob, json, shutil, time
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import xlinos_cfg as cfg
+
+LIB = "/usr/local/lib/xlinos/"
+APPS = {"files": "xlinos-files", "terminal": "xlinos-terminal", "settings": "xlinos-settings", "store": "xlinos-store", "notes": "xlinos-notes",
+        "calculator": "xlinos-calculator", "calendar": "xlinos-calendar", "media": "xlinos-media", "photos": "xlinos-photos", "edit": "xlinos-edit",
+        "monitor": "xlinos-monitor", "clock": "xlinos-clock", "tools": "xlinos-clock", "screenshot": "xlinos-screenshot", "keys": "xlinos-keys",
+        "launcher": LIB + "xlinos-launcher", "panel": LIB + "xlinos-quick", "lock": "xlinos-lock", "browser": "xlinos-browser"}
+HELP = """xlinos  -  the XlinOS command line
+
+  xlinos status                      one-screen overview
+  xlinos <app>                       open an app: files terminal settings store notes calculator calendar
+                                     media photos edit monitor clock screenshot keys launcher panel lock browser
+  xlinos edit|photos|media <file>    open a file in the matching app
+  xlinos keys                        all shortcut keys
+  xlinos accent <blue|violet|pink|orange|green|teal>
+  xlinos animations off|subtle|smooth
+  xlinos opacity <0.4 .. 1>          transparency of the bar and run bar
+  xlinos font size small|normal|large|huge      (applies at next login)
+  xlinos wallpaper next|<image>
+  xlinos wifi [on|off]   xlinos bluetooth [on|off]   xlinos airplane [on|off]
+  xlinos volume [0-100|mute]   xlinos brightness [1-100]   xlinos battery
+  xlinos dnd [on|off]   xlinos nightlight [on|off]   xlinos power [saver|balanced|performance]
+  xlinos bar show|hide wifi|bluetooth|sound|battery|clock
+  xlinos screenshot [area|full|window]
+  xlinos showdesktop   xlinos unhide
+  xlinos pins reset                  default run bar and launcher apps
+  xlinos restart                     restart the desktop shell
+  xlinos reset                       put every setting back to its default
+  xlinos update [check]              update XlinOS
+  xlinos doctor                      check that everything is in place
+  xlinos about
+"""
+
+def out(s=""): print(s)
+def spawn(cmd):
+    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+def restart_shell():
+    subprocess.run(["pkill", "-f", "lib/xlinos/xlinos-shell"], capture_output=True); time.sleep(0.5); spawn([LIB + "xlinos-shell"])
+def onoff(v): return v in ("on", "1", "yes", "true")
+def hypr(*a):
+    r = subprocess.run(["hyprctl", "-j"] + list(a), capture_output=True, text=True)
+    try: return json.loads(r.stdout)
+    except Exception: return []
+
+def status():
+    rel = {}
+    for l in open("/etc/os-release"):
+        if "=" in l: k, v = l.strip().split("=", 1); rel[k] = v.strip('"')
+    out(rel.get("PRETTY_NAME", "XlinOS"))
+    out("Wi-Fi        %s" % ("on" if cfg.wifi_on() else "off"))
+    out("Bluetooth    %s" % ("on" if cfg.bt_on() else "off"))
+    out("Volume       %s%%" % cfg.volume())
+    out("Brightness   %s%%" % cfg.brightness())
+    out("Power mode   %s" % cfg.get("power_mode"))
+    out("Theme accent %s   animations %s   transparency %s" % (cfg.get("accent"), cfg.get("animations"), cfg.get("transparency")))
+    bat = glob.glob("/sys/class/power_supply/BAT*/capacity")
+    if bat: out("Battery      %s%%" % open(bat[0]).read().strip())
+
+def unhide():
+    ws = (hypr("activeworkspace") or {}).get("id", 1)
+    for c in hypr("clients"):
+        if c.get("workspace", {}).get("name") == "special:minimized":
+            cfg.hypr_eval('hl.dispatch(hl.dsp.window.move({ workspace = %d, follow = false, window = "address:%s" }))' % (ws, c["address"]))
+
+def showdesktop():
+    f = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "xlinos-showdesktop.json")
+    if os.path.exists(f):
+        try: addrs = json.load(open(f))
+        except Exception: addrs = []
+        os.remove(f); ws = (hypr("activeworkspace") or {}).get("id", 1)
+        for a in addrs: cfg.hypr_eval('hl.dispatch(hl.dsp.window.move({ workspace = %d, follow = false, window = "address:%s" }))' % (ws, a))
+        return
+    ws = (hypr("activeworkspace") or {}).get("id", 1); addrs = [c["address"] for c in hypr("clients") if c.get("workspace", {}).get("id") == ws and not c.get("class", "").startswith("os.xlin.shell")]
+    json.dump(addrs, open(f, "w"))
+    for a in addrs: cfg.hypr_eval('hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = "address:%s" }))' % a)
+
+def doctor():
+    bad = 0
+    def chk(name, ok, fix=""):
+        nonlocal bad
+        out("  %-28s %s" % (name, "ok" if ok else "MISSING  " + fix)); bad += (not ok)
+    for c in ("nmcli", "bluetoothctl", "wpctl", "brightnessctl", "grim", "slurp", "wl-copy", "powerprofilesctl", "hyprctl"):
+        chk({"hyprctl": "desktop engine"}.get(c, c), shutil.which(c) is not None)
+    for a in ("xlinos-shell", "xlinos-launcher", "xlinos-quick", "xlinos-settings", "xlinos-notify"):
+        chk(a, os.path.exists(LIB + a))
+    chk("settings file", os.path.exists(os.path.expanduser("~/.config/xlinos/settings.json")) or True)
+    out("Everything is in place." if not bad else "%d thing(s) missing. Run: xlinos update" % bad)
+
+def main(a):
+    if not a or a[0] in ("help", "-h", "--help"): out(HELP); return
+    c, rest = a[0], a[1:]
+    if c == "status": status()
+    elif c == "about": status()
+    elif c in ("edit", "photos", "media") and rest: spawn([APPS[c]] + rest)
+    elif c == "screenshot": spawn(["xlinos-screenshot"] + (rest or []))
+    elif c in APPS: spawn([APPS[c]] + rest)
+    elif c == "accent":
+        m = {n.lower(): h for n, h in cfg.ACCENTS}
+        if rest and rest[0].lower() in m: cfg.set("accent", m[rest[0].lower()]); restart_shell(); out("accent " + rest[0])
+        else: out("choose: " + " ".join(m))
+    elif c == "animations":
+        if rest and rest[0] in ("off", "subtle", "smooth"): cfg.set("animations", rest[0]); cfg.apply_animations()
+        else: out("off | subtle | smooth   (now: %s)" % cfg.get("animations"))
+    elif c == "opacity":
+        try: cfg.set("transparency", max(0.4, min(1.0, float(rest[0])))); restart_shell()
+        except Exception: out("usage: xlinos opacity 0.4 .. 1")
+    elif c == "font":
+        m = {"small": 0.9, "normal": 1.0, "large": 1.15, "huge": 1.3}
+        if len(rest) == 2 and rest[0] == "size" and rest[1] in m: cfg.set("text_scale", m[rest[1]]); out("text size %s (applies at next login)" % rest[1])
+        else: out("usage: xlinos font size small|normal|large|huge")
+    elif c == "wallpaper":
+        pics = sorted(glob.glob("/usr/share/xlinos/wallpapers/*.jpg") + glob.glob("/usr/share/xlinos/wallpapers/*.png") + glob.glob(os.path.expanduser("~/.config/xlinos/wallpapers/*")))
+        if rest and rest[0] == "next" and pics:
+            cur = cfg.get("wallpaper", "") or ""; i = (pics.index(cur) + 1) % len(pics) if cur in pics else 0
+            cfg.set("wallpaper", pics[i]); restart_shell()
+        elif rest and os.path.exists(rest[0]): cfg.set("wallpaper", os.path.abspath(rest[0])); restart_shell()
+        else: out("usage: xlinos wallpaper next|<image>")
+    elif c == "wifi":
+        if rest: cfg.run("nmcli radio wifi " + ("on" if onoff(rest[0]) else "off"))
+        out("Wi-Fi " + ("on" if cfg.wifi_on() else "off"))
+    elif c == "bluetooth":
+        if rest: cfg.run("bluetoothctl power " + ("on" if onoff(rest[0]) else "off"), timeout=4)
+        out("Bluetooth " + ("on" if cfg.bt_on() else "off"))
+    elif c == "airplane":
+        if rest: cfg.set_airplane(onoff(rest[0]))
+        out("Airplane mode " + ("on" if cfg.get("airplane") else "off"))
+    elif c == "volume":
+        if rest and rest[0] == "mute": cfg.toggle_mute()
+        elif rest and rest[0].isdigit(): cfg.set_volume(int(rest[0]))
+        out("Volume %s%%" % cfg.volume())
+    elif c == "brightness":
+        if rest and rest[0].isdigit(): cfg.set_brightness(int(rest[0]))
+        out("Brightness %s%%" % cfg.brightness())
+    elif c == "battery":
+        bat = glob.glob("/sys/class/power_supply/BAT*/capacity")
+        out("%s%%" % open(bat[0]).read().strip() if bat else "no battery")
+    elif c == "dnd":
+        if rest: cfg.set_dnd(onoff(rest[0]))
+        out("Do not disturb " + ("on" if cfg.get("dnd") else "off"))
+    elif c == "nightlight":
+        if rest: cfg.set_night_light(onoff(rest[0]))
+        out("Night light " + ("on" if cfg.get("night_light") else "off"))
+    elif c == "power":
+        if rest: cfg.power_mode(rest[0])
+        out("Power mode " + str(cfg.get("power_mode")))
+    elif c == "bar":
+        keys = ("wifi", "bluetooth", "sound", "battery", "clock")
+        if len(rest) == 2 and rest[0] in ("show", "hide") and rest[1] in keys:
+            items = dict(cfg.get("bar_items")); items[rest[1]] = rest[0] == "show"; cfg.set("bar_items", items); restart_shell()
+        else: out("usage: xlinos bar show|hide " + "|".join(keys))
+    elif c == "showdesktop": showdesktop()
+    elif c == "unhide": unhide()
+    elif c == "pins" and rest[:1] == ["reset"]:
+        cfg.set("runbar_pins", None); cfg.set("launcher_pins", None); restart_shell(); out("default apps restored")
+    elif c == "restart": restart_shell()
+    elif c == "reset":
+        for k in list(cfg.DEFAULTS): cfg.set(k, cfg.DEFAULTS[k])
+        restart_shell(); out("all settings are back to their defaults")
+    elif c == "update":
+        if rest[:1] == ["check"]: os.execvp("/usr/local/lib/xlinos/xlinos-update", ["xlinos-update", "check"])
+        os.execvp("sudo", ["sudo", LIB + "xlinos-update", "apply"])
+    elif c == "doctor": doctor()
+    else: out("unknown command: %s   (try: xlinos help)" % c); sys.exit(1)
+
+main(sys.argv[1:])
