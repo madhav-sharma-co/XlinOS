@@ -594,7 +594,7 @@ class Installer(Gtk.ApplicationWindow):
         bg(lambda: subprocess.run(cmd, capture_output=True, text=True, timeout=20), done)
 
     def finish(self, kind, info):
-        self.running = False; self.i_cancel.set_visible(False); self.i_exp.set_expanded(False)
+        self.running = False; self.i_cancel.set_visible(False); self.i_exp.set_expanded(False); self.i_task.set_text("")
         back = lambda: (self.i_action.set_visible(False), self.show("disk"))
         def act(label, fn):
             self.i_action.set_label(label); self.i_action.set_visible(True)
