@@ -10,7 +10,7 @@ LIB = os.path.dirname(os.path.abspath(__file__))
 LANGS = [("English (United States)", "en_US.UTF-8"), ("English (United Kingdom)", "en_GB.UTF-8"), ("हिन्दी (Hindi)", "hi_IN.UTF-8"),
          ("Deutsch (German)", "de_DE.UTF-8"), ("Français (French)", "fr_FR.UTF-8"), ("Español (Spanish)", "es_ES.UTF-8"),
          ("Português (Brasil)", "pt_BR.UTF-8"), ("Italiano", "it_IT.UTF-8"), ("Русский (Russian)", "ru_RU.UTF-8"),
-         ("日本語 (Japanese)", "ja_JP.UTF-8"), ("中文 (Chinese, Simplified)", "zh_CN.UTF-8"), ("العربية (Arabic)", "ar_SA.UTF-8")]
+         ("Japanese", "ja_JP.UTF-8"), ("Chinese (Simplified)", "zh_CN.UTF-8"), ("العربية (Arabic)", "ar_SA.UTF-8")]
 TRANSLATED = ("en", "hi", "de", "fr", "es")      # installer texts exist in these; every other language shows English text
 
 # key: (en, hi, de, fr, es)
@@ -73,7 +73,7 @@ def tr(locale, key):
 
 # ------------------------------------------------------------------ texts: about, agreement, privacy (taken from the repository, nothing invented)
 def read_version():
-    for p in (os.path.join(SHARE, "VERSION"), "/etc/xlinos-release", os.path.join(LIB, "..", "..", "..", "..", "VERSION")):
+    for p in (os.path.join(SHARE, "VERSION"), "/etc/xlinos-release", os.path.join(LIB, "../../../../../../VERSION")):
         try:
             v = open(p).read().strip().splitlines()[0]
             if v: return v.replace("VERSION=", "").strip('"')
@@ -85,7 +85,7 @@ ABOUT = ("XlinOS is a clean, professional and lightweight operating system that 
          "XlinOS is made by Madhav Sharma and presented by Axion Co.")
 
 def license_text():
-    for p in (os.path.join(SHARE, "LICENSE"), "/usr/share/licenses/xlinos/LICENSE"):
+    for p in (os.path.join(SHARE, "LICENSE"), "/usr/share/licenses/xlinos/LICENSE", os.path.join(LIB, "../../../../../../LICENSE")):
         try: return open(p).read().strip()
         except Exception: pass
     return "The licence text could not be loaded from the installation medium."
@@ -114,6 +114,10 @@ def countries():
         out = [("United States", "US"), ("India", "IN"), ("United Kingdom", "GB"), ("Germany", "DE"), ("France", "FR"), ("Spain", "ES")]
     return sorted(out)
 
+PREFERRED_ZONE = {"US": "America/New_York", "IN": "Asia/Kolkata", "GB": "Europe/London", "DE": "Europe/Berlin", "FR": "Europe/Paris", "ES": "Europe/Madrid",
+                  "BR": "America/Sao_Paulo", "RU": "Europe/Moscow", "CN": "Asia/Shanghai", "JP": "Asia/Tokyo", "CA": "America/Toronto", "AU": "Australia/Sydney",
+                  "IT": "Europe/Rome", "SA": "Asia/Riyadh", "MX": "America/Mexico_City"}
+
 def zones_for(code):
     zs = []
     try:
@@ -129,7 +133,9 @@ def zones_for(code):
                 f = l.rstrip("\n").split("\t")
                 if len(f) > 2 and f[0] == code: zs.append(f[2])
         except Exception: pass
-    return sorted(set(zs)) or ["UTC"]
+    zs = sorted(set(zs)) or ["UTC"]
+    pz = PREFERRED_ZONE.get(code)
+    return ([pz] + [z for z in zs if z != pz]) if pz in zs else zs
 
 def all_zones():
     out = set()
@@ -278,9 +284,10 @@ def scan_disks(fast=False):
     cmd = ["python3", os.path.join(LIB, "xlinos_disks.py"), "scan"] + (["--fast"] if fast else [])
     if os.geteuid() != 0: cmd = ["sudo", "-n"] + cmd
     try:
-        return json.loads(subprocess.run(cmd, capture_output=True, text=True, timeout=90).stdout)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+        return json.loads(r.stdout)
     except Exception:
-        return []
+        return None     # could not be read (not the same as "no disks")
 
 def disk_flags(d):
     f = []

@@ -60,6 +60,7 @@ STEPS = ["welcome", "about", "region", "disk", "review"]
 
 def lbl(text, cls=None, wrap=True, xalign=0.0, **k):
     l = Gtk.Label(label=text, wrap=wrap, xalign=xalign, **k)
+    if wrap and 'max_width_chars' not in k: l.set_max_width_chars(100)
     if cls:
         for c in cls.split(): l.add_css_class(c)
     return l
@@ -95,7 +96,7 @@ class Installer(Gtk.ApplicationWindow):
         self.c = core.Choices()
         self.page = "loading"; self.running = False; self.proc = None; self.final = False
         self.lay, self.var = {}, {}
-        self.sel_disk = None; self.wifi = []; self.test_entry = None; self.cancelling = False; self._act = None
+        self.sel_disk = None; self.scan_failed = False; self.wifi = []; self.test_entry = None; self.cancelling = False; self._act = None
         self.width = 960
         try:
             mon = Gdk.Display.get_default().get_monitors().get_item(0).get_geometry()
@@ -196,7 +197,8 @@ class Installer(Gtk.ApplicationWindow):
 
     def loaded(self, r):
         if isinstance(r, Exception): r = ({}, {}, [], {"state": "unavailable", "text": "unknown"}, time.time())
-        self.lay, self.var, self.c.disks, self.c.net, _ = r
+        self.lay, self.var, disks, self.c.net, _ = r
+        self.scan_failed = disks is None; self.c.disks = disks or []
         self.c.net_info = self.c.net
         self.c.kb = core.default_keyboard(self.c.locale, self.lay)
         self.apply_locale_defaults()
@@ -373,7 +375,8 @@ class Installer(Gtk.ApplicationWindow):
         r = Gtk.Button(label="Refresh disks"); r.connect("clicked", lambda _b: self.rescan()); top.append(r); self.disk_card.append(top)
         boot = "UEFI start" if any(d.get("efi_boot") for d in self.c.disks) or os.path.isdir("/sys/firmware/efi") else "BIOS start (not supported: XlinOS needs UEFI)"
         self.disk_card.append(lbl("This computer started in: " + boot, "small"))
-        if not self.c.disks: self.disk_card.append(lbl("No disk was found.", "err"))
+        if self.scan_failed: self.disk_card.append(lbl("The disks could not be read (the installer needs administrator access). Press Refresh disks.", "err"))
+        elif not self.c.disks: self.disk_card.append(lbl("No disk was found.", "err"))
         for d in self.c.disks:
             b = Gtk.Button(); b.add_css_class("item")
             if self.c.disk and core.disk_by_path(self.c, self.c.disk) is d: b.add_css_class("sel")
@@ -398,7 +401,7 @@ class Installer(Gtk.ApplicationWindow):
     def rescan(self):
         def done(r):
             if isinstance(r, Exception): return
-            self.c.disks = r
+            self.scan_failed = r is None; self.c.disks = r or []
             if self.c.disk and not core.disk_by_path(self.c, self.c.disk): self.c.disk = ""; self.c.method = ""; self.c.efi = ""
             self.render_disks(); self.render_methods(); self.update_next()
         bg(core.scan_disks, done)
