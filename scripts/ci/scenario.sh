@@ -136,7 +136,7 @@ echo "== installer"
 XI=/tmp/xi; rm -rf $XI; mkdir -p $XI
 XLINOS_INSTALLER_TEST=$XI /usr/local/lib/xlinos/xlinos-installer >"$OUT/installer.log" 2>&1 &
 ic() { printf '%s\n' "$@" >$XI/cmd; sleep 2; }
-ist() { ic state; echo "state: $(cat $XI/state.json)" >>"$OUT/installer-states.txt"; }
+NS=0; ist() { ic state; NS=$((NS+1)); cp $XI/state.json "$OUT/installer-state-$NS.json"; }
 ish() { ic "shot $OUT/$1.png"; }
 for _ in $(seq 1 40); do grep -q welcome $XI/state.json 2>/dev/null && break; ic state; sleep 1; done
 sleep 2; ish i0-welcome; ist
@@ -146,12 +146,12 @@ ic next; ist                               # must stay: the agreement is not acc
 ic agree; ic next; ist; ish i3-region
 ic "kb de"; sleep 1; ist; hyprctl getoption input:kb_layout >"$OUT/installer-kb.txt" 2>&1
 ic "kb us"; ic next; ist; sleep 3; ish i4-disk
-VMD=$(lsblk -dno PATH,TYPE | awk '$2=="disk"{print $1; exit}')
+VMD=$(lsblk -dno PATH,TYPE | awk '$2=="disk" && $1 !~ /fd|loop|sr/ {print $1; exit}')
 ic "disk $VMD"; ic "method erase"; ic next; ist; ish i5-disk-protected    # this is the running system's own disk: must be refused
 ic "goto 5"; ish i6-review
 ic "lang de_DE.UTF-8"; ic "goto 1"; ish i7-welcome-german
 cp $XI/errors.txt "$OUT/installer-errors.txt" 2>/dev/null
-scan="$(sudo -n python3 /usr/local/lib/xlinos/xlinos_disks.py scan --fast 2>&1 | head -c 600)"; echo "scan: $scan" >>"$OUT/installer-states.txt"
+scan="$(sudo -n python3 /usr/local/lib/xlinos/xlinos_disks.py scan --fast 2>&1 | head -c 600)"; echo "scan: $scan" >"$OUT/installer-scan.txt"
 pkill -f lib/xlinos/xlinos-installer
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock

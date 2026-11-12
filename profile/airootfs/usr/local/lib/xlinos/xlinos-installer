@@ -60,7 +60,7 @@ STEPS = ["welcome", "about", "region", "disk", "review"]
 
 def lbl(text, cls=None, wrap=True, xalign=0.0, **k):
     l = Gtk.Label(label=text, wrap=wrap, xalign=xalign, **k)
-    if wrap and 'max_width_chars' not in k: l.set_max_width_chars(100)
+    if wrap and 'max_width_chars' not in k: l.set_max_width_chars(85)
     if cls:
         for c in cls.split(): l.add_css_class(c)
     return l
