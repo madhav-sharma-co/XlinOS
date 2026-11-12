@@ -1,184 +1,675 @@
 #!/usr/bin/env python3
-"""XlinOS installer: pick a disk, confirm, watch the progress. The work is done by xlinos-install-run."""
-import json, os, subprocess, sys, threading
+"""XlinOS installer: a full-screen setup. Screen 0 loading, then five setup screens (welcome, about + agreement + privacy,
+language + region + keyboard, internet + disk + method, review) and the final install screen.
+This file only draws and navigates. Choices, checks and texts live in xlinos_install_core.py; disks in xlinos_disks.py;
+the real work is done by the engine xlinos-install-run, which re-checks everything itself."""
+import json, os, subprocess, sys, threading, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, Gdk, Gio, GLib
-import xlinos_ui
+from gi.repository import Gdk, Gio, GLib, Gtk
+import xlinos_ui  # noqa: F401  (theme hook)
+import xlinos_install_core as core
+from xlinos_install_core import tr
 
-CSS = (xlinos_ui.window_css() + """/*nolight*/
-window { background: transparent; }
-.big { color: #fff; font-size: 26px; font-weight: 700; }
-.sub { color: #9db4e6; font-size: 14px; }
-.disk { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 12px 16px; color: #fff; box-shadow: none; }
-.disk:hover { background: rgba(255,255,255,0.12); }
-.disk.sel { background: rgba(30,107,255,0.30); border-color: #3a80ff; }
-.val { color: #9db4e6; }
-.search { background: rgba(255,255,255,0.10); color: #fff; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); padding: 8px 12px; min-height: 22px; }
-.hostentry { background: rgba(255,255,255,0.10); color: #fff; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); padding: 8px 12px; min-height: 22px; }
-.warn { color: #ffb4b4; font-size: 14px; }
-.step { color: #eaf0ff; font-size: 16px; }
-progressbar trough { min-height: 8px; border-radius: 4px; background: rgba(255,255,255,0.14); border: none; }
-progressbar progress { min-height: 8px; border-radius: 4px; background: #1e6bff; border: none; }
-""").encode()
+SHARE = core.SHARE
+LOGFILE = "/var/log/xlinos-install.log"
+ENGINE = "/usr/local/lib/xlinos/xlinos-install-run"
+CANCEL = "/usr/local/lib/xlinos/xlinos-install-cancel"
 
-def disks():
-    try:
-        out = json.loads(subprocess.run(["lsblk", "-J", "-d", "-b", "-o", "NAME,SIZE,MODEL,TYPE,RM,RO"], capture_output=True, text=True).stdout)
-    except Exception:
-        return []
-    res = []
-    for d in out.get("blockdevices", []):
-        if d.get("type") != "disk" or str(d.get("ro")) in ("1", "True", "true") or d["name"].startswith(("loop", "sr", "zram")): continue
-        res.append(("/dev/" + d["name"], int(d.get("size") or 0), (d.get("model") or "Disk").strip()))
-    return res
+CSS = b"""/*nolight*/
+window.xl { background-image: linear-gradient(#0a2060, #03081c); color: #ffffff; font-family: Inter, sans-serif; }
+.xl .h1 { font-size: 34px; font-weight: 700; }
+.xl .h2 { font-size: 22px; font-weight: 700; }
+.xl .sub { font-size: 15px; color: #9db4e6; }
+.xl .small { font-size: 13px; color: #9db4e6; }
+.xl .card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 16px; padding: 18px 20px; }
+.xl .item { background-image: none; background-color: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 12px 16px; color: #fff; box-shadow: none; }
+.xl .item:hover { background-color: rgba(255,255,255,0.12); }
+.xl .item.sel { background-color: rgba(30,107,255,0.30); border-color: #3a80ff; }
+.xl .item:disabled { opacity: 0.45; }
+.xl button { background-image: none; background-color: rgba(255,255,255,0.10); color: #fff; border-radius: 12px; border: none; box-shadow: none; min-height: 22px; padding: 10px 20px; }
+.xl button:hover { background-color: rgba(255,255,255,0.18); }
+.xl button.primary { background-color: #1e6bff; font-weight: 600; min-width: 150px; }
+.xl button.primary:hover { background-color: #3a80ff; }
+.xl button.danger { background-color: #c0392b; font-weight: 600; }
+.xl button.danger:hover { background-color: #d9483a; }
+.xl button:disabled { opacity: 0.4; }
+.xl entry { background-color: rgba(255,255,255,0.08); color: #fff; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); padding: 9px 12px; min-height: 22px; box-shadow: none; }
+.xl entry:focus-within { border-color: #4f93ff; }
+.xl dropdown button, .xl dropdown > button { min-width: 280px; }
+.xl textview, .xl textview text { background: rgba(0,0,0,0.18); color: #dbe6ff; }
+.xl .logbox { font-family: monospace; font-size: 12px; }
+.xl .err { color: #ff9a90; }
+.xl .ok { color: #7be0a0; }
+.xl .warn { color: #ffd27a; }
+.xl .loss { background: rgba(192,57,43,0.22); border: 1px solid #c0392b; border-radius: 14px; padding: 14px 18px; color: #ffd6d2; }
+.xl .dot { background: rgba(255,255,255,0.22); border-radius: 6px; min-width: 12px; min-height: 12px; }
+.xl .dot.on { background: #1e6bff; }
+.xl .dot.done { background: #7be0a0; }
+.xl progressbar trough { min-height: 12px; border-radius: 6px; background: rgba(255,255,255,0.14); border: none; }
+.xl progressbar progress { min-height: 12px; border-radius: 6px; background: #1e6bff; border: none; }
+.xl scrolledwindow, .xl viewport { background: transparent; }
+.xl .pct { font-size: 54px; font-weight: 200; }
+.xl .key { font-weight: 600; color: #c9d6f2; }
+.xl checkbutton { color: #e6eeff; }
+"""
 
-def parts():
-    """Normal partitions that are not mounted (candidates for a side-by-side install) and the shared EFI partition."""
-    try:
-        out = json.loads(subprocess.run(["lsblk", "-J", "-b", "-l", "-o", "PATH,SIZE,TYPE,FSTYPE,LABEL,PARTTYPE,MOUNTPOINTS,RO,PKNAME"], capture_output=True, text=True).stdout)
-    except Exception:
-        return [], None
-    esp, res = None, []
-    for d in out.get("blockdevices", []):
-        if d.get("type") != "part" or d["path"].startswith(("/dev/loop", "/dev/sr")): continue
-        if (d.get("parttype") or "").lower() == "c12a7328-f81f-11d2-ba4b-00a0c93ec93b":
-            esp = esp or d["path"]; continue
-        if any(m for m in (d.get("mountpoints") or []) if m): continue
-        if int(d.get("size") or 0) < 20e9: continue
-        res.append((d["path"], int(d["size"]), d.get("fstype") or "empty", d.get("label") or ""))
-    return res, esp
+STEPS = ["welcome", "about", "region", "disk", "review"]
 
-def human(n):
-    return "%.0f GB" % (n / 1e9) if n >= 1e9 else "%.0f MB" % (n / 1e6)
 
-LANGS = [("English (United States)", "en_US.UTF-8"), ("English (United Kingdom)", "en_GB.UTF-8"), ("Hindi", "hi_IN.UTF-8"), ("German", "de_DE.UTF-8"),
-         ("French", "fr_FR.UTF-8"), ("Spanish", "es_ES.UTF-8"), ("Portuguese (Brazil)", "pt_BR.UTF-8"), ("Italian", "it_IT.UTF-8"),
-         ("Russian", "ru_RU.UTF-8"), ("Japanese", "ja_JP.UTF-8"), ("Chinese (Simplified)", "zh_CN.UTF-8"), ("Arabic", "ar_SA.UTF-8")]
-KEYS = [("US English", "us"), ("UK English", "gb"), ("Hindi (India)", "in"), ("German", "de"), ("French", "fr"), ("Spanish", "es"),
-        ("Portuguese (Brazil)", "br"), ("Italian", "it"), ("Russian", "ru"), ("Japanese", "jp"), ("Arabic", "ara")]
-FSS = [("ext4  -  simple and fast", "ext4"), ("btrfs  -  snapshots and compression", "btrfs")]
+def lbl(text, cls=None, wrap=True, xalign=0.0, **k):
+    l = Gtk.Label(label=text, wrap=wrap, xalign=xalign, **k)
+    if cls:
+        for c in cls.split(): l.add_css_class(c)
+    return l
 
-def zones():
-    out = []
-    try:
-        for line in open("/usr/share/zoneinfo/zone1970.tab"):
-            if not line.startswith("#"): out.append(line.split("\t")[2].strip())
-    except Exception:
-        out = ["UTC"]
-    return sorted(set(out)) or ["UTC"]
+
+def mark(size):
+    p = os.path.join(SHARE, "xlinos-mark.png")
+    if not os.path.exists(p): return Gtk.Box()
+    img = Gtk.Image.new_from_file(p); img.set_pixel_size(size); return img
+
+
+def dropdown(items, selected=0, on_change=None, searchable=True):
+    dd = Gtk.DropDown.new(Gtk.StringList.new(list(items)), None)
+    if searchable and len(items) > 12:
+        dd.set_expression(Gtk.PropertyExpression.new(Gtk.StringObject, None, "string")); dd.set_enable_search(True)
+    dd.set_selected(max(0, min(selected, max(0, len(items) - 1))))
+    if on_change: dd.connect("notify::selected", lambda d, _p: on_change(d.get_selected()))
+    return dd
+
+
+def bg(fn, done):
+    def run():
+        try: r = fn()
+        except Exception as e: r = e
+        GLib.idle_add(done, r)
+    threading.Thread(target=run, daemon=True).start()
+
+
+class Installer(Gtk.ApplicationWindow):
+    def __init__(self, app):
+        super().__init__(application=app)
+        self.add_css_class("xl"); self.set_decorated(False); self.fullscreen()
+        self.c = core.Choices()
+        self.page = "loading"; self.running = False; self.proc = None; self.final = False
+        self.lay, self.var = {}, {}
+        self.sel_disk = None; self.wifi = []; self.test_entry = None; self.cancelling = False; self._act = None
+        self.width = 960
+        try:
+            mon = Gdk.Display.get_default().get_monitors().get_item(0).get_geometry()
+            self.width = max(560, min(1040, mon.width - 120))
+        except Exception: pass
+        self.root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); self.set_child(self.root)
+        self.head = Gtk.Box(spacing=14, margin_top=18, margin_start=32, margin_end=32)
+        self.head.append(mark(30)); self.head.append(lbl("XlinOS", "h2", wrap=False))
+        sp = Gtk.Box(hexpand=True); self.head.append(sp)
+        self.dots = Gtk.Box(spacing=8, valign=Gtk.Align.CENTER); self.head.append(self.dots)
+        self.root.append(self.head)
+        self.stack = Gtk.Stack(vexpand=True, transition_type=Gtk.StackTransitionType.CROSSFADE, transition_duration=220)
+        self.root.append(self.stack)
+        self.foot = Gtk.Box(spacing=12, margin_bottom=22, margin_start=32, margin_end=32, margin_top=8)
+        self.err = lbl("", "err", hexpand=True); self.back_b = Gtk.Button(); self.next_b = Gtk.Button(); self.next_b.add_css_class("primary")
+        self.back_b.connect("clicked", lambda _b: self.step(-1)); self.next_b.connect("clicked", lambda _b: self.step(1))
+        self.foot.append(self.back_b); self.foot.append(self.err); self.foot.append(self.next_b)
+        self.root.append(self.foot)
+        self.connect("close-request", lambda w: bool(self.running))
+        self.build_all()
+        self.show("loading")
+        bg(self.load, self.loaded)
+        self.setup_test_hook()
+
+    # ---------------------------------------------------------------- plumbing
+    def L(self, key): return tr(self.c.locale, key)
+
+    def page_box(self, *widgets, center=False):
+        outer = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16, halign=Gtk.Align.CENTER, width_request=self.width,
+                      valign=Gtk.Align.CENTER if center else Gtk.Align.START, margin_top=10, margin_bottom=10)
+        for w in widgets: col.append(w)
+        outer.set_child(col); return outer
+
+    def build_all(self):
+        """(Re)builds every screen, so a language change is shown everywhere at once."""
+        cur = self.page
+        for n in ("welcome", "about", "region", "disk", "review"):
+            old = self.stack.get_child_by_name(n)
+            if old: self.stack.remove(old)
+        self.stack.add_named(self.build_welcome(), "welcome"); self.stack.add_named(self.build_about(), "about")
+        self.stack.add_named(self.build_region(), "region"); self.stack.add_named(self.build_disk(), "disk")
+        self.stack.add_named(self.build_review(), "review")
+        if self.stack.get_child_by_name("loading") is None:
+            self.stack.add_named(self.build_loading(), "loading"); self.stack.add_named(self.build_install(), "install")
+        self.show(cur, rebuilt=True)
+
+    def show(self, name, rebuilt=False):
+        self.page = name
+        self.stack.set_visible_child_name(name)
+        self.err.set_text("")
+        idx = STEPS.index(name) if name in STEPS else -1
+        while (ch := self.dots.get_first_child()): self.dots.remove(ch)
+        if idx >= 0:
+            for i in range(len(STEPS)):
+                d = Gtk.Box(); d.add_css_class("dot")
+                if i == idx: d.add_css_class("on")
+                elif i < idx: d.add_css_class("done")
+                self.dots.append(d)
+        self.head.set_visible(name != "loading")
+        self.foot.set_visible(idx >= 0)
+        self.back_b.set_visible(idx > 0)
+        self.back_b.set_label(self.L("back"))
+        self.next_b.set_label(self.L("install") if name == "review" else self.L("continue"))
+        if name == "review": self.next_b.add_css_class("danger") if core.destructive(self.c) else None
+        else: self.next_b.remove_css_class("danger")
+        if name == "disk": self.refresh_net(); self.update_next()
+        if name == "about": self.update_next()
+
+    def step(self, d):
+        idx = STEPS.index(self.page)
+        if d > 0:
+            e = core.check_step(idx + 1, self.c)
+            if e: self.err.set_text(e[0]); return
+            if self.page == "review": self.confirm_install(); return
+            self.show(STEPS[idx + 1]);
+            if STEPS[idx + 1] == "review": self.build_all()
+        elif idx > 0: self.show(STEPS[idx - 1])
+
+    def goto(self, n):
+        self.show(STEPS[n - 1])
+
+    def update_next(self):
+        idx = STEPS.index(self.page) if self.page in STEPS else 0
+        self.next_b.set_sensitive(not core.check_step(idx + 1, self.c) or self.page not in ("about", "disk"))
+
+    # ---------------------------------------------------------------- screen 0
+    def build_loading(self):
+        sp = Gtk.Spinner(); sp.start()
+        b = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=26, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER)
+        b.append(mark(140)); b.append(sp); b.append(lbl(tr(self.c.locale, "loading"), "sub", xalign=0.5))
+        return b
+
+    def load(self):
+        t0 = time.time()
+        lay, var = core.keyboards(); disks = core.scan_disks(); net = core.net_status()
+        return lay, var, disks, net, t0
+
+    def loaded(self, r):
+        if isinstance(r, Exception): r = ({}, {}, [], {"state": "unavailable", "text": "unknown"}, time.time())
+        self.lay, self.var, self.c.disks, self.c.net, _ = r
+        self.c.net_info = self.c.net
+        self.c.kb = core.default_keyboard(self.c.locale, self.lay)
+        self.apply_locale_defaults()
+        self.build_all(); self.show("welcome")
+
+    def apply_locale_defaults(self):
+        self.c.country = core.default_region(self.c.locale)
+        zs = core.zones_for(self.c.country); self.c.tz = zs[0]
+        self.c.kb = core.default_keyboard(self.c.locale, self.lay); self.c.kb_variant = ""
+
+    # ---------------------------------------------------------------- screen 1
+    def build_welcome(self):
+        names = [n for n, _ in core.LANGS]
+        cur = next((i for i, (_, v) in enumerate(core.LANGS) if v == self.c.locale), 0)
+        lst = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        sc = Gtk.ScrolledWindow(min_content_height=230, max_content_height=260, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(lst)
+        btns = []
+        def pick(i):
+            self.c.locale = core.LANGS[i][1]; self.apply_locale_defaults(); self.build_all()
+        for i, n in enumerate(names):
+            b = Gtk.Button(); b.add_css_class("item"); b.set_child(lbl(n, wrap=False)); b.connect("clicked", lambda _b, i=i: pick(i))
+            if i == cur: b.add_css_class("sel")
+            lst.append(b)
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); card.add_css_class("card")
+        card.append(lbl(self.L("choose_lang"), "h2")); card.append(sc)
+        if core.lang_code(self.c.locale) not in core.TRANSLATED:
+            card.append(lbl("The installer is shown in English for this language. Your system will still be set up in it.", "small"))
+        top = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, halign=Gtk.Align.CENTER)
+        top.append(mark(110)); top.append(lbl(self.L("welcome"), "h1", xalign=0.5)); top.append(lbl(self.L("welcome_msg"), "sub", xalign=0.5, justify=Gtk.Justification.CENTER))
+        return self.page_box(top, card, center=True)
+
+    # ---------------------------------------------------------------- screen 2
+    def build_about(self):
+        about = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); about.add_css_class("card")
+        about.append(lbl(self.L("sec_about"), "h2")); about.append(lbl(core.ABOUT))
+        about.append(lbl("Version %s" % core.read_version(), "small"))
+        ag = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); ag.add_css_class("card")
+        ag.append(lbl(self.L("sec_agree"), "h2")); ag.append(lbl(self.L("legal_en"), "small"))
+        tv = Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD, left_margin=10, right_margin=10, top_margin=8, bottom_margin=8)
+        tv.get_buffer().set_text(core.AGREEMENT_DRAFT + "\n\n---- Licence ----\n\n" + core.license_text())
+        sw = Gtk.ScrolledWindow(min_content_height=200, max_content_height=240); sw.set_child(tv); ag.append(sw)
+        acc = Gtk.CheckButton(active=self.c.agreed); self.acc = acc
+        def ch(b): self.c.agreed = b.get_active(); self.err.set_text(""); self.update_next()
+        acc.connect("toggled", ch)
+        row = Gtk.Box(spacing=10); row.append(acc); row.append(lbl(self.L("accept"))); ag.append(row)
+        pr = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); pr.add_css_class("card")
+        pr.append(lbl(self.L("sec_privacy"), "h2")); pr.append(lbl(core.PRIVACY))
+        dg = Gtk.CheckButton(active=self.c.diag_log); dg.connect("toggled", lambda b: setattr(self.c, "diag_log", b.get_active()))
+        row2 = Gtk.Box(spacing=10); row2.append(dg); row2.append(lbl(self.L("diag_opt"))); pr.append(row2)
+        return self.page_box(lbl(self.L("about_title"), "h1"), about, ag, pr)
+
+    # ---------------------------------------------------------------- screen 3
+    def build_region(self):
+        c = self.c
+        def row(label, widget):
+            b = Gtk.Box(spacing=16); l = lbl(label, "key", wrap=False); l.set_size_request(240, -1); b.append(l); b.append(widget); return b
+        names = [n for n, _ in core.LANGS]
+        langs = dropdown(names, next((i for i, (_, v) in enumerate(core.LANGS) if v == c.locale), 0), searchable=False)
+        def lang_changed(i):
+            if core.LANGS[i][1] == c.locale: return
+            c.locale = core.LANGS[i][1]; self.apply_locale_defaults(); self.build_all()
+        langs.connect("notify::selected", lambda d, _p: lang_changed(d.get_selected()))
+        cs = core.countries(); cn = [n for n, _ in cs]
+        zone_box = Gtk.Box()
+        def fill_zones():
+            while (ch := zone_box.get_first_child()): zone_box.remove(ch)
+            zs = core.zones_for(c.country)
+            if c.tz not in zs and c.tz != "UTC": zs = zs + [c.tz] if c.tz in core.all_zones() else zs
+            dd = dropdown(zs, zs.index(c.tz) if c.tz in zs else 0, lambda i: setattr(c, "tz", zs[i]))
+            if c.tz not in zs: c.tz = zs[0]
+            zone_box.append(dd)
+        def country_changed(i):
+            c.country = cs[i][1]; c.tz = core.zones_for(c.country)[0]; fill_zones()
+        country = dropdown(cn, next((i for i, (_, code) in enumerate(cs) if code == c.country), 0), country_changed)
+        fill_zones()
+        layouts = sorted(self.lay.items(), key=lambda kv: kv[1]); lnames = ["%s  (%s)" % (n, code) for code, n in layouts]
+        var_box = Gtk.Box()
+        test = Gtk.Entry(placeholder_text=self.L("kb_test"), width_request=420)
+        def fill_variants():
+            while (ch := var_box.get_first_child()): var_box.remove(ch)
+            vs = [("", self.L("default_variant"))] + list(self.var.get(c.kb, []))
+            dd = dropdown([n for _, n in vs], next((i for i, (v, _) in enumerate(vs) if v == c.kb_variant), 0), None, searchable=True)
+            def vch(i): c.kb_variant = vs[i][0]; self.apply_kb()
+            dd.connect("notify::selected", lambda d, _p: vch(d.get_selected()))
+            var_box.append(dd)
+        def kb_changed(i):
+            c.kb = layouts[i][0]; c.kb_variant = ""; fill_variants(); self.apply_kb()
+        kbd = dropdown(lnames, next((i for i, (code, _) in enumerate(layouts) if code == c.kb), 0), kb_changed)
+        fill_variants()
+        self.kb_note = lbl("", "small")
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14); card.add_css_class("card")
+        for r in (row(self.L("language"), langs), row(self.L("country"), country), row(self.L("timezone"), zone_box)): card.append(r)
+        card2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14); card2.add_css_class("card")
+        for r in (row(self.L("kb_layout"), kbd), row(self.L("kb_variant"), var_box), row(self.L("kb_test"), test)): card2.append(r)
+        card2.append(self.kb_note)
+        self.test_entry = test
+        return self.page_box(lbl(self.L("region_title"), "h1"), card, card2)
+
+    def apply_kb(self):
+        ok = core.apply_keyboard(self.c.kb, self.c.kb_variant)
+        self.kb_note.set_text("" if ok else "The preview could not switch the keyboard here, but your choice is still used for the new system.")
+        if self.test_entry: self.test_entry.set_text(""); self.test_entry.grab_focus()
+
+    # ---------------------------------------------------------------- screen 4
+    def build_disk(self):
+        self.net_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); self.net_card.add_css_class("card")
+        self.disk_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); self.disk_card.add_css_class("card")
+        self.method_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); self.method_card.add_css_class("card")
+        self.render_net(); self.render_disks(); self.render_methods()
+        return self.page_box(lbl(self.L("disk_title"), "h1"), self.net_card, self.disk_card, self.method_card)
+
+    # -- A. internet
+    def refresh_net(self, rescan=False):
+        def work():
+            st = core.net_status()
+            wl = core.wifi_list(rescan) if st.get("wifi_present") else []
+            return st, wl
+        def done(r):
+            if isinstance(r, Exception): return
+            self.c.net, self.wifi = r; self.render_net()
+        bg(work, done)
+
+    def render_net(self):
+        while (ch := self.net_card.get_first_child()): self.net_card.remove(ch)
+        st = self.c.net; wl = self.wifi
+        self.net_card.append(lbl(self.L("sec_net"), "h2"))
+        cls = "ok" if st.get("state") == "connected" else ("warn" if st.get("state") == "disconnected" else "err")
+        self.net_card.append(lbl(st.get("text", ""), cls))
+        for k in ("ethernet", "wifi"):
+            if st.get(k): self.net_card.append(lbl(st[k], "small"))
+        self.net_card.append(lbl("Internet is optional while you set things up, but the system files are downloaded during the installation, so the install needs a connection.", "small"))
+        bar = Gtk.Box(spacing=10)
+        r = Gtk.Button(label="Refresh"); r.connect("clicked", lambda _b: self.refresh_net(True)); bar.append(r)
+        if st.get("wifi") and "connected to" in st["wifi"]:
+            d = Gtk.Button(label="Disconnect Wi-Fi"); d.connect("clicked", lambda _b: bg(core.disconnect_wifi, lambda _r: self.refresh_net())); bar.append(d)
+        self.net_card.append(bar)
+        self.net_msg = lbl("", "small"); self.net_card.append(self.net_msg)
+        if st.get("wifi_present"):
+            if not wl: self.net_card.append(lbl("No Wi-Fi networks found yet. Press Refresh.", "small"))
+            for w in wl[:8]:
+                row = Gtk.Box(spacing=12); row.append(lbl("%s%s" % (w["ssid"], "  (connected)" if w["active"] else ""), wrap=False, hexpand=True))
+                row.append(lbl("%d%%  %s" % (w["signal"], "Secured" if w["secure"] else "Open"), "small", wrap=False))
+                b = Gtk.Button(label="Connect"); b.set_sensitive(not w["active"]); b.connect("clicked", lambda _b, w=w: self.wifi_dialog(w)); row.append(b)
+                self.net_card.append(row)
+
+    def wifi_dialog(self, w):
+        entry = Gtk.Entry(visibility=False, placeholder_text="Wi-Fi password", width_request=320, activates_default=True)
+        if not w["secure"]:
+            self.net_msg.set_text("Connecting to %s…" % w["ssid"]); return self.wifi_go(w["ssid"], "")
+        dlg = Gtk.Window(transient_for=self, modal=True, decorated=False, resizable=False); dlg.add_css_class("xl")
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, margin_top=22, margin_bottom=22, margin_start=26, margin_end=26)
+        box.append(lbl("Connect to %s" % w["ssid"], "h2")); box.append(entry)
+        bt = Gtk.Box(spacing=10, halign=Gtk.Align.END)
+        c = Gtk.Button(label=self.L("cancel")); c.connect("clicked", lambda _b: dlg.close())
+        ok = Gtk.Button(label="Connect"); ok.add_css_class("primary")
+        def go(_b=None):
+            pw = entry.get_text(); dlg.close(); self.net_msg.set_text("Connecting to %s…" % w["ssid"]); self.net_msg.remove_css_class("err"); self.wifi_go(w["ssid"], pw)
+        ok.connect("clicked", go); entry.connect("activate", go)
+        bt.append(c); bt.append(ok); box.append(bt); dlg.set_child(box); dlg.present(); entry.grab_focus()
+
+    def wifi_go(self, ssid, pw):
+        def done(r):
+            ok, msg = r if not isinstance(r, Exception) else (False, str(r))
+            self.net_msg.set_text(msg)
+            if not ok: self.net_msg.add_css_class("err")
+            self.refresh_net()
+        bg(lambda: core.wifi_connect(ssid, pw), done)
+
+    # -- B. disks
+    def render_disks(self):
+        while (ch := self.disk_card.get_first_child()): self.disk_card.remove(ch)
+        self.disk_card.append(lbl(self.L("sec_disk"), "h2"))
+        top = Gtk.Box(spacing=10)
+        r = Gtk.Button(label="Refresh disks"); r.connect("clicked", lambda _b: self.rescan()); top.append(r); self.disk_card.append(top)
+        boot = "UEFI start" if any(d.get("efi_boot") for d in self.c.disks) or os.path.isdir("/sys/firmware/efi") else "BIOS start (not supported: XlinOS needs UEFI)"
+        self.disk_card.append(lbl("This computer started in: " + boot, "small"))
+        if not self.c.disks: self.disk_card.append(lbl("No disk was found.", "err"))
+        for d in self.c.disks:
+            b = Gtk.Button(); b.add_css_class("item")
+            if self.c.disk and core.disk_by_path(self.c, self.c.disk) is d: b.add_css_class("sel")
+            col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            head = Gtk.Box(spacing=12)
+            head.append(lbl("%s  -  %s" % (d["model"], core.human(d["size"])), "key", wrap=False, hexpand=True))
+            head.append(lbl("  ".join(core.disk_flags(d)), "warn", wrap=False))
+            col.append(head)
+            fs = sorted({p["fs"] for p in d["partitions"] if p["fs"]})
+            col.append(lbl("%s   Partition table: %s   Free space: %s   Filesystems: %s" % (d["path"], d["table"].upper() if d["table"] != "none" else "none", core.human(d["free"]), ", ".join(fs) or "none"), "small"))
+            oss = [p for p in d["partitions"] if p.get("os")]
+            if oss: col.append(lbl("Found: " + "; ".join("%s (%s)" % (p["os"], p["path"].split("/")[-1]) for p in oss), "small"))
+            if d.get("protected"): col.append(lbl(d["protected"] + ". It can never be used.", "err"))
+            elif d.get("busy"): col.append(lbl("In use: " + ", ".join(d["busy"]), "warn"))
+            for p in d["partitions"]:
+                tag = "EFI start-up partition" if p["esp"] else (p["fs"] or "no filesystem")
+                col.append(lbl("   %s   %s   %s%s" % (p["path"].split("/")[-1], core.human(p["size"]), tag, ("   mounted at " + p["mounted"]) if p["mounted"] else ""), "small"))
+            b.set_child(col)
+            b.set_sensitive(not d.get("protected"))
+            b.connect("clicked", lambda _b, d=d: self.pick_disk(d)); self.disk_card.append(b)
+
+    def rescan(self):
+        def done(r):
+            if isinstance(r, Exception): return
+            self.c.disks = r
+            if self.c.disk and not core.disk_by_path(self.c, self.c.disk): self.c.disk = ""; self.c.method = ""; self.c.efi = ""
+            self.render_disks(); self.render_methods(); self.update_next()
+        bg(core.scan_disks, done)
+
+    def pick_disk(self, d):
+        if self.c.disk != d["path"] and not any(p["path"] == self.c.disk for p in d["partitions"]):
+            self.c.disk = ""; self.c.method = ""; self.c.efi = ""; self.c.confirmed_loss = False
+        self.sel_disk = d; self.render_disks(); self.render_methods(); self.update_next()
+
+    # -- C. method
+    def render_methods(self):
+        while (ch := self.method_card.get_first_child()): self.method_card.remove(ch)
+        self.method_card.append(lbl(self.L("sec_method"), "h2"))
+        d = self.sel_disk
+        if d is None and self.c.disk: d = core.disk_by_path(self.c, self.c.disk)
+        if d is None:
+            self.method_card.append(lbl("Choose a disk above first.", "small")); return
+        allowed = core.methods_for(d)
+        info = {
+            "freespace": ("Install alongside an existing operating system",
+                          "XlinOS is installed into free (unallocated) space on this disk. Windows, Linux and your files are not changed, and XlinOS shows up in the start menu next to them. Shrink a partition of your other system first if there is no free space. macOS is not supported."),
+            "erase": ("Erase disk and install XlinOS",
+                      "Everything on this disk is erased and XlinOS uses the whole disk. Other systems on it are removed."),
+            "partition": ("Manual: use a partition you choose (advanced)",
+                          "You pick one existing partition for XlinOS (it is erased) and the start-up (EFI) partition to share. Nothing else on the disk is changed. Create the partitions first with a partition editor."),
+        }
+        for m in ("freespace", "erase", "partition"):
+            ok, why = allowed[m]
+            b = Gtk.Button(); b.add_css_class("item"); b.set_sensitive(ok)
+            if self.c.method == m and self.c.disk and core.disk_by_path(self.c, self.c.disk) is d: b.add_css_class("sel")
+            col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            col.append(lbl(info[m][0], "key")); col.append(lbl(info[m][1], "small"))
+            if not ok: col.append(lbl("Not available: " + why, "warn"))
+            b.set_child(col); b.connect("clicked", lambda _b, m=m: self.pick_method(d, m)); self.method_card.append(b)
+        # details for the chosen method
+        if self.c.method and core.disk_by_path(self.c, self.c.disk) is d:
+            if self.c.method == "erase":
+                row = Gtk.Box(spacing=14); row.append(lbl("File system", "key", wrap=False))
+                row.append(dropdown(["ext4 - simple and fast", "btrfs - snapshots and compression"], 0 if self.c.fs == "ext4" else 1, lambda i: setattr(self.c, "fs", "ext4" if i == 0 else "btrfs"), searchable=False))
+                self.method_card.append(row)
+            if self.c.method in ("partition", "freespace"):
+                esps = [p for p in d["partitions"] if p["esp"]]
+                if len(esps) > 1 or not self.c.efi:
+                    row = Gtk.Box(spacing=14); row.append(lbl("Shared start-up (EFI) partition", "key", wrap=False))
+                    names = [p["path"] for p in esps]
+                    if names and not self.c.efi: self.c.efi = names[0]
+                    row.append(dropdown(names, names.index(self.c.efi) if self.c.efi in names else 0, lambda i: setattr(self.c, "efi", names[i]), searchable=False))
+                    self.method_card.append(row)
+                else:
+                    self.method_card.append(lbl("Shared start-up (EFI) partition: %s" % self.c.efi, "small"))
+            if self.c.method == "freespace":
+                self.method_card.append(lbl("A new partition of about %s is created in the largest free space." % core.human(d.get("biggest_gap", 0)), "small"))
+
+    def pick_method(self, d, m):
+        self.c.method = m; self.c.confirmed_loss = False
+        self.c.efi = ""
+        esps = [p["path"] for p in d["partitions"] if p["esp"]]
+        if m == "partition":
+            free = core.free_partitions(d)
+            self.c.disk = free[0]["path"] if free else ""
+            self.part_dialog(d, free)
+        else:
+            self.c.disk = d["path"]
+        if m in ("partition", "freespace") and esps: self.c.efi = esps[0]
+        self.sel_disk = d; self.render_disks(); self.render_methods(); self.update_next()
+
+    def part_dialog(self, d, free):
+        """Manual method: pick which existing partition is erased and used."""
+        dlg = Gtk.Window(transient_for=self, modal=True, decorated=False, resizable=False); dlg.add_css_class("xl")
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=22, margin_bottom=22, margin_start=26, margin_end=26)
+        box.append(lbl("Choose the partition for XlinOS. It will be erased.", "h2"))
+        for p in free:
+            b = Gtk.Button(); b.add_css_class("item")
+            b.set_child(lbl("%s   %s   %s%s" % (p["path"], core.human(p["size"]), p["fs"] or "no filesystem", ("   " + p["os"]) if p.get("os") else ""), wrap=False))
+            def pick(_b, p=p): self.c.disk = p["path"]; dlg.close(); self.render_methods(); self.update_next()
+            b.connect("clicked", pick); box.append(b)
+        c = Gtk.Button(label=self.L("cancel")); c.connect("clicked", lambda _b: (dlg.close(), setattr(self.c, "method", ""), setattr(self.c, "disk", ""), self.render_methods(), self.update_next()))
+        box.append(c); dlg.set_child(box); dlg.present()
+
+    # ---------------------------------------------------------------- screen 5
+    def build_review(self):
+        c = self.c
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); card.add_css_class("card")
+        if c.method:
+            for label, value, st in core.review(c):
+                row = Gtk.Box(spacing=14); l = lbl(label, "key", wrap=False); l.set_size_request(240, -1); row.append(l)
+                row.append(lbl(value, hexpand=True))
+                b = Gtk.Button(label=self.L("edit")); b.connect("clicked", lambda _b, st=st: self.goto(st)); row.append(b); card.append(row)
+        else:
+            card.append(lbl("Nothing chosen yet.", "small"))
+        widgets = [lbl(self.L("review_title"), "h1"), card]
+        loss = core.losses(c)
+        if loss:
+            w = lbl("Warning: " + loss + " This cannot be undone.", "loss"); widgets.append(w)
+            chk = Gtk.CheckButton(active=c.confirmed_loss)
+            chk.connect("toggled", lambda b: (setattr(c, "confirmed_loss", b.get_active()), self.err.set_text("")))
+            row = Gtk.Box(spacing=10); row.append(chk); row.append(lbl("I understand and want to continue.")); widgets.append(row)
+        widgets.append(lbl("You create your user account on the first start of XlinOS, not here.", "small"))
+        return self.page_box(*widgets)
+
+    def confirm_install(self):
+        dlg = Gtk.Window(transient_for=self, modal=True, decorated=False, resizable=False); dlg.add_css_class("xl")
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin_top=26, margin_bottom=26, margin_start=30, margin_end=30)
+        box.append(lbl("Start the installation?", "h2")); box.append(lbl(core.losses(self.c) + " The installation cannot be undone once it starts.", width_chars=48, max_width_chars=60))
+        bt = Gtk.Box(spacing=10, halign=Gtk.Align.END)
+        c = Gtk.Button(label=self.L("cancel")); c.connect("clicked", lambda _b: dlg.close())
+        go = Gtk.Button(label=self.L("install")); go.add_css_class("danger"); go.connect("clicked", lambda _b: (dlg.close(), self.start_install()))
+        bt.append(c); bt.append(go); box.append(bt); dlg.set_child(box); dlg.present()
+
+    # ---------------------------------------------------------------- screen 6
+    def build_install(self):
+        self.i_title = lbl(self.L("thanks"), "h1", xalign=0.5); self.i_msg = lbl(self.L("thanks_msg"), "sub", xalign=0.5, justify=Gtk.Justification.CENTER)
+        self.i_pct = lbl("0%", "pct", xalign=0.5); self.i_bar = Gtk.ProgressBar()
+        self.i_stage = lbl("", "h2", xalign=0.5); self.i_task = lbl("", "small", xalign=0.5)
+        self.log_tv = Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.CHAR, monospace=True); self.log_tv.add_css_class("logbox")
+        lsw = Gtk.ScrolledWindow(min_content_height=200, max_content_height=260); lsw.set_child(self.log_tv)
+        self.i_exp = Gtk.Expander(label=self.L("show_log")); self.i_exp.set_child(lsw)
+        self.i_cancel = Gtk.Button(label=self.L("cancel"), halign=Gtk.Align.CENTER); self.i_cancel.connect("clicked", lambda _b: self.ask_cancel())
+        self.i_action = Gtk.Button(halign=Gtk.Align.CENTER); self.i_action.add_css_class("primary"); self.i_action.set_visible(False)
+        self.i_note = lbl("", "sub", xalign=0.5, justify=Gtk.Justification.CENTER)
+        self.i_logo = mark(90)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER, width_request=min(self.width, 820))
+        for w in (self.i_logo, self.i_title, self.i_msg, self.i_pct, self.i_bar, self.i_stage, self.i_task, self.i_exp, self.i_note, self.i_cancel, self.i_action): box.append(w)
+        return box
+
+    def start_install(self):
+        c = self.c
+        errs = core.check_step(4, c)
+        if errs: self.show("disk"); self.err.set_text(errs[0]); return
+        opts = "/tmp/xlinos-install-options.json"
+        json.dump(core.engine_options(c), open(opts, "w"))
+        cmd = [ENGINE, c.disk, opts]
+        if os.geteuid() != 0: cmd = ["sudo", "-n"] + cmd
+        self.running = True; self.cancelling = False; self.modified = False
+        self.show("install"); self.head.set_visible(False)
+        self.i_title.set_text(self.L("thanks")); self.i_msg.set_text(self.L("thanks_msg")); self.i_cancel.set_visible(True); self.i_action.set_visible(False)
+        self.i_note.set_text(""); self.i_bar.set_fraction(0); self.i_pct.set_text("0%"); self.i_stage.set_text("Preparing installation"); self.i_task.set_text("")
+        GLib.timeout_add(1500, self.tail_log)
+        threading.Thread(target=self.worker, args=(cmd,), daemon=True).start()
+
+    def worker(self, cmd):
+        try: p = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True)
+        except Exception as e: GLib.idle_add(self.finish, "fail", "Could not start the installer: %s" % e); return
+        self.proc = p; result = ("fail", "The installation stopped unexpectedly.")
+        for line in p.stdout:
+            line = line.strip()
+            if line.startswith("STEP "): GLib.idle_add(self.on_step, line[5:])
+            elif line.startswith("PCT "):
+                try: GLib.idle_add(self.on_pct, int(line[4:]))
+                except ValueError: pass
+            elif line == "MODIFIED": self.modified = True
+            elif line.startswith("FAIL"): result = ("fail", line[5:] or "The installation failed.")
+            elif line.startswith("CANCELLED"): result = ("cancelled", line.split(" ")[-1])
+            elif line == "DONE": result = ("done", "")
+        p.wait(); GLib.idle_add(self.finish, *result)
+
+    def on_step(self, text): self.i_stage.set_text(text); return False
+
+    def on_pct(self, n):
+        self.i_bar.set_fraction(n / 100.0); self.i_pct.set_text("%d%%" % n); return False
+
+    def tail_log(self):
+        if not self.running: return False
+        try:
+            data = open(LOGFILE, "rb").read()[-6000:].decode("utf-8", "replace").replace("\r", "\n")
+            lines = [l for l in data.splitlines() if l.strip() and not l.startswith("+")][-30:]
+            self.log_tv.get_buffer().set_text("\n".join(lines))
+            if lines: self.i_task.set_text(lines[-1][:110])
+        except Exception: pass
+        return True
+
+    def ask_cancel(self):
+        dlg = Gtk.Window(transient_for=self, modal=True, decorated=False, resizable=False); dlg.add_css_class("xl")
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin_top=26, margin_bottom=26, margin_start=30, margin_end=30)
+        box.append(lbl("Cancel the installation?", "h2"))
+        box.append(lbl("Steps that change the disk layout or the start-up files are finished first, so nothing is left half written. An unfinished installation does not start.", width_chars=48, max_width_chars=60))
+        bt = Gtk.Box(spacing=10, halign=Gtk.Align.END)
+        keep = Gtk.Button(label="Keep installing"); keep.connect("clicked", lambda _b: dlg.close())
+        stop = Gtk.Button(label="Cancel installation"); stop.add_css_class("danger")
+        stop.connect("clicked", lambda _b: (dlg.close(), self.do_cancel()))
+        bt.append(keep); bt.append(stop); box.append(bt); dlg.set_child(box); dlg.present()
+
+    def do_cancel(self):
+        def done(r):
+            out = (r.stdout or "").strip() if not isinstance(r, Exception) else "idle"
+            if out == "queued": self.i_note.set_text("A step that must not be interrupted is running. The installation stops as soon as it is safe.")
+            elif out == "stopping": self.i_note.set_text("Stopping…")
+            self.i_cancel.set_sensitive(False)
+        cmd = ["sudo", "-n", CANCEL] if os.geteuid() != 0 else [CANCEL]
+        bg(lambda: subprocess.run(cmd, capture_output=True, text=True, timeout=20), done)
+
+    def finish(self, kind, info):
+        self.running = False; self.i_cancel.set_visible(False); self.i_exp.set_expanded(False)
+        back = lambda: (self.i_action.set_visible(False), self.show("disk"))
+        def act(label, fn):
+            self.i_action.set_label(label); self.i_action.set_visible(True)
+            if self._act: self.i_action.disconnect(self._act)
+            self._act = self.i_action.connect("clicked", lambda _b: fn())
+        if kind == "done":
+            self.i_logo.set_visible(True); self.i_title.set_text(self.L("ready")); self.i_msg.set_text(self.L("ready_msg"))
+            self.i_bar.set_fraction(1); self.i_pct.set_text("100%"); self.i_stage.set_text("Finalizing installation")
+            mk = core.media_kind(self.c)
+            self.i_note.set_text({"usb": "Remove the USB drive when the computer restarts, so it starts XlinOS from the disk. You will create your user on the first start.",
+                                  "file": "XlinOS was started from a file on another disk. Restart and choose XlinOS in the start menu. You will create your user on the first start.",
+                                  "other": "Remove the installation disc or media if there is one, then restart. You will create your user on the first start."}[mk])
+            act(self.L("restart"), lambda: subprocess.Popen(["sudo", "-n", "systemctl", "reboot"] if os.geteuid() else ["systemctl", "reboot"]))
+        elif kind == "cancelled":
+            self.i_title.set_text("Installation cancelled"); self.i_stage.set_text(""); self.i_msg.set_text("")
+            self.i_note.set_text("The installation was stopped before anything on your disk was changed. Nothing was lost." if info == "clean" else
+                                 "The installation was stopped after the disk had already been changed. XlinOS is NOT installed on it and the part that was written is unusable. Run the installer again to install XlinOS, or restart and use your other system if the disk was not erased completely.")
+            act("Back to setup", back)
+        else:
+            self.i_title.set_text("The installation did not finish"); self.i_stage.set_text(""); self.i_msg.set_text(info)
+            self.i_note.set_text("The full log is in " + LOGFILE + ". Open the details below to see the last lines. " + ("The disk had already been changed, so the system on it is incomplete and will not start." if self.modified else "Nothing on your disk was changed."))
+            self.i_exp.set_expanded(True); self.tail_once()
+            act("Back to setup", back)
+        return False
+
+    def tail_once(self):
+        try:
+            data = open(LOGFILE, "rb").read()[-6000:].decode("utf-8", "replace").replace("\r", "\n")
+            self.log_tv.get_buffer().set_text("\n".join([l for l in data.splitlines() if l.strip() and not l.startswith("+")][-30:]))
+        except Exception: pass
+
+    # ---------------------------------------------------------------- test hook (off unless XLINOS_INSTALLER_TEST is set to a folder)
+    def setup_test_hook(self):
+        self.testdir = os.environ.get("XLINOS_INSTALLER_TEST")
+        if not self.testdir: return
+        os.makedirs(self.testdir, exist_ok=True)
+        GLib.timeout_add(400, self.poll)
+
+    def poll(self):
+        f = os.path.join(self.testdir, "cmd")
+        try:
+            lines = open(f).read().splitlines(); os.remove(f)
+        except Exception: return True
+        for l in lines:
+            try: self.test_cmd(l.split())
+            except Exception as e: open(os.path.join(self.testdir, "errors.txt"), "a").write("%s: %r\n" % (l, e))
+        return True
+
+    def test_cmd(self, a):
+        c = self.c
+        if a[0] == "next": self.step(1)
+        elif a[0] == "back": self.step(-1)
+        elif a[0] == "goto": self.goto(int(a[1]))
+        elif a[0] == "lang": c.locale = a[1]; self.apply_locale_defaults(); self.build_all()
+        elif a[0] == "agree": c.agreed = True; self.acc.set_active(True)
+        elif a[0] == "kb": c.kb = a[1]; c.kb_variant = a[2] if len(a) > 2 else ""; self.apply_kb(); self.build_all()
+        elif a[0] == "disk": d = next(x for x in c.disks if x["path"] == a[1]); self.pick_disk(d)
+        elif a[0] == "method": self.pick_method(self.sel_disk, a[1])
+        elif a[0] == "loss": c.confirmed_loss = True
+        elif a[0] == "state": open(os.path.join(self.testdir, "state.json"), "w").write(json.dumps({"page": self.page, "err": self.err.get_text(), "locale": c.locale, "country": c.country, "tz": c.tz, "kb": c.kb, "agreed": c.agreed, "method": c.method, "disk": c.disk, "efi": c.efi, "next_sensitive": self.next_b.get_sensitive(), "title": self.i_title.get_text(), "test_text": self.test_entry.get_text() if self.test_entry else ""}))
+        elif a[0] == "type": self.test_entry.set_text(a[1])
+        elif a[0] == "start": self.start_install()
+        elif a[0] == "cancel": self.do_cancel()
+        elif a[0] == "shot": self.shot(a[1])
+
+    def shot(self, path):
+        p = Gtk.WidgetPaintable.new(self); w, h = self.get_width(), self.get_height()
+        snap = Gtk.Snapshot(); p.snapshot(snap, w, h)
+        node = snap.to_node(); tex = self.get_native().get_renderer().render_texture(node, None); tex.save_to_png(path)
+
 
 def activate(app):
     p = Gtk.CssProvider(); p.load_from_data(CSS)
-    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-    win, body = xlinos_ui.make_window(app, "Install XlinOS", 760, 600)
-    stack = Gtk.Stack(vexpand=True, transition_type=Gtk.StackTransitionType.CROSSFADE); body.append(stack)
-    def lbl(t, cls, **k):
-        l = Gtk.Label(label=t, wrap=True, **k); l.add_css_class(cls); return l
-    def btn(t, cls, cb, w=240):
-        b = Gtk.Button(label=t, halign=Gtk.Align.CENTER); b.add_css_class(cls); b.set_size_request(w, 44); b.connect("clicked", lambda _b: cb()); return b
-    def page(*widgets, center=True):
-        b = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin_start=44, margin_end=44, margin_top=14, margin_bottom=26, valign=Gtk.Align.CENTER if center else Gtk.Align.FILL)
-        for w in widgets: b.append(w)
-        return b
-    st = {"disk": None, "disk_label": "", "locale": LANGS[0][1], "lang_label": LANGS[0][0], "kb": "us", "kb_label": KEYS[0][0],
-          "mode": "disk", "efi": None, "tz": "UTC", "fs": "ext4", "fs_label": FSS[0][0], "hostname": "xlin"}
-    # menu page (like a settings list: each row shows its current value)
-    rows = {}
-    menu = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-    def row(key, title, cb):
-        b = Gtk.Button(); b.add_css_class("disk"); b.connect("clicked", lambda _b: cb())
-        h = Gtk.Box(spacing=12); t = Gtk.Label(label=title, xalign=0, hexpand=True); v = Gtk.Label(label="", xalign=1); v.add_css_class("val")
-        h.append(t); h.append(v); b.set_child(h); rows[key] = v; menu.append(b)
-    def refresh():
-        rows["lang"].set_text(st["lang_label"]); rows["kb"].set_text(st["kb_label"]); rows["tz"].set_text(st["tz"])
-        rows["disk"].set_text(st["disk_label"] or "Choose where"); rows["fs"].set_text(st["fs_label"]); rows["host"].set_text(st["hostname"])
-        install.set_sensitive(bool(st["disk"]))
-    # picker page
-    pick_title = lbl("", "big"); pick_search = Gtk.SearchEntry(placeholder_text="Search"); pick_search.add_css_class("search")
-    pick_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-    ps = Gtk.ScrolledWindow(vexpand=True); ps.set_child(pick_list)
-    pick_back = btn("Back", "sec", lambda: stack.set_visible_child_name("menu"), 160)
-    pk = {"items": [], "apply": None}
-    def fill(_e=None):
-        q = pick_search.get_text().lower()
-        while (c := pick_list.get_first_child()): pick_list.remove(c)
-        for label, value, sub in pk["items"]:
-            if q and q not in label.lower() and q not in value.lower(): continue
-            b = Gtk.Button(); b.add_css_class("disk")
-            h = Gtk.Box(spacing=12); h.append(Gtk.Label(label=label, xalign=0, hexpand=True))
-            if sub: sv = Gtk.Label(label=sub, xalign=1); sv.add_css_class("val"); h.append(sv)
-            b.set_child(h); b.connect("clicked", lambda _b, l=label, v=value: (pk["apply"](l, v), refresh(), stack.set_visible_child_name("menu"))); pick_list.append(b)
-    pick_search.connect("search-changed", fill)
-    def open_pick(title, items, apply, search=True):
-        pick_title.set_text(title); pk["items"] = items; pk["apply"] = apply; pick_search.set_text(""); pick_search.set_visible(search); fill(); stack.set_visible_child_name("pick")
-    def pick_where():
-        def chosen(l, v):
-            st.update(mode=v, disk=None, disk_label="")
-            GLib.idle_add(pick_disk if v == "disk" else pick_part)
-        open_pick("Install on", [("The whole disk  -  erases everything on it", "disk", ""), ("One free partition  -  keeps your other systems (dual boot)", "partition", "")], chosen, False)
-    def pick_part():
-        ps_, esp = parts()
-        if not ps_ or not esp:
-            open_pick("Choose the partition", [("No free partition of 20 GB or more was found. Make one with GParted first.", "", "")], lambda l, v: None, False); return
-        st["efi"] = esp
-        open_pick("Choose the partition (it will be erased)", [("%s  %s" % (dev, ("(" + lab + ")") if lab else ""), dev, "%s  -  %s" % (human(sz), fs)) for dev, sz, fs, lab in ps_],
-                  lambda l, v: st.update(disk=v or None, disk_label="partition %s" % v) if v else None, False)
-    def pick_disk():
-        ds = disks()
-        if not ds: open_pick("Disk", [("No disk was found", "", "")], lambda l, v: None, False); return
-        open_pick("Choose the disk", [("%s" % m, dev, "%s  -  %s" % (human(sz), dev)) for dev, sz, m in ds],
-                  lambda l, v: st.update(disk=v or None, disk_label="%s  (%s)" % (l, v)) if v else None, False)
-    host = Gtk.Entry(); host.set_text("xlin"); host.add_css_class("hostentry"); host.set_size_request(320, 44); host.set_halign(Gtk.Align.CENTER)
-    def host_ok():
-        h = "".join(ch for ch in host.get_text().lower() if ch.isalnum() or ch == "-").strip("-")
-        st["hostname"] = h or "xlin"; refresh(); stack.set_visible_child_name("menu")
-    stack.add_named(page(lbl("Computer name", "big"), lbl("The name of this computer on the network.", "sub"), host, btn("Done", "primary", host_ok)), "host")
-    row("lang", "Language", lambda: open_pick("Language", [(n, v, "") for n, v in LANGS], lambda l, v: st.update(locale=v, lang_label=l)))
-    row("kb", "Keyboard layout", lambda: open_pick("Keyboard layout", [(n, v, v) for n, v in KEYS], lambda l, v: st.update(kb=v, kb_label=l)))
-    row("tz", "Time zone", lambda: open_pick("Time zone", [(z, z, "") for z in zones()], lambda l, v: st.update(tz=v)))
-    row("disk", "Install on", pick_where)
-    row("fs", "File system", lambda: open_pick("File system", [(n, v, "") for n, v in FSS], lambda l, v: st.update(fs=v, fs_label=l), False))
-    row("host", "Computer name", lambda: stack.set_visible_child_name("host"))
-    note = lbl("You create your user account on the first start.", "sub", xalign=0)
-    install = btn("Install", "primary", lambda: confirm(), 300); install.set_sensitive(False)
-    sm = Gtk.ScrolledWindow(vexpand=True); sm.set_child(menu)
-    stack.add_named(page(lbl("Install XlinOS", "big", xalign=0), lbl("Set things up, then press Install.", "sub", xalign=0), sm, note, install, center=False), "menu")
-    stack.add_named(page(lbl("Welcome to the XlinOS installer", "big"), lbl("This puts XlinOS on this computer. It takes a few minutes and needs the internet.", "sub", justify=Gtk.Justification.CENTER),
-                         btn("Continue", "primary", lambda: stack.set_visible_child_name("menu"))), "welcome")
-    stack.add_named(page(pick_title, pick_search, ps, pick_back, center=False), "pick")
-    conf_l = lbl("", "warn", justify=Gtk.Justification.CENTER)
-    stack.add_named(page(lbl("Ready to install", "big"), conf_l, btn("Erase the disk and install", "primary", lambda: start(), 300), btn("Back", "sec", lambda: stack.set_visible_child_name("menu"), 300)), "confirm")
-    bar = Gtk.ProgressBar(); step = lbl("Starting…", "step")
-    stack.add_named(page(lbl("Installing XlinOS", "big"), step, bar, lbl("Please keep the computer on.", "sub")), "run")
-    stack.add_named(page(lbl("XlinOS is installed", "big"), lbl("Take out the USB stick or disc and restart. You will create your user on the first start.", "sub", justify=Gtk.Justification.CENTER),
-                         btn("Restart now", "primary", lambda: subprocess.Popen(["systemctl", "reboot"]))), "done")
-    err_t = lbl("", "warn", justify=Gtk.Justification.CENTER)
-    stack.add_named(page(lbl("The installation did not finish", "big"), err_t, btn("Back to settings", "primary", lambda: stack.set_visible_child_name("menu"))), "error")
-    def confirm():
-        head = ("Only %s will be erased. Your other systems stay." if st["mode"] == "partition" else "Everything on %s will be erased.") % st["disk"]
-        conf_l.set_text(head + "\nLanguage %s  -  Keyboard %s  -  %s  -  %s\nThis cannot be undone." % (st["lang_label"], st["kb_label"], st["tz"], st["fs"]))
-        stack.set_visible_child_name("confirm")
-    def start():
-        stack.set_visible_child_name("run"); step.set_text("Starting…")
-        opts = "/tmp/xlinos-install-options.json"
-        json.dump({"locale": st["locale"], "kb": st["kb"], "tz": st["tz"], "fs": st["fs"], "hostname": st["hostname"], "target": st["mode"], "efi": st["efi"] or ""}, open(opts, "w"))
-        cmd = ["/usr/local/lib/xlinos/xlinos-install-run", st["disk"], opts]
-        if os.geteuid() != 0: cmd = ["sudo", "-n"] + cmd
-        GLib.timeout_add(120, lambda: (bar.pulse(), True)[1] if stack.get_visible_child_name() == "run" else False)
-        def worker():
-            r = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True)
-            fail = "The installation failed."; ok = False
-            for line in r.stdout:
-                line = line.strip()
-                if line.startswith("STEP"): GLib.idle_add(step.set_text, line.split(" ", 2)[2])
-                elif line.startswith("FAIL"): fail = line[5:] or fail
-                elif line == "DONE": ok = True
-            r.wait()
-            GLib.idle_add(lambda: stack.set_visible_child_name("done") if ok else (err_t.set_text(fail), stack.set_visible_child_name("error")))
-        threading.Thread(target=worker, daemon=True).start()
-    refresh(); stack.set_visible_child_name("welcome"); win.present()
+    Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 5)
+    Installer(app).present()
+
 
 app = Gtk.Application(application_id="os.xlin.installer", flags=Gio.ApplicationFlags.NON_UNIQUE)
-app.connect("activate", activate); sys.exit(app.run(None))
+app.connect("activate", activate)
+if __name__ == "__main__":
+    sys.exit(app.run(None))
