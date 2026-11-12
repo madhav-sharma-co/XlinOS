@@ -654,7 +654,7 @@ class Installer(Gtk.ApplicationWindow):
         elif a[0] == "disk": d = next(x for x in c.disks if x["path"] == a[1]); self.pick_disk(d)
         elif a[0] == "method": self.pick_method(self.sel_disk, a[1])
         elif a[0] == "loss": c.confirmed_loss = True
-        elif a[0] == "state": open(os.path.join(self.testdir, "state.json"), "w").write(json.dumps({"page": self.page, "err": self.err.get_text(), "locale": c.locale, "country": c.country, "tz": c.tz, "kb": c.kb, "agreed": c.agreed, "method": c.method, "disk": c.disk, "efi": c.efi, "next_sensitive": self.next_b.get_sensitive(), "title": self.i_title.get_text(), "test_text": self.test_entry.get_text() if self.test_entry else ""}))
+        elif a[0] == "state": open(os.path.join(self.testdir, "state.json"), "w").write(json.dumps({"page": self.page, "err": self.err.get_text(), "locale": c.locale, "country": c.country, "tz": c.tz, "kb": c.kb, "agreed": c.agreed, "method": c.method, "disk": c.disk, "efi": c.efi, "next_sensitive": self.next_b.get_sensitive(), "title": self.i_title.get_text(), "pct": self.i_pct.get_text(), "stage": self.i_stage.get_text(), "note": self.i_note.get_text(), "running": self.running, "test_text": self.test_entry.get_text() if self.test_entry else ""}))
         elif a[0] == "type": self.test_entry.set_text(a[1])
         elif a[0] == "start": self.start_install()
         elif a[0] == "cancel": self.do_cancel()
