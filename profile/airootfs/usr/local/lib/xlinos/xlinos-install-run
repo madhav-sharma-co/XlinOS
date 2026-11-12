@@ -14,7 +14,17 @@ if [[ -z "${XL_SETSID:-}" && $EUID -eq 0 ]]; then exec env XL_SETSID=1 setsid -w
 exec 3>&1 1>>"$LOG" 2>&1
 say() { echo "$*" >&3; }
 MODIFIED=0
-cleanup_mounts() { sync; umount -R /mnt 2>/dev/null; }
+cleanup_mounts() {   # lets go of /mnt even when a stopped installer's last helper is still shutting down
+  sync
+  for _ in 1 2 3 4 5 6; do
+    findmnt -rn -R /mnt >/dev/null 2>&1 || return 0
+    umount -R /mnt 2>/dev/null && return 0
+    pkill -KILL -f "pacman|pacstrap|arch-chroot|archinstall" 2>/dev/null
+    command -v fuser >/dev/null && fuser -km /mnt 2>/dev/null
+    sleep 2
+  done
+  umount -Rl /mnt 2>/dev/null; true
+}
 fail() { say "FAIL $*"; rm -f "$STATE" "$CANCEL"; exit 1; }
 trap 'cleanup_mounts; if [[ $MODIFIED == 1 ]]; then say "CANCELLED dirty"; else say "CANCELLED clean"; fi; rm -f "$STATE" "$CANCEL" "$PCTF"; exit 130' TERM INT
 setstate() {   # critical = must not be interrupted; cancellable = a cancel may stop everything
@@ -35,6 +45,7 @@ EFI="$(opt efi "")"
 [[ -b "$DISK" ]] || fail "That disk was not found."
 setstate cancellable
 say "STEP Preparing the installation"; pct 1
+cleanup_mounts   # a stopped or failed earlier run may have left its own /mnt mounted
 case "$TARGET" in disk) VMODE=erase ;; freespace) VMODE=freespace ;; partition) VMODE=partition ;; *) fail "Unknown installation method." ;; esac
 cfg=/usr/share/xlinos/archinstall-config.json
 [[ -f "$cfg" ]] || fail "The installer files are missing."

@@ -11,7 +11,7 @@ runuser -u xlin -- env XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR WAYLAND_DISPLAY=$WL HYPR
   /usr/local/lib/xlinos/xlinos-installer >$OUT/gui-app.log 2>&1 &
 ic() { printf '%s\n' "$@" >$XI/cmd; chmod 666 $XI/cmd; sleep 2; }
 st() { ic state; cat $XI/state.json; echo; }
-ish() { ic "shot $OUT/$1.png"; }
+ish() { ic "shot $XI/$1.png"; cp $XI/$1.png $OUT/ 2>/dev/null; }   # the app (user xlin) writes in /tmp, root copies to the shared folder
 for _ in $(seq 1 60); do grep -q '"page"' $XI/state.json 2>/dev/null && break; ic state; done
 sleep 3; st
 ic "lang de_DE.UTF-8"; ish g1-welcome-german; ic "lang en_US.UTF-8"
