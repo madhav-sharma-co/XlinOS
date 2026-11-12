@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """XlinOS PDF Reader: read PDF files with zoom, page jump and search."""
 import os, sys, math
-print("pdf: start", file=sys.stderr)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gi
+import cairo  # lets GTK pass drawing contexts to Python
 gi.require_version("Gtk", "4.0")
 gi.require_version("Poppler", "0.18")
 from gi.repository import Gtk, Gdk, Gio, GLib, Poppler

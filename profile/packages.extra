@@ -57,3 +57,4 @@ gtk-session-lock
 btrfs-progs
 plymouth
 cliphist
+python-cairo
