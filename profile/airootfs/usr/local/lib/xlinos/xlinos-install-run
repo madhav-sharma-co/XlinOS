@@ -66,9 +66,9 @@ watch_output() {   # $1 = one | two (one big package run, or base then everythin
       if [[ "$mode" == one ]]; then say "STEP Installing the system packages"; pct $((12 + 68 * i / n))
       elif (( ph == 1 )); then say "STEP Installing the base system"; pct $((12 + 26 * i / n))
       else say "STEP Installing the desktop and system packages"; pct $((38 + 44 * i / n)); fi
-    elif [[ "$line" == *bootctl* || "$line" == *systemd-boot* || "$line" == *"Installing bootloader"* ]]; then
+    elif [[ "$line" == *"Adding bootloader"* || "$line" == *bootctl* || "$line" == *"Installing bootloader"* ]]; then
       setstate critical; say "STEP Installing the bootloader"; pct 86
-    elif [[ "$line" == *"base64 -d"* || "$line" == *"custom commands"* ]]; then
+    elif [[ "$line" == *"Executing custom command"* || "$line" == *"base64 -d"* ]]; then
       setstate cancellable; say "STEP Configuring the system"; pct 90
     fi
   done

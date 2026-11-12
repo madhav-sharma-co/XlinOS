@@ -31,5 +31,6 @@ for _ in $(seq 1 240); do sleep 10; ic state; t=$(python3 -c "import json;d=json
   case "$t" in "XlinOS is Ready!"*|"The installation did not finish"*) break;; esac; done
 ish g7-final; st | tee $OUT/gui-final.json
 cp /var/log/xlinos-install.log $OUT/xlinos-install.log; tail -c 2000 /var/log/xlinos-install.log | tr '\r' '\n' | tail -20
+cp $XI/errors.txt $OUT/gui-errors.txt 2>/dev/null
 echo INSTALL-FINISHED > $OUT/done
 poweroff

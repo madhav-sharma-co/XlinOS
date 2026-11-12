@@ -57,7 +57,7 @@ LAYOUT[3]["mountpoints"] = [None]
 src = open(os.path.join(LIB, "xlinos-install-run")).read()
 fn = src[src.index("watch_output() {"):]; fn = fn[:fn.index("\n}\n") + 3]
 feed = "\n".join("(%d/156) installing pkg%d" % (i, i) for i in (1, 78, 156)) + "\r( 1/413) installing a\r(200/413) installing b\r(413/413) installing z\n" \
-       "Running bootctl install\nrunning: echo x | base64 -d | bash\n"
+       "Adding bootloader Systemd-boot to /dev/vda1\n(2/2) installing efibootmgr\nExecuting custom command \"echo x | base64 -d | bash\"\n"
 script = "pct(){ echo PCT $1; }\nsay(){ echo \"$*\"; }\nsetstate(){ echo STATE $1; }\n" + fn + "\nprintf '%s' \"$XFEED\" | watch_output two | grep -E '^(PCT|STEP|STATE)'\n"
 out = subprocess.run(["bash", "-c", script], capture_output=True, text=True, env=dict(os.environ, XFEED=feed)).stdout.split("\n")
 pcts = [int(l.split()[1]) for l in out if l.startswith("PCT")]

@@ -150,6 +150,7 @@ VMD=$(lsblk -dno PATH,TYPE | awk '$2=="disk" && $1 !~ /fd|loop|sr/ {print $1; ex
 ic "disk $VMD"; ic "method erase"; ic next; ist; ish i5-disk-protected    # this is the running system's own disk: must be refused
 ic "goto 5"; ish i6-review
 ic "lang de_DE.UTF-8"; ic "goto 1"; ish i7-welcome-german
+for v in run done cancelled fail; do ic "preview $v"; ish i8-final-$v; done
 cp $XI/errors.txt "$OUT/installer-errors.txt" 2>/dev/null
 scan="$(sudo -n python3 /usr/local/lib/xlinos/xlinos_disks.py scan --fast 2>&1 | head -c 600)"; echo "scan: $scan" >"$OUT/installer-scan.txt"
 pkill -f lib/xlinos/xlinos-installer

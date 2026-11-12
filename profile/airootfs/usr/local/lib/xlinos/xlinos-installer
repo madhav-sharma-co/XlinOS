@@ -658,6 +658,10 @@ class Installer(Gtk.ApplicationWindow):
         elif a[0] == "type": self.test_entry.set_text(a[1])
         elif a[0] == "start": self.start_install()
         elif a[0] == "cancel": self.do_cancel()
+        elif a[0] == "preview":   # draws the last screen in each state, for screenshots only (never starts anything)
+            self.show("install"); self.head.set_visible(False); self.foot.set_visible(False)
+            if a[1] == "run": self.on_step("Installing the desktop and system packages"); self.on_pct(63); self.i_task.set_text("(120/413) installing mesa")
+            else: self.finish({"done": "done", "cancelled": "cancelled", "fail": "fail"}[a[1]], {"cancelled": "dirty", "fail": "The installation failed (preview)."}.get(a[1], ""))
         elif a[0] == "shot": self.shot(a[1])
 
     def shot(self, path):
