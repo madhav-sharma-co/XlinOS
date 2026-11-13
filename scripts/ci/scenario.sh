@@ -132,5 +132,27 @@ xlinos-notes >"$OUT/light-notes.log" 2>&1 &
 python3 /usr/local/lib/xlinos/xlinos-launcher >"$OUT/light-launcher.log" 2>&1 &
 sleep 8; shot 37-light-launcher-notes; pkill -f lib/xlinos/xlinos-launcher; pkill -f lib/xlinos/xlinos-notes
 xlinos theme dark; sleep 4
+echo "== installer"
+XI=/tmp/xi; rm -rf $XI; mkdir -p $XI
+XLINOS_INSTALLER_TEST=$XI /usr/local/lib/xlinos/xlinos-installer >"$OUT/installer.log" 2>&1 &
+ic() { printf '%s\n' "$@" >$XI/cmd; sleep 1; }
+NS=0; ist() { ic state; NS=$((NS+1)); cp $XI/state.json "$OUT/installer-state-$NS.json"; }
+ish() { ic "shot $OUT/$1.png"; }
+for _ in $(seq 1 40); do grep -q welcome $XI/state.json 2>/dev/null && break; ic state; sleep 1; done
+sleep 1; ish i0-welcome; ist
+ic "lang hi_IN.UTF-8"; ish i1-welcome-hindi; ic "lang en_US.UTF-8"
+ic next; ist; ic "goto 2"; ish i2-about
+ic next; ist                               # must stay: the agreement is not accepted
+ic agree; ic next; ist; ish i3-region
+ic "kb de"; sleep 1; ist; hyprctl getoption input:kb_layout >"$OUT/installer-kb.txt" 2>&1
+ic "kb us"; ic next; ist; sleep 2; ish i4-disk
+VMD=$(lsblk -dno PATH,TYPE | awk '$2=="disk" && $1 !~ /fd|loop|sr/ {print $1; exit}')
+ic "disk $VMD"; ic "method erase"; ic next; ist; ish i5-disk-protected    # this is the running system's own disk: must be refused
+ic "goto 5"; ish i6-review
+ic "lang de_DE.UTF-8"; ic "goto 1"; ish i7-welcome-german
+for v in run done cancelled fail; do ic "preview $v"; ish i8-final-$v; done
+cp $XI/errors.txt "$OUT/installer-errors.txt" 2>/dev/null
+scan="$(sudo -n python3 /usr/local/lib/xlinos/xlinos_disks.py scan --fast 2>&1 | head -c 600)"; echo "scan: $scan" >"$OUT/installer-scan.txt"
+pkill -f lib/xlinos/xlinos-installer
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock

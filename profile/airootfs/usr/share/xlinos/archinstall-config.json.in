@@ -5,7 +5,7 @@
   "services": ["NetworkManager", "bluetooth", "power-profiles-daemon", "fstrim.timer"],
   "packages": [
     "hyprland", "hyprlock", "gtk-session-lock", "jq", "socat", "libnotify", "brightnessctl", "networkmanager",
-    "pipewire", "pipewire-alsa", "pipewire-pulse", "wireplumber", "bluez", "bluez-utils", "inter-font", "ttf-nerd-fonts-symbols",
+    "pipewire", "pipewire-alsa", "pipewire-pulse", "wireplumber", "bluez", "bluez-utils", "inter-font", "noto-fonts", "ttf-nerd-fonts-symbols",
     "ttf-jetbrains-mono-nerd", "gtk3", "gtk4", "python-gobject", "gtk4-layer-shell", "power-profiles-daemon",
     "hyprlock", "hypridle", "vte4", "polkit", "hyprpolkitagent", "udisks2", "gvfs",
     "gvfs-smb", "grim", "wl-clipboard", "playerctl", "xdg-desktop-portal-hyprland",

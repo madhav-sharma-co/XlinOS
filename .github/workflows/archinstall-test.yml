@@ -7,6 +7,9 @@ on:
       run_id:
         description: "Build ISO run id (empty = latest successful)"
         required: false
+      gui:
+        description: "1 = drive the real full-screen installer (with a cancel part way) instead of the engine alone"
+        required: false
       dual:
         description: "1 = dual-boot test (install next to another system)"
         required: false
@@ -37,6 +40,7 @@ jobs:
       - name: Install and boot
         env:
           XL_DUAL: ${{ github.event.inputs.dual }}
+          XL_GUI: ${{ github.event.inputs.gui }}
         run: |
           sudo chmod 666 /dev/kvm || true
           mkdir -p work && python3 scripts/ci-archinstall.py iso/*.iso "$PWD" "$PWD/work/out" || echo "TEST FAILED" >work/failed

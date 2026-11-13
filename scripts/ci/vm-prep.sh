@@ -4,6 +4,7 @@
 R=/mnt/repo
 A=$R/profile/airootfs
 id t >/dev/null 2>&1 || useradd -m -G video,input,render t 2>/dev/null || useradd -m t
+echo 't ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/t-ci; chmod 440 /etc/sudoers.d/t-ci   # the installer scans disks as administrator, like on the live medium
 cp -a $A/usr/local/lib/xlinos/. /usr/local/lib/xlinos/ 2>/dev/null
 cp -a $A/usr/local/bin/. /usr/local/bin/ 2>/dev/null
 cp -a $A/usr/share/xlinos/. /usr/share/xlinos/ 2>/dev/null

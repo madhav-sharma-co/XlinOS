@@ -1,76 +1,141 @@
 #!/usr/bin/env bash
-# XlinOS installer backend: erases one disk and installs XlinOS on it. Run as root: xlinos-install-run /dev/sdX [options.json]
-# Partition mode (keeps other systems): xlinos-install-run /dev/nvmeXnYpN opts.json with {"target":"partition","efi":"/dev/nvmeXnYp1"}
-#   formats ONLY that partition, shares the existing EFI partition, installs GRUB as "XlinOS" and leaves other systems untouched.
-# options.json (all optional): {"locale":"en_US.UTF-8","kb":"us","tz":"Europe/Berlin","fs":"ext4|btrfs","hostname":"xlin"}
-# Prints plain progress lines:  STEP <n>/<total> <text>  then  DONE  or  FAIL <reason>. The full log is /var/log/xlinos-install.log.
+# XlinOS install engine (no screen of its own: the graphical installer drives it). Run as root:
+#   xlinos-install-run TARGET [options.json]
+#   erase the whole disk:   TARGET=/dev/sdX                  options {"target":"disk"}
+#   install into a partition, keep other systems: TARGET=/dev/sdXn   options {"target":"partition","efi":"/dev/sdXm"}
+#   install into free space next to other systems: TARGET=/dev/sdX  options {"target":"freespace","efi":"/dev/sdXm"}
+# options (all optional): locale, kb, kb_variant, tz, fs (ext4|btrfs), hostname, diag_log (true = keep a copy of the log on the new system)
+# Before anything is written the safety checks in xlinos_disks.py run again here: the engine never trusts the screen.
+# Prints plain lines:  STEP <text>   PCT <0-100>   then DONE | FAIL <reason> | CANCELLED clean|dirty.   Full log: /var/log/xlinos-install.log
+# Cancel: run xlinos-install-cancel. Partitioning and bootloader steps are never interrupted half way: a cancel then waits for the step to end.
 LOG=/var/log/xlinos-install.log
+STATE=/run/xlinos-install.state; CANCEL=/run/xlinos-install.cancel; PCTF=/run/xlinos-install.pct
+if [[ -z "${XL_SETSID:-}" && $EUID -eq 0 ]]; then exec env XL_SETSID=1 setsid -w "$0" "$@"; fi   # own process group, so cancel stops every child
 exec 3>&1 1>>"$LOG" 2>&1
 say() { echo "$*" >&3; }
-fail() { say "FAIL $*"; exit 1; }
+MODIFIED=0
+cleanup_mounts() {   # lets go of /mnt even when a stopped installer's last helper is still shutting down
+  sync
+  for _ in 1 2 3 4 5 6; do
+    findmnt -rn -R /mnt >/dev/null 2>&1 || return 0
+    umount -R /mnt 2>/dev/null && return 0
+    pkill -KILL -f "pacman|pacstrap|arch-chroot|archinstall" 2>/dev/null
+    command -v fuser >/dev/null && fuser -km /mnt 2>/dev/null
+    sleep 2
+  done
+  umount -Rl /mnt 2>/dev/null; true
+}
+fail() { say "FAIL $*"; rm -f "$STATE" "$CANCEL"; exit 1; }
+trap 'cleanup_mounts; if [[ $MODIFIED == 1 ]]; then say "CANCELLED dirty"; else say "CANCELLED clean"; fi; rm -f "$STATE" "$CANCEL" "$PCTF"; exit 130' TERM INT
+setstate() {   # critical = must not be interrupted; cancellable = a cancel may stop everything
+  echo "$1" >"$STATE"
+  if [[ "$1" == cancellable && -e "$CANCEL" ]]; then kill -TERM -- -$$; fi
+}
+pct() { local c=0; [[ -f "$PCTF" ]] && c=$(cat "$PCTF"); (( $1 > c )) && { echo "$1" >"$PCTF"; say "PCT $1"; }; return 0; }
 set -x
-DISK="${1:-}"; OPTS="${2:-}"; T=5
-opt() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2],sys.argv[3]))' "${OPTS:-/dev/null}" "$1" "$2" 2>/dev/null || echo "$2"; }
+echo 0 >"$PCTF"; rm -f "$CANCEL"; echo $$ >/run/xlinos-install.pid
+exec 9>/run/xlinos-install.lock; flock -n 9 || fail "Another installation is already running."
+DISK="${1:-}"; OPTS="${2:-}"
+opt() { python3 -c 'import json,sys; v=json.load(open(sys.argv[1])).get(sys.argv[2],sys.argv[3]); print(str(v).lower() if isinstance(v,bool) else v)' "${OPTS:-/dev/null}" "$1" "$2" 2>/dev/null || echo "$2"; }
 [[ -f "$OPTS" ]] || OPTS=""
 FS="$(opt fs ext4)"; [[ "$FS" == btrfs ]] || FS=ext4
+TARGET="$(opt target disk)"
+EFI="$(opt efi "")"
 [[ $EUID -eq 0 ]] || fail "The installer must run as the administrator."
 [[ -b "$DISK" ]] || fail "That disk was not found."
-[[ -d /sys/firmware/efi ]] || fail "This computer did not start in UEFI mode. Turn UEFI on in the firmware settings and start the installer again."
+setstate cancellable
+say "STEP Preparing the installation"; pct 1
+cleanup_mounts   # a stopped or failed earlier run may have left its own /mnt mounted
+case "$TARGET" in disk) VMODE=erase ;; freespace) VMODE=freespace ;; partition) VMODE=partition ;; *) fail "Unknown installation method." ;; esac
 cfg=/usr/share/xlinos/archinstall-config.json
 [[ -f "$cfg" ]] || fail "The installer files are missing."
-TARGET="$(opt target disk)"
-say "STEP 1/$T Checking the internet connection"
+VOUT="$(python3 /usr/local/lib/xlinos/xlinos_disks.py validate "$VMODE" "$DISK" "$EFI" 2>&1)"; VRC=$?
+if [[ $VRC -ne 0 ]]; then
+  say "FAIL Safety check: $(python3 -c 'import json,sys; print(" ".join(json.loads(sys.argv[1])["errors"]))' "$VOUT" 2>/dev/null || echo "$VOUT")"; exit 1
+fi
 curl -sI --max-time 8 -o /dev/null https://github.com || curl -sI --max-time 8 -o /dev/null https://archlinux.org || fail "No internet connection. Connect to Wi-Fi or a cable and try again (the system is downloaded while installing)."
-if [[ "$TARGET" == partition ]]; then
-  EFI="$(opt efi "")"
-  [[ -b "$EFI" ]] || fail "The shared start-up (EFI) partition was not found."
-  [[ "$(lsblk -no PARTTYPE "$DISK" 2>/dev/null)" != c12a7328-f81f-11d2-ba4b-00a0c93ec93b ]] || fail "That is the start-up partition. Choose a normal partition."
-  findmnt -rn -S "$DISK" >/dev/null && fail "That partition is in use. Choose a free partition."
-  say "STEP 2/$T Preparing the partition (other systems stay untouched)"
-  umount -R /mnt 2>/dev/null
-  if [[ "$FS" == btrfs ]]; then mkfs.btrfs -qf "$DISK" && mount -o compress=zstd "$DISK" /mnt; else mkfs.ext4 -qF "$DISK" && mount "$DISK" /mnt; fi || fail "Could not format the partition."
-  mkdir -p /mnt/efi && mount "$EFI" /mnt/efi || fail "Could not use the shared start-up partition."
-  say "STEP 3/$T Installing the system (this takes a few minutes)"
+pct 4
+# One pass over the installer's output: package counters give the real percentage, markers give the stage.
+watch_output() {   # $1 = one | two (one big package run, or base then everything else)
+  local mode="$1" line i n last=0 ph=0
+  tr '\r' '\n' | while IFS= read -r line; do
+    printf '%s\n' "$line"
+    if [[ "$line" =~ \(\ *([0-9]+)/([0-9]+)\)\ (installing|upgrading|reinstalling) ]]; then
+      i=${BASH_REMATCH[1]}; n=${BASH_REMATCH[2]}
+      [[ "$n" != "$last" ]] && { ph=$((ph+1)); last=$n; }
+      if [[ "$mode" == one ]]; then say "STEP Installing the system packages"; pct $((12 + 68 * i / n))
+      elif (( ph == 1 )); then say "STEP Installing the base system"; pct $((12 + 26 * i / n))
+      else say "STEP Installing the desktop and system packages"; pct $((38 + 44 * i / n)); fi
+    elif [[ "$line" == *"Adding bootloader"* || "$line" == *bootctl* || "$line" == *"Installing bootloader"* ]]; then
+      setstate critical; say "STEP Installing the bootloader"; pct 86
+    elif [[ "$line" == *"Executing custom command"* || "$line" == *"base64 -d"* ]]; then
+      setstate cancellable; say "STEP Configuring the system"; pct 90
+    fi
+  done
+}
+mkfs_retry() { for i in 1 2 3 4; do "$@" && return 0; sleep 2; udevadm settle; done; return 1; }
+write_settings() {   # reads the options + the XlinOS settings into files the next steps use
   XOPTS="$OPTS" python3 - <<'PY' || fail "Installer settings are broken."
 import json, os
 c = json.load(open("/usr/share/xlinos/archinstall-config.json"))
 o = json.load(open(os.environ["XOPTS"])) if os.environ.get("XOPTS") else {}
 pk = list(c.get("packages", [])) + ["base", "linux", "linux-firmware", "grub", "efibootmgr", "networkmanager", "btrfs-progs"]
 open("/tmp/xl-pkgs", "w").write(" ".join(dict.fromkeys(pk)))
-post = c["custom_commands"][0]
-open("/tmp/xl-post.sh", "w").write(post + "\n")
+open("/tmp/xl-post.sh", "w").write(c["custom_commands"][0] + "\n")
 open("/tmp/xl-host", "w").write(o.get("hostname") or c.get("hostname", "xlin"))
 open("/tmp/xl-tz", "w").write(o.get("tz") or "UTC")
 open("/tmp/xl-lang", "w").write(o.get("locale") or "en_US.UTF-8")
 open("/tmp/xl-kb", "w").write(o.get("kb") or "us")
 PY
-  pacstrap -K /mnt $(cat /tmp/xl-pkgs) || fail "Downloading the system failed. Check the internet. The log is in /var/log/xlinos-install.log."
+}
+if [[ "$TARGET" == partition || "$TARGET" == freespace ]]; then
+  # ---- next to other systems: only the chosen partition / free space is touched; the shared start-up partition is only added to
+  [[ -b "$EFI" ]] || fail "The shared start-up (EFI) partition was not found."
+  umount -R /mnt 2>/dev/null
+  setstate critical; say "STEP Preparing the partitions"; pct 6
+  if [[ "$TARGET" == freespace ]]; then
+    read -r GS GE < <(python3 /usr/local/lib/xlinos/xlinos_disks.py gap "$DISK") || fail "No free space of at least 10 GB was found."
+    before="$(lsblk -nrpo PATH "$DISK" | sort)"; MODIFIED=1; say "MODIFIED"
+    sgdisk -n "0:$GS:$GE" -t 0:8300 -c 0:XlinOS "$DISK" || fail "Could not create the new partition."
+    partprobe "$DISK" >/dev/null 2>&1; udevadm settle; sleep 1
+    NEWP="$(comm -13 <(echo "$before") <(lsblk -nrpo PATH "$DISK" | sort) | head -1)"
+    [[ -b "$NEWP" ]] || fail "The new partition did not appear. Restart the computer and try again."
+    DISK="$NEWP"
+  fi
+  MODIFIED=1; say "MODIFIED"
+  if [[ "$FS" == btrfs ]]; then mkfs_retry mkfs.btrfs -qf "$DISK" && mount -o compress=zstd "$DISK" /mnt; else mkfs_retry mkfs.ext4 -qF "$DISK" && mount "$DISK" /mnt; fi || fail "Could not format the partition."
+  mkdir -p /mnt/efi && mount "$EFI" /mnt/efi || fail "Could not use the shared start-up partition."
+  setstate cancellable; pct 11
+  write_settings
+  say "STEP Installing the system packages"
+  pacstrap -K /mnt $(cat /tmp/xl-pkgs) 2>&1 | watch_output one
+  [[ ${PIPESTATUS[0]} -eq 0 ]] || fail "Downloading the system failed. Check the internet. The log is in /var/log/xlinos-install.log."
+  say "STEP Configuring the system"; pct 82
   genfstab -U /mnt >/mnt/etc/fstab
   echo "$(cat /tmp/xl-host)" >/mnt/etc/hostname
   ln -sf "/usr/share/zoneinfo/$(cat /tmp/xl-tz)" /mnt/etc/localtime
   L="$(cat /tmp/xl-lang)"; sed -i "s/^#\($L \)/\1/" /mnt/etc/locale.gen; echo "LANG=$L" >/mnt/etc/locale.conf; echo "KEYMAP=$(cat /tmp/xl-kb)" >/mnt/etc/vconsole.conf
   arch-chroot /mnt locale-gen
   arch-chroot /mnt systemctl enable NetworkManager systemd-timesyncd
-  say "STEP 4/$T Setting up the start menu"
+  setstate critical; say "STEP Installing the bootloader"; pct 86
   arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=XlinOS || fail "Could not set up the start menu."
   sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 vt.global_cursor_default=0"/; s/^#\?GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/' /mnt/etc/default/grub
   grep -q '^GRUB_DISTRIBUTOR' /mnt/etc/default/grub && sed -i 's/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR="XlinOS"/' /mnt/etc/default/grub
   pacstrap /mnt os-prober >/dev/null 2>&1
   arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg || fail "Could not set up the start menu."
+  setstate cancellable; pct 92; say "STEP Configuring the system"
   install -m 755 /tmp/xl-post.sh /mnt/root/xl-post.sh && { arch-chroot /mnt bash /root/xl-post.sh 2>&1 | tee /mnt/var/log/xlinos-post.log; echo "post exit ${PIPESTATUS[0]}"; rm -f /mnt/root/xl-post.sh; }
-  say "STEP 5/$T Done"
-  sync; umount -R /mnt 2>/dev/null
-  say "DONE"; exit 0
+  say "STEP Finalizing the installation"; pct 98
+  printf '%s %s\n' "$(opt kb us)" "$(opt kb_variant "")" >/mnt/etc/xlinos-keyboard
+  [[ "$(opt diag_log false)" == true ]] && cp "$LOG" /mnt/var/log/xlinos-install.log 2>/dev/null
+  cleanup_mounts; rm -f "$STATE" "$PCTF"
+  pct 100; say "DONE"; exit 0
 fi
-say "STEP 2/$T Preparing the disk"
+# ---- erase the whole disk
+setstate critical; say "STEP Preparing the partitions"; pct 6
 p=""; [[ "$DISK" =~ [0-9]$ ]] && p="p"
 umount -R /mnt 2>/dev/null; swapoff -a 2>/dev/null
-if lsblk -nrpo MOUNTPOINT "$DISK" 2>/dev/null | grep -q '^/run/archiso' && ! grep -qw copytoram=y /proc/cmdline && [[ ! -f /run/archiso/copytoram ]]; then
-  fail "XlinOS was started from a file on this disk. Restart it with copytoram=y so it can run from memory, or pick another disk."
-fi
-# started from an ISO file stored on this same disk (loopback boot)? let go of it first (the system runs from RAM when started with copytoram=y)
-for m in $(lsblk -nrpo MOUNTPOINT "$DISK" 2>/dev/null | grep -v '^$' | sort -r); do umount -R "$m" 2>/dev/null; done
-losetup -D 2>/dev/null
+MODIFIED=1; say "MODIFIED"
 # forget the old partitions first, so the kernel does not hold on to the old layout
 for old in $(lsblk -nrpo PATH "$DISK" | tail -n +2); do wipefs -a "$old" >/dev/null 2>&1; done
 partx -d "$DISK" >/dev/null 2>&1
@@ -78,10 +143,10 @@ sgdisk -Z "$DISK" && sgdisk -n1:0:+512M -t1:ef00 -n2:0:0 -t2:8300 "$DISK" || fai
 partprobe "$DISK" >/dev/null 2>&1; udevadm settle
 for i in $(seq 1 20); do [[ -b "${DISK}${p}1" && -b "${DISK}${p}2" ]] && break; partprobe "$DISK" >/dev/null 2>&1; partx -a "$DISK" >/dev/null 2>&1; sleep 1; done
 [[ -b "${DISK}${p}1" && -b "${DISK}${p}2" ]] || fail "The new partitions did not appear. Restart the computer and try again."
-mkfs_retry() { for i in 1 2 3 4; do "$@" && return 0; sleep 2; udevadm settle; done; return 1; }
 mkfs_retry mkfs.fat -F32 "${DISK}${p}1" || fail "Could not format the disk."
 if [[ "$FS" == btrfs ]]; then mkfs_retry mkfs.btrfs -qf "${DISK}${p}2" && mount -o compress=zstd "${DISK}${p}2" /mnt; else mkfs_retry mkfs.ext4 -qF "${DISK}${p}2" && mount "${DISK}${p}2" /mnt; fi || fail "Could not format the disk."
 mkdir -p /mnt/boot && mount "${DISK}${p}1" /mnt/boot || fail "Could not use the disk."
+setstate cancellable; pct 11
 XOPTS="$OPTS" XFS="$FS" python3 - <<'PY' || fail "Installer settings are broken."
 import json, os
 c = json.load(open("/usr/share/xlinos/archinstall-config.json"))
@@ -99,9 +164,11 @@ if o.get("hostname"): c["hostname"] = o["hostname"]
 if os.environ.get("XFS") == "btrfs": c["packages"] = list(c.get("packages", [])) + ["btrfs-progs"]
 json.dump(c, open("/tmp/xlinos-install.json", "w"), indent=1)
 PY
-say "STEP 3/$T Installing the system (this takes a few minutes)"
-archinstall --config /tmp/xlinos-install.json --silent || fail "The installation failed. The log is in /var/log/xlinos-install.log."
-say "STEP 4/$T Finishing"
-sync; umount -R /mnt 2>/dev/null
-say "STEP 5/$T Done"
-say "DONE"
+say "STEP Installing the base system"
+archinstall --config /tmp/xlinos-install.json --silent 2>&1 | watch_output two
+[[ ${PIPESTATUS[0]} -eq 0 ]] || fail "The installation failed. The log is in /var/log/xlinos-install.log."
+setstate cancellable; say "STEP Finalizing the installation"; pct 98
+printf '%s %s\n' "$(opt kb us)" "$(opt kb_variant "")" >/mnt/etc/xlinos-keyboard
+[[ "$(opt diag_log false)" == true ]] && cp "$LOG" /mnt/var/log/xlinos-install.log 2>/dev/null
+cleanup_mounts; rm -f "$STATE" "$PCTF"
+pct 100; say "DONE"
