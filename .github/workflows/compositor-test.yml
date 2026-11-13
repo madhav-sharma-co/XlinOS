@@ -3,6 +3,8 @@ on:
   workflow_dispatch:
   push:
     paths: ["compositor/**", ".github/workflows/compositor-test.yml"]
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,6 +30,9 @@ jobs:
           test -s /tmp/shot.png
           cp /tmp/shot.png ../out/shot.png
           convert /tmp/shot.png -format "%[fx:mean]" info: | tee ../out/mean.txt
-      - uses: actions/upload-artifact@v4
+      - name: Publish the screenshot
         if: always()
-        with: { name: comp-shot, path: out/ }
+        run: |
+          cd out && git init -q && git config user.email ci@xlinos && git config user.name ci
+          cp /tmp/comp.log . 2>/dev/null || true
+          git add -A && git commit -qm "compositor test" && git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:refs/heads/ci-shots-comp
