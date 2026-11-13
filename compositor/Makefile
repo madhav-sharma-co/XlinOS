@@ -6,11 +6,13 @@ LIBS = $(shell pkg-config --libs $(PKGS))
 XDG = $(shell pkg-config --variable=pkgdatadir wayland-protocols)/stable/xdg-shell/xdg-shell.xml
 LAYER = /usr/share/wlr-protocols/unstable/wlr-layer-shell-unstable-v1.xml
 
-xlin-comp: xlin-comp.c xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h
+xlin-comp: xlin-comp.c xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h cursor-shape-v1-protocol.h
 	$(CC) $(CFLAGS) -o $@ xlin-comp.c $(LIBS)
 xdg-shell-protocol.h:
 	wayland-scanner server-header $(XDG) $@
 wlr-layer-shell-unstable-v1-protocol.h:
 	wayland-scanner server-header $(LAYER) $@
+cursor-shape-v1-protocol.h:
+	wayland-scanner server-header $(shell pkg-config --variable=pkgdatadir wayland-protocols)/staging/cursor-shape/cursor-shape-v1.xml $@
 clean:
 	rm -f xlin-comp *-protocol.h
