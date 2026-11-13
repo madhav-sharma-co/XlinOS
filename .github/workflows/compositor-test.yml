@@ -1,0 +1,30 @@
+name: Compositor test
+on:
+  workflow_dispatch:
+  push:
+    paths: ["compositor/**", ".github/workflows/compositor-test.yml"]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - run: pacman -Syu --noconfirm base-devel git wlroots wayland wayland-protocols wlr-protocols libxkbcommon pkgconf foot grim imagemagick xorg-xwayland ttf-dejavu
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          pkg-config --list-all | grep -i wlroots
+          make -C compositor
+      - name: Run headless and take a screenshot
+        run: |
+          mkdir -p /tmp/rt out && chmod 700 /tmp/rt
+          export XDG_RUNTIME_DIR=/tmp/rt WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_HEADLESS_OUTPUTS=1 WLR_LIBINPUT_NO_DEVICES=1
+          cd compositor
+          ./xlin-comp -c default.conf -s 'sleep 2; foot -e sh -c "echo XlinOS compositor works; sleep 60" & sleep 4; grim /tmp/shot.png; echo shot-done' > /tmp/comp.log 2>&1 &
+          for i in $(seq 1 30); do [ -s /tmp/shot.png ] && break; sleep 1; done
+          cat /tmp/comp.log
+          test -s /tmp/shot.png
+          cp /tmp/shot.png ../out/shot.png
+          convert /tmp/shot.png -format "%[fx:mean]" info: | tee ../out/mean.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: comp-shot, path: out/ }
