@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""xlinctl: talk to the XlinOS compositor.  xlinctl clients | activewindow | monitors | workspaces |
+snap left|right|up|down|max|restore|center [ADDR] | focus ADDR | close [ADDR] | workspace N | movetoworkspace N [ADDR]
+minimize [ADDR] | fullscreen [ADDR] | showdesktop | move ADDR X Y | size ADDR W H | layout CODE [VARIANT] | reload | exit"""
+import os, socket, sys
+
+def call(*args, timeout=3):
+    path = os.environ.get("XLIN_COMP_SOCK") or os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "xlin-comp.sock")
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.settimeout(timeout)
+    s.connect(path)
+    s.sendall((" ".join(str(a) for a in args) + "\n").encode())
+    out = b""
+    while True:
+        try:
+            c = s.recv(65536)
+        except OSError:
+            break
+        if not c:
+            break
+        out += c
+    s.close()
+    return out.decode().strip()
+
+if __name__ == "__main__":
+    a = [x for x in sys.argv[1:] if x != "-j"]
+    if not a:
+        print(__doc__); sys.exit(1)
+    try:
+        r = call(*a)
+    except OSError as e:
+        print("xlinctl: the desktop is not running (%s)" % e, file=sys.stderr); sys.exit(2)
+    if r: print(r)
+    sys.exit(1 if r.startswith("error") else 0)
