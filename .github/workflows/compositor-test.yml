@@ -11,7 +11,7 @@ jobs:
       - run: |
           pacman -Sy --noconfirm
           W=$(pacman -Ssq '^wlroots' | sort -V | tail -1); echo "using $W"
-          pacman -Su --noconfirm base-devel git $W wayland wayland-protocols wlr-protocols libxkbcommon pkgconf foot grim imagemagick xorg-xwayland ttf-dejavu
+          pacman -Su --noconfirm base-devel git $W wayland wayland-protocols wlr-protocols libxkbcommon pkgconf foot gdb grim imagemagick xorg-xwayland ttf-dejavu
       - uses: actions/checkout@v4
       - name: Build
         run: |
@@ -22,7 +22,7 @@ jobs:
           mkdir -p /tmp/rt out && chmod 700 /tmp/rt
           export XDG_RUNTIME_DIR=/tmp/rt WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_HEADLESS_OUTPUTS=1 WLR_LIBINPUT_NO_DEVICES=1
           cd compositor
-          ./xlin-comp -c default.conf -s 'sleep 2; foot -e sh -c "echo XlinOS compositor works; sleep 60" & sleep 4; grim /tmp/shot.png; echo shot-done' > /tmp/comp.log 2>&1 &
+          gdb -batch -ex run -ex bt --args ./xlin-comp -c default.conf -s 'sleep 2; foot -e sh -c "echo XlinOS compositor works; sleep 60" & sleep 4; grim /tmp/shot.png; echo shot-done' > /tmp/comp.log 2>&1 &
           for i in $(seq 1 30); do [ -s /tmp/shot.png ] && break; sleep 1; done
           cat /tmp/comp.log
           test -s /tmp/shot.png
