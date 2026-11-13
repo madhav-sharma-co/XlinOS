@@ -32,7 +32,6 @@
 #include <wlr/types/wlr_subcompositor.h>
 #include <wlr/types/wlr_viewporter.h>
 #include <wlr/types/wlr_xcursor_manager.h>
-#include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
@@ -62,8 +61,7 @@ struct server {
 	struct wl_list outputs, toplevels, keyboards, layers;
 	struct wl_listener new_output, new_xdg_toplevel, new_xdg_popup, new_layer, new_input;
 	struct wl_listener cur_motion, cur_abs, cur_button, cur_axis, cur_frame;
-	struct wl_listener req_cursor, req_sel, req_psel, new_deco;
-	struct wlr_xdg_decoration_manager_v1 *deco;
+	struct wl_listener req_cursor, req_sel, req_psel;
 	enum grab grab; struct toplevel *grab_tl; double gx, gy; struct wlr_box gbox;
 	struct bind *binds; int nbinds;
 	struct layer_surface *kb_layer;    // layer surface that owns the keyboard (launcher)
@@ -260,10 +258,6 @@ static void new_popup(struct wl_listener *li, void *d) {
 	}
 	p->commit.notify = popup_commit; wl_signal_add(&xp->base->surface->events.commit, &p->commit);
 	p->destroy.notify = popup_destroy; wl_signal_add(&xp->events.destroy, &p->destroy);
-}
-static void new_deco(struct wl_listener *li, void *d) {   // windows draw their own title bars
-	struct wlr_xdg_toplevel_decoration_v1 *dc = d;
-	wlr_xdg_toplevel_decoration_v1_set_mode(dc, WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
 }
 
 // ---------------------------------------------------------------- pointer
@@ -503,8 +497,7 @@ int main(int argc, char **argv) {
 	S.new_xdg_popup.notify = new_popup; wl_signal_add(&S.xdg->events.new_popup, &S.new_xdg_popup);
 	S.layer_shell = wlr_layer_shell_v1_create(S.display, 4);
 	S.new_layer.notify = new_layer; wl_signal_add(&S.layer_shell->events.new_surface, &S.new_layer);
-	S.deco = wlr_xdg_decoration_manager_v1_create(S.display);
-	S.new_deco.notify = new_deco; wl_signal_add(&S.deco->events.new_toplevel_decoration, &S.new_deco);
+	// no server-side decoration protocol: every window draws its own title bar
 	S.cursor = wlr_cursor_create(); wlr_cursor_attach_output_layout(S.cursor, S.out_layout);
 	S.xcur = wlr_xcursor_manager_create(NULL, 24);
 	S.cur_motion.notify = cur_motion; wl_signal_add(&S.cursor->events.motion, &S.cur_motion);
