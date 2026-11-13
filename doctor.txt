@@ -1,0 +1,10 @@
+  Internet                     ok
+  Wi-Fi switched on            ok
+  Bluetooth service            FIX  Not running
+  Sound                        ok
+  Free disk space              ok
+  Desktop (bars and icons)     ok
+  Notifications                ok
+  Your settings file           ok
+  System tools                 FIX  Missing: slurp. Run an update.
+2 thing(s) need attention. Run: xlinos fix

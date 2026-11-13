@@ -1,0 +1,14 @@
+
+(python3:1522): Gtk-WARNING **: 15:28:13.079: Theme parser error: <data>:21:103-111: No property named "overflow"
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA-EGL: warning: MESA-LOADER: failed to retrieve device information
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA: error: ZINK: vkCreateInstance failed (VK_ERROR_INCOMPATIBLE_DRIVER)
+MESA-EGL: warning: egl: failed to create dri2 screen
+
+(python3:1522): Gtk-WARNING **: 15:28:13.163: GtkGizmo 0x555ccbde0310 (progress) reported min width -2, but sizes must be >= 0
+
+(python3:1522): Gtk-WARNING **: 15:28:13.165: GtkGizmo 0x555ccbdab4d0 (progress) reported min width -2, but sizes must be >= 0
+
+(python3:1522): Gtk-WARNING **: 15:28:14.592: GtkGizmo 0x555ccbd91030 (progress) reported min width -2, but sizes must be >= 0
+Gdk-Message: 15:31:48.877: Lost connection to Wayland compositor.

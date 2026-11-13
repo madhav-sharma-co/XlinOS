@@ -1,0 +1,19 @@
+
+(python3:1620): Gtk-WARNING **: 15:28:30.789: Theme parser error: <data>:21:103-111: No property named "overflow"
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA-EGL: warning: MESA-LOADER: failed to retrieve device information
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA: error: ZINK: vkCreateInstance failed (VK_ERROR_INCOMPATIBLE_DRIVER)
+MESA-EGL: warning: egl: failed to create dri2 screen
+
+(python3:1620): Gtk-WARNING **: 15:28:30.885: GtkGizmo 0x557598957b00 (highlight) reported min width -2, but sizes must be >= 0
+
+(python3:1620): Gtk-WARNING **: 15:28:30.886: GtkGizmo 0x557598fd3240 (highlight) reported min width -2, but sizes must be >= 0
+
+(python3:1620): Gtk-WARNING **: 15:28:30.886: GtkGizmo 0x557599005df0 (highlight) reported min width -2, but sizes must be >= 0
+
+(python3:1620): Gtk-WARNING **: 15:28:30.886: GtkGizmo 0x557598957b00 (highlight) reported min height -2, but sizes must be >= 0
+
+(python3:1620): Gtk-WARNING **: 15:28:30.886: GtkGizmo 0x557598fd3240 (highlight) reported min height -2, but sizes must be >= 0
+
+(python3:1620): Gtk-WARNING **: 15:28:30.889: GtkGizmo 0x557599005df0 (highlight) reported min height -2, but sizes must be >= 0

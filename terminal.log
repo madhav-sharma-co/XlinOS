@@ -1,0 +1,10 @@
+
+(python3:869): Gtk-WARNING **: 15:26:12.117: Theme parser error: <data>:21:103-111: No property named "overflow"
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA-EGL: warning: MESA-LOADER: failed to retrieve device information
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA: error: ZINK: vkCreateInstance failed (VK_ERROR_INCOMPATIBLE_DRIVER)
+MESA-EGL: warning: egl: failed to create dri2 screen
+/usr/local/lib/xlinos/xlinos-terminal:31: DeprecationWarning: Vte.Terminal.get_window_title is deprecated
+  term.connect("window-title-changed", lambda t: win.set_title("Quickshell  -  " + t.get_window_title() if t.get_window_title() else "Quickshell"))
+Gdk-Message: 15:31:48.875: Lost connection to Wayland compositor.

@@ -1,0 +1,137 @@
+== monitors
+{"name":"Virtual-1","width":1280,"height":800,"reserved":[0,32,0,96]}
+== opened
+{"t":"A","floating":true,"at":[320,168],"size":[640,400]}
+{"t":"B","floating":true,"at":[320,168],"size":[640,400]}
+{"t":"C","floating":true,"at":[320,168],"size":[640,400]}
+shot 1-opened-overlapping
+left (12, 44, 622, 648) ok ok
+right (646, 44, 622, 648) ok ok
+== halves
+{"t":"A","floating":true,"at":[12,44],"size":[622,648]}
+{"t":"B","floating":true,"at":[646,44],"size":[622,648]}
+{"t":"C","floating":true,"at":[320,168],"size":[640,400]}
+shot 2-halves
+center (221, 125, 837, 486) ok ok
+shot 3-third-window-over
+max (12, 44, 1256, 648) ok ok
+== C max
+{"t":"A","floating":true,"at":[12,44],"size":[622,648]}
+{"t":"B","floating":true,"at":[646,44],"size":[622,648]}
+{"t":"C","floating":true,"at":[12,44],"size":[1256,648]}
+shot 4-maximized
+restore (221, 125, 837, 486) ok ok
+== C restored
+{"t":"A","floating":true,"at":[12,44],"size":[622,648]}
+{"t":"B","floating":true,"at":[646,44],"size":[622,648]}
+{"t":"C","floating":true,"at":[221,125],"size":[837,486]}
+shot 5-restored
+tl (12, 44, 622, 318) ok ok
+br (646, 374, 622, 318) ok ok
+== quarters
+{"t":"A","floating":true,"at":[12,44],"size":[622,318]}
+{"t":"B","floating":true,"at":[646,374],"size":[622,318]}
+{"t":"C","floating":true,"at":[221,125],"size":[837,486]}
+shot 6-quarters
+== launcher
+shot 7-launcher
+== quick
+820 /usr/bin/python3 /usr/local/lib/xlinos/xlinos-quick
+shot 8-quick
+== terminal
+shot 10-terminal
+{"class":"os.xlin.terminal","title":"Quickshell  -  t@xlinos:~","floating":true,"at":[210,108],"size":[860,520],"workspace":{"address":"1","id":1,"type":"normal","name":"1"}}
+ok
+== after minimise
+{"workspace":{"address":"special:minimized","type":"special","name":"special:minimized"},"hidden":false}
+shot 11-minimised
+shot 12-files
+== edge snap
+cursor move:
+ok
+2, 400
+shot 13a-snap-preview
+956 python3 /usr/local/lib/xlinos/xlinos-snap watch
+981 /usr/bin/python3 /usr/local/lib/xlinos/xlinos-preview 12 44 622 648
+watch True [300, 300] [12, 44]  {     "x": 323,     "y": 203 }  
+zone left
+watch True [259, 203] [300, 300]  {     "x": 2,     "y": 400 }  
+956left (12, 44, 622, 648) ok ok
+{"t":"A","floating":true,"at":[12,44],"size":[622,648]}
+{"t":"B","floating":true,"at":[646,374],"size":[622,318]}
+{"t":"C","floating":true,"at":[221,125],"size":[837,486]}
+{"t":"Quickshell  -  t@xlinos:~","floating":true,"at":[210,108],"size":[860,520]}
+{"t":"Files","floating":true,"at":[180,78],"size":[920,580]}
+shot 13-edge-snap
+== config errors
+
+
+== restore minimised terminal
+{"workspace":"1","at":[210,108]}
+shot 14-restored-terminal
+shot 15-settings
+shot 16-store
+shot 17-calc-notes
+shot 18-media
+shot 19-photos
+shot 20-calendar
+shot 21-notification
+shot 22-overview
+shot 23-menu-wifi
+shot 23-menu-bluetooth
+shot 23-menu-sound
+shot 26-editor
+shot 27-monitor
+shot 28-clock
+shot 29-screenshot-app
+total 156
+drwxr-xr-x 2 t t   4096 Nov 13 15:28 .
+drwxr-xr-x 3 t t   4096 Nov 13 15:28 ..
+-rw-r--r-- 1 t t 149881 Nov 13 15:28 Screenshot-2026-11-13_15-28-30.png
+shot 30-settings-general
+shot 31-settings-personalisation
+shot 31-settings-desktop
+shot 32-control-panel
+shot 33-launcher
+== pin test
+1866 /usr/bin/python3 /usr/local/lib/xlinos/xlinos-shell
+shot 34-pinned-kitty
+== keys + cli
+
+
+/mnt/repo/scripts/ci/scenario.sh: line 91: /mnt/repo/out/xlinos-status.txt: Permission denied
+XlinOS ci-test
+Wi-Fi        on
+Bluetooth    off
+Volume       100%
+Brightness   0%
+Power mode   balanced
+Theme accent #1e6bff   animations smooth   transparency 0.86
+shot 35-keys
+== desktop icons
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import sys; sys.path.insert(0,'/usr/local/lib/xlinos'); import xlinos_cfg as c; c.add_desktop_icon('kitty.desktop'); c.add_desktop_icon('calendar')
+                                                                                    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/xlinos/xlinos_cfg.py", line 119, in add_desktop_icon
+    if i in _all_ids(): return
+            ~~~~~~~~^^
+  File "/usr/local/lib/xlinos/xlinos_cfg.py", line 113, in _all_ids
+    out = set()
+TypeError: set() missing 2 required positional arguments: 'key' and 'value'
+shot 38-desktop-icons
+shot 39-desktop-folder
+== widgets, pdf, help, check
+shot 40-widgets
+shot 41-pdf
+shot 42-help
+shot 43-check
+== light theme
+theme light
+shot 36-light-settings-files
+shot 37-light-launcher-notes
+theme dark
+== installer
+== lock
+shot 9-lock
+wl_display_dispatch: Broken pipe

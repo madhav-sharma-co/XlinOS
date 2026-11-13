@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/usr/local/lib/xlinos/xlinos-pdf", line 6, in <module>
+    import cairo  # lets GTK pass drawing contexts to Python
+    ^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'cairo'

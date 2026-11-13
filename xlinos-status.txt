@@ -1,0 +1,7 @@
+XlinOS ci-test
+Wi-Fi        on
+Bluetooth    off
+Volume       100%
+Brightness   0%
+Power mode   balanced
+Theme accent #1e6bff   animations smooth   transparency 0.86

@@ -1,0 +1,8 @@
+
+(python3:1498): Gtk-WARNING **: 15:28:07.044: Theme parser error: <data>:21:103-111: No property named "overflow"
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA-EGL: warning: MESA-LOADER: failed to retrieve device information
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA: error: ZINK: vkCreateInstance failed (VK_ERROR_INCOMPATIBLE_DRIVER)
+MESA-EGL: warning: egl: failed to create dri2 screen
+Gdk-Message: 15:31:48.876: Lost connection to Wayland compositor.

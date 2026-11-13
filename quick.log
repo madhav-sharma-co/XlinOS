@@ -1,0 +1,13 @@
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA-EGL: warning: MESA-LOADER: failed to retrieve device information
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA: error: ZINK: vkCreateInstance failed (VK_ERROR_INCOMPATIBLE_DRIVER)
+MESA-EGL: warning: egl: failed to create dri2 screen
+
+(python3:820): Gtk-WARNING **: 15:26:06.396: GtkGizmo 0x556cda736d80 (highlight) reported min height -2, but sizes must be >= 0
+
+(python3:820): Gtk-WARNING **: 15:26:06.398: GtkGizmo 0x556cda6e3e40 (highlight) reported min height -2, but sizes must be >= 0
+
+(python3:820): Gtk-WARNING **: 15:26:06.398: GtkGizmo 0x556cda736d80 (highlight) reported min width -2, but sizes must be >= 0
+
+(python3:820): Gtk-WARNING **: 15:26:06.398: GtkGizmo 0x556cda6e3e40 (highlight) reported min width -2, but sizes must be >= 0

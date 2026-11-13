@@ -1,0 +1,55 @@
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA-EGL: warning: MESA-LOADER: failed to retrieve device information
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA: error: ZINK: vkCreateInstance failed (VK_ERROR_INCOMPATIBLE_DRIVER)
+MESA-EGL: warning: egl: failed to create dri2 screen
+/usr/local/lib/xlinos/xlinos-shell:157: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")
+/usr/local/lib/xlinos/xlinos-shell:230: PyGIDeprecationWarning: Gio.DesktopAppInfo is deprecated; use GioUnix.DesktopAppInfo instead
+  ai = Gio.DesktopAppInfo.new(i if i.endswith(".desktop") else i + ".desktop")

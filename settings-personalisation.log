@@ -1,0 +1,15 @@
+
+(python3:1664): Gtk-WARNING **: 15:28:37.034: Theme parser error: <data>:21:103-111: No property named "overflow"
+/usr/local/lib/xlinos/xlinos-settings:265: DeprecationWarning: Gtk.Widget.get_style_context is deprecated
+  d.get_style_context().add_provider(pr, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 5); dbtns.append((d, col)); dots.append(d)
+/usr/local/lib/xlinos/xlinos-settings:265: DeprecationWarning: Gtk.StyleContext.add_provider is deprecated
+  d.get_style_context().add_provider(pr, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 5); dbtns.append((d, col)); dots.append(d)
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA-EGL: warning: MESA-LOADER: failed to retrieve device information
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA: error: ZINK: vkCreateInstance failed (VK_ERROR_INCOMPATIBLE_DRIVER)
+MESA-EGL: warning: egl: failed to create dri2 screen
+
+(python3:1664): Gtk-WARNING **: 15:28:37.145: GtkGizmo 0x5591600fdbc0 (highlight) reported min width -2, but sizes must be >= 0
+
+(python3:1664): Gtk-WARNING **: 15:28:37.146: GtkGizmo 0x5591600fdbc0 (highlight) reported min height -2, but sizes must be >= 0

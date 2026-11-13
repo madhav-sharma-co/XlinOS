@@ -1,0 +1,3 @@
+disk /dev/zram0: StopIteration()
+method erase: TypeError("'NoneType' object is not subscriptable")
+preview fail: AttributeError("'Installer' object has no attribute 'modified'")

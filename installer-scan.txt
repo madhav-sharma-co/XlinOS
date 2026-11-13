@@ -1,0 +1,1 @@
+scan: [{"path": "/dev/vda", "model": "Disk", "size": 9663676416, "tran": "virtio", "removable": false, "readonly": false, "table": "none", "partitions": [], "free": 0, "biggest_gap": 0, "protected": "XlinOS is running from this device", "efi_boot": false, "busy": []}]

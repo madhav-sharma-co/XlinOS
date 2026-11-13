@@ -1,0 +1,1 @@
+{ "night_light": false, "power_mode": "balanced", "runbar_pins": [  "files",  "terminal",  "store",  "settings",  "notes",  "photos",  "calendar",  "media",  "calculator",  "browser",  "kitty" ], "desktop_icons": [  "files",  {   "folder": "Folder",   "items": [    "settings",    "calendar",    "kitty.desktop"   ]  } ]}

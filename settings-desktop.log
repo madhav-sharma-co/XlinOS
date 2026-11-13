@@ -1,0 +1,9 @@
+
+(python3:1698): Gtk-WARNING **: 15:28:42.964: Theme parser error: <data>:21:103-111: No property named "overflow"
+/usr/local/lib/xlinos/xlinos-settings:306: DeprecationWarning: Gdk.Texture.new_for_pixbuf is deprecated
+  pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(f, 160, 100, True); pic = Gtk.Picture.new_for_paintable(Gdk.Texture.new_for_pixbuf(pb)); pic.set_size_request(160, 100)
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA-EGL: warning: MESA-LOADER: failed to retrieve device information
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA: error: ZINK: vkCreateInstance failed (VK_ERROR_INCOMPATIBLE_DRIVER)
+MESA-EGL: warning: egl: failed to create dri2 screen
