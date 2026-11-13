@@ -114,6 +114,8 @@ try:
         cmd(s, "sendkey " + keys); time.sleep(6); shot(s, name)
     cmd(s, "sendkey esc"); time.sleep(2)
     cmd(s, "sendkey meta_l-l"); time.sleep(8); shot(s, "12-lock")
+    typ2("Xlin2026pass"); cmd(s, "sendkey ret"); time.sleep(8); shot(s, "12b-unlocked")
+    cmd(s, "sendkey meta_l-shift-q"); time.sleep(30); shot(s, "13-after-logout")   # must be the login screen (password), not the desktop
     time.sleep(5)
 finally:
     time.sleep(3); REC["on"] = False; time.sleep(3); p.terminate()

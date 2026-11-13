@@ -106,8 +106,8 @@ def build(monitor, primary):
         e.connect("icon-press", lambda en, pos, ev: en.set_visibility(not en.get_visibility()))
         m = Gtk.Label(); m.get_style_context().add_class("msg")
         btn = Gtk.Button(label="Login", halign=Gtk.Align.CENTER); btn.set_size_request(320, 48); btn.get_style_context().add_class("login")
-        sw = Gtk.Button(label="Switch user", halign=Gtk.Align.CENTER); sw.set_margin_top(6); sw.get_style_context().add_class("link")
-        sw.connect("clicked", lambda _b: (subprocess.Popen(["hyprctl", "dispatch", "exit"]), unlock()))
+        sw = Gtk.Button(label="Log out / Switch user", halign=Gtk.Align.CENTER); sw.set_margin_top(6); sw.get_style_context().add_class("link")
+        sw.connect("clicked", lambda _b: subprocess.Popen(["xlinos-logout"]))   # ends the session; the screen stays locked until the login screen appears
         def done(ok):
             if ok: unlock()
             else:
@@ -119,7 +119,10 @@ def build(monitor, primary):
             e.set_sensitive(False); btn.set_sensitive(False); m.set_text("")
             threading.Thread(target=lambda: GLib.idle_add(done, check(pw)), daemon=True).start()
         e.connect("activate", go); btn.connect("clicked", go)
-        for w_ in (av, u, e, m, btn, sw): box.pack_start(w_, False, False, 0)
+        pw_row = Gtk.Box(spacing=6, halign=Gtk.Align.CENTER)
+        for text, cmd in (("Restart", ["systemctl", "reboot"]), ("Shut down", ["systemctl", "poweroff"])):
+            b2 = Gtk.Button(label=text); b2.get_style_context().add_class("link"); b2.connect("clicked", lambda _b, c=cmd: subprocess.Popen(c)); pw_row.pack_start(b2, False, False, 0)
+        for w_ in (av, u, e, m, btn, sw, pw_row): box.pack_start(w_, False, False, 0)
         GLib.idle_add(e.grab_focus)
     ov.add_overlay(box); win.add(ov)
     lock.new_surface(win, monitor); win.show_all()
