@@ -3,7 +3,11 @@
 export XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=Hyprland   # names the system parts expect; never shown
 # XlinOS owns its window settings: they are placed fresh at every login
 mkdir -p "$HOME/.config/hypr"
-cp /usr/share/xlinos/hypr/hyprland.lua "$HOME/.config/hypr/hyprland.lua"
+if [ -d /run/archiso ]; then   # started from the install medium: the installer is the whole session
+  cp /usr/share/xlinos/hypr/installer.lua "$HOME/.config/hypr/hyprland.lua"
+else
+  cp /usr/share/xlinos/hypr/hyprland.lua "$HOME/.config/hypr/hyprland.lua"
+fi
 # virtual machines and old graphics: draw in software when there is no GPU driver
 if command -v systemd-detect-virt >/dev/null && systemd-detect-virt -q; then
   export WLR_RENDERER_ALLOW_SOFTWARE=1 WLR_NO_HARDWARE_CURSORS=1

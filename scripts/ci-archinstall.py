@@ -75,7 +75,7 @@ try:
     cmd(s, "sendkey ctrl-alt-f2"); time.sleep(10); shot(s, "2b-tty2")
     typ(s, "root"); time.sleep(4); cmd(s, "sendkey ret"); time.sleep(6); shot(s, "2b-login")
   # the live ISO starts the desktop: open XlinOS Terminal
-    for line in ("mkdir /r", "mount -t 9p -o trans=virtio repo /r", "bash /r/scripts/ci/ai.sh"):
+    for line in ("mkdir /r", "mount -t 9p -o trans=virtio repo /r", "bash /r/scripts/ci/ai-gui.sh" if os.environ.get("XL_GUI") == "1" else "bash /r/scripts/ci/ai.sh"):
         typ(s, line); time.sleep(2)
     shot(s, "2c-typed")
     t0 = time.time(); done = False
@@ -87,6 +87,7 @@ try:
     time.sleep(10)
 finally:
     REC["sock"] = None; p.terminate(); p.wait()
+for g in glob.glob(repo + "/out/g*.png") + glob.glob(repo + "/out/gui-*"): shutil.copy(g, out + "/shots/")
 shutil.copy(repo + "/out/install.log", out + "/install.log") if os.path.exists(repo + "/out/install.log") else None
 if not done:
     print("FAILED: installer did not finish"); sys.exit(1)

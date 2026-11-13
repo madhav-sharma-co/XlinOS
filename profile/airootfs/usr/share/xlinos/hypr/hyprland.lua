@@ -3,6 +3,16 @@
 
 hl.env("XCURSOR_SIZE", "24")
 
+-- keyboard chosen in the installer (written to /etc/xlinos-keyboard as "layout variant")
+do
+    local f = io.open("/etc/xlinos-keyboard", "r")
+    if f then
+        local line = f:read("*l") or ""; f:close()
+        local layout, variant = line:match("^(%S+)%s*(%S*)")
+        if layout then hl.config({ input = { kb_layout = layout, kb_variant = variant or "" } }) end
+    end
+end
+
 hl.config({
     general = {
         gaps_in = 6,
@@ -121,8 +131,6 @@ hl.on("hyprland.start", function()
     hl.dispatch(hl.dsp.exec_cmd("/usr/local/lib/xlinos/xlinos-notify"))
     hl.dispatch(hl.dsp.exec_cmd("/usr/local/lib/xlinos/xlinos-apply"))
     hl.dispatch(hl.dsp.exec_cmd("sh -c 'command -v cliphist >/dev/null && exec wl-paste --watch cliphist store'"))
-    -- Live USB / ISO session: open the installer welcome straight away
-    hl.dispatch(hl.dsp.exec_cmd("sh -c '[ -d /run/archiso ] && sleep 2 && exec /usr/local/lib/xlinos/xlinos-installer'"))
 end)
 
 -- Drag a window to a screen edge to snap it (like Windows / macOS): remember the window on press, snap on release.

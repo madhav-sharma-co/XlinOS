@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Asks a running installation to stop. Prints: stopping | queued (a step that must not be interrupted is running) | idle
+[[ $EUID -eq 0 ]] || exec sudo -n "$0" "$@"
+S=/run/xlinos-install.state; P=/run/xlinos-install.pid
+[[ -f "$S" ]] || { echo idle; exit 0; }
+if [[ "$(cat "$S")" == critical ]]; then touch /run/xlinos-install.cancel; echo queued; exit 0; fi
+pid="$(cat "$P" 2>/dev/null)"
+[[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null || { echo idle; exit 0; }
+kill -TERM -- "-$pid" 2>/dev/null && echo stopping || echo idle
