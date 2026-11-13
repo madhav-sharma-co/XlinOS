@@ -89,7 +89,7 @@ bind("ALT + Tab", function()
     hl.dispatch(hl.dsp.window.cycle_next())
     hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top" }))
 end)
-bind("SUPER + SHIFT + Q", hl.dsp.exit())
+bind("SUPER + SHIFT + Q", hl.dsp.exec_cmd("xlinos-logout"))
 bind("SUPER + SHIFT + F", hl.dsp.window.float({ action = "toggle" }))
 for _, d in ipairs({ "left", "right", "up", "down" }) do
     bind("SUPER + SHIFT + " .. d, hl.dsp.focus({ direction = d }))

@@ -16,6 +16,7 @@ jobs:
       - name: Build
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          [ "$GITHUB_REF_NAME" != main ] && export XLINOS_REF="$GITHUB_REF_NAME"
           ./build.sh
       - uses: actions/upload-artifact@v4
         with:
