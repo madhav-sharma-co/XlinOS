@@ -99,7 +99,7 @@ static struct {
 	struct rule *rules; int nrules; char **autostart; int nauto;
 	char *hot[4];                         // hot corners: tl tr bl br
 	bool corner_armed; double sw_dx, sw_dy; int sw_fingers;
-	struct layer_surface *kb_layer;
+	struct layer_surface *kb_layer; struct toplevel *cur_focus;
 	bool locked, lock_pending;
 	int cur_ws, nws; unsigned next_id;
 	int snap_edge, gap, repeat_rate, repeat_delay, cursor_size; float scale;
@@ -133,11 +133,8 @@ static struct toplevel *top_visible(void) {
 	struct toplevel *t; wl_list_for_each(t, &S.toplevels, link) if (visible(t)) return t; return NULL;
 }
 static struct toplevel *focused(void) {
-	struct wlr_surface *s = S.seat->keyboard_state.focused_surface;
-	if (!s) return NULL;
-	struct wlr_xdg_toplevel *x = wlr_xdg_toplevel_try_from_wlr_surface(s);
-	if (!x) return NULL;
-	struct wlr_scene_tree *tr = x->base->data; return tr ? tr->node.data : NULL;
+	struct toplevel *t = S.cur_focus;
+	return t && t->mapped && !t->hidden && t->ws == S.cur_ws ? t : NULL;
 }
 static void place(struct toplevel *t, struct wlr_box b) {   // put the visible box at b
 	struct wlr_box g = t->xt->base->geometry;
@@ -159,10 +156,8 @@ static void focus_toplevel(struct toplevel *t) {
 	}
 	update_vis(t);
 	struct wlr_surface *prev = S.seat->keyboard_state.focused_surface, *surf = t->xt->base->surface;
-	if (prev && prev != surf) {
-		struct wlr_xdg_toplevel *pt = wlr_xdg_toplevel_try_from_wlr_surface(prev);
-		if (pt) wlr_xdg_toplevel_set_activated(pt, false);
-	}
+	if (S.cur_focus && S.cur_focus != t && S.cur_focus->mapped) wlr_xdg_toplevel_set_activated(S.cur_focus->xt, false);
+	S.cur_focus = t;
 	wlr_scene_node_raise_to_top(&t->tree->node);
 	wl_list_remove(&t->link); wl_list_insert(&S.toplevels, &t->link);
 	wlr_xdg_toplevel_set_activated(t->xt, true);
@@ -170,15 +165,14 @@ static void focus_toplevel(struct toplevel *t) {
 }
 static void focus_best(void) {
 	struct toplevel *t = top_visible();
-	if (t) focus_toplevel(t); else wlr_seat_keyboard_notify_clear_focus(S.seat);
+	if (t) focus_toplevel(t); else { S.cur_focus = NULL; wlr_seat_keyboard_notify_clear_focus(S.seat); }
 }
 static void switch_ws(int n) {
 	if (n < 1 || n > S.nws || n == S.cur_ws) return;
 	S.cur_ws = n;
 	struct toplevel *t; wl_list_for_each(t, &S.toplevels, link) update_vis(t);
-	struct wlr_surface *prev = S.seat->keyboard_state.focused_surface;
-	if (prev) { struct wlr_xdg_toplevel *pt = wlr_xdg_toplevel_try_from_wlr_surface(prev); if (pt) wlr_xdg_toplevel_set_activated(pt, false); }
-	wlr_seat_keyboard_notify_clear_focus(S.seat);
+	if (S.cur_focus && S.cur_focus->mapped) wlr_xdg_toplevel_set_activated(S.cur_focus->xt, false);
+	S.cur_focus = NULL; wlr_seat_keyboard_notify_clear_focus(S.seat);
 	focus_best();
 }
 static void focus_layer(struct layer_surface *l) {
@@ -256,14 +250,15 @@ static void set_fullscreen(struct toplevel *t, bool on) {
 }
 static void minimize(struct toplevel *t) {
 	if (!t) return;
+	bool had = focused() == t;
 	t->hidden = true; update_vis(t);
-	if (focused() == t) { wlr_seat_keyboard_notify_clear_focus(S.seat); focus_best(); }
+	if (had) { S.cur_focus = NULL; wlr_seat_keyboard_notify_clear_focus(S.seat); focus_best(); }
 }
 static void show_desktop(void) {   // minimise everything here; run again to bring it back
 	bool any = false; struct toplevel *t;
 	wl_list_for_each(t, &S.toplevels, link) if (t->mapped && t->ws == S.cur_ws && !t->hidden) any = true;
 	wl_list_for_each(t, &S.toplevels, link) if (t->mapped && t->ws == S.cur_ws) { t->hidden = any; update_vis(t); }
-	if (any) wlr_seat_keyboard_notify_clear_focus(S.seat); else focus_best();
+	if (any) { S.cur_focus = NULL; wlr_seat_keyboard_notify_clear_focus(S.seat); } else focus_best();
 }
 
 // ---------------------------------------------------------------- layer shell (bars, dock, wallpaper, launcher)
@@ -342,9 +337,9 @@ static void tl_map(struct wl_listener *li, void *d) {
 static void tl_unmap(struct wl_listener *li, void *d) {
 	struct toplevel *t = wl_container_of(li, t, unmap);
 	if (S.grab_tl == t) { S.grab = GRAB_NONE; S.grab_tl = NULL; }
-	bool had = focused() == t;
+	bool had = S.cur_focus == t;
 	t->mapped = false;
-	if (had) { wlr_seat_keyboard_notify_clear_focus(S.seat); focus_best(); }
+	if (had) { S.cur_focus = NULL; wlr_seat_keyboard_notify_clear_focus(S.seat); focus_best(); }
 }
 static void tl_commit(struct wl_listener *li, void *d) {
 	struct toplevel *t = wl_container_of(li, t, commit);
@@ -353,6 +348,7 @@ static void tl_commit(struct wl_listener *li, void *d) {
 static void tl_destroy(struct wl_listener *li, void *d) {
 	struct toplevel *t = wl_container_of(li, t, destroy);
 	if (S.grab_tl == t) { S.grab = GRAB_NONE; S.grab_tl = NULL; }
+	if (S.cur_focus == t) S.cur_focus = NULL;
 	wl_list_remove(&t->map.link); wl_list_remove(&t->unmap.link); wl_list_remove(&t->commit.link);
 	wl_list_remove(&t->destroy.link); wl_list_remove(&t->req_move.link); wl_list_remove(&t->req_resize.link);
 	wl_list_remove(&t->req_max.link); wl_list_remove(&t->req_full.link); wl_list_remove(&t->req_min.link);
@@ -466,7 +462,7 @@ static void new_lock(struct wl_listener *li, void *d) {
 		struct wlr_scene_rect *r = wlr_scene_rect_create(S.lock_tree, b.width, b.height, black);
 		wlr_scene_node_set_position(&r->node, b.x, b.y);
 	}
-	wlr_seat_keyboard_notify_clear_focus(S.seat); wlr_seat_pointer_notify_clear_focus(S.seat);
+	S.cur_focus = NULL; wlr_seat_keyboard_notify_clear_focus(S.seat); wlr_seat_pointer_notify_clear_focus(S.seat);
 	S.kb_layer = NULL; S.grab = GRAB_NONE;
 	S.lock_surf.notify = lock_new_surface; wl_signal_add(&lock->events.new_surface, &S.lock_surf);
 	S.lock_unlock.notify = lock_unlock; wl_signal_add(&lock->events.unlock, &S.lock_unlock);
@@ -1001,9 +997,5 @@ int main(int argc, char **argv) {
 	wl_display_run(S.display);
 	unlink(S.sockpath);
 	wl_display_destroy_clients(S.display);
-	wlr_scene_node_destroy(&S.scene->tree.node);
-	wlr_xcursor_manager_destroy(S.xcur);
-	wlr_output_layout_destroy(S.out_layout);
-	wl_display_destroy(S.display);
-	return 0;
+	return 0;   // the system frees the rest
 }
