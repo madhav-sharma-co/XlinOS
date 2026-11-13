@@ -110,7 +110,7 @@ def p_users():
         if 1000 <= u.pw_uid < 60000:
             items.append(row(u.pw_gecos.split(",")[0] or u.pw_name, u.pw_name + (" (you)" if u.pw_name == os.environ.get("USER") else "")))
     b.append(card(*items))
-    out = Gtk.Button(label="Log out"); out.connect("clicked", lambda _b: bg("hyprctl dispatch exit")); b.append(out)
+    out = Gtk.Button(label="Log out"); out.connect("clicked", lambda _b: bg("xlinos-logout")); b.append(out)
     return b
 
 OV = {"ov": None, "pw": None}

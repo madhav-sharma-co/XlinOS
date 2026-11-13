@@ -1,0 +1,9 @@
+#!/bin/sh
+# Log out: ends the whole login session (the desktop, its apps and the compositor), so the login screen with its password comes back.
+# Closing only the compositor is not enough: its supervisor can start it again and the desktop would reopen without a password.
+sid="${XDG_SESSION_ID:-}"
+[ -z "$sid" ] && sid="$(loginctl show-user "$(id -un)" -p Display --value 2>/dev/null)"
+if [ -n "$sid" ] && loginctl terminate-session "$sid" 2>/dev/null; then sleep 5; fi
+loginctl terminate-user "$(id -un)" 2>/dev/null
+sleep 3
+exec hyprctl dispatch exit

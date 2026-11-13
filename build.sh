@@ -45,7 +45,7 @@ grep -h '^HOOKS' "$PROFILE"/airootfs/etc/mkinitcpio.conf.d/*.conf || true
 # --- our files on top of releng's airootfs
 cp -r "$ROOT/profile/airootfs/." "$PROFILE/airootfs/"
 sed -i "s/@VERSION@/$version/g" "$PROFILE/airootfs/etc/os-release" "$PROFILE/airootfs/etc/issue" "$PROFILE/airootfs/etc/motd"
-sed -i "s/@VERSION@/$version/g; s/@XLINOS_REF@/${XLINOS_REF:-}/g" "$PROFILE/airootfs/usr/share/xlinos/post-install.sh"
+sed -i "s/@VERSION@/$version/g; s|@XLINOS_REF@|${XLINOS_REF:-}|g" "$PROFILE/airootfs/usr/share/xlinos/post-install.sh"
 # archinstall config: embed the post-install script (base64 has no "|", so it is a safe sed delimiter)
 x="$PROFILE/airootfs/usr/share/xlinos"
 b64="$(base64 -w0 "$x/post-install.sh")"
@@ -84,6 +84,7 @@ file_permissions+=(
   ["/usr/local/lib/xlinos/xlinos-greeter"]="0:0:755"
   ["/usr/local/bin/xlinos-launcher"]="0:0:755"
   ["/usr/local/bin/xlinos-lock"]="0:0:755"
+  ["/usr/local/bin/xlinos-logout"]="0:0:755"
   ["/usr/local/bin/xlinos-terminal"]="0:0:755"
   ["/usr/local/lib/xlinos/xlinos-terminal"]="0:0:755"
   ["/usr/local/bin/xlinos-files"]="0:0:755"
