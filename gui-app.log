@@ -1,0 +1,11 @@
+/usr/local/lib/xlinos/xlinos-installer:10: PyGIWarning: Gdk was imported without specifying a version first. Use gi.require_version('Gdk', '4.0') before import to ensure that the right version gets loaded.
+  from gi.repository import Gdk, Gio, GLib, Gtk
+
+(python3:1296): Gtk-WARNING **: 12:13:56.174: Unable to acquire session bus: Could not connect: Permission denied
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA-EGL: warning: MESA-LOADER: failed to retrieve device information
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA: error: ZINK: vkCreateInstance failed (VK_ERROR_INCOMPATIBLE_DRIVER)
+MESA-EGL: warning: egl: failed to create dri2 screen
+
+Session terminated, killing shell... ...killed.

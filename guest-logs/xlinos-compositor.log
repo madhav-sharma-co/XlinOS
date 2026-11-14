@@ -1,0 +1,58 @@
+00:00:00.000 [INFO] [libseat] [libseat/backend/seatd.c:64] Could not connect to socket /run/seatd.sock: No such file or directory
+00:00:00.000 [INFO] [libseat] [libseat/libseat.c:76] Backend 'seatd' failed to open seat, skipping
+00:00:00.002 [INFO] [libseat] [libseat/libseat.c:73] Seat opened with backend 'logind'
+00:00:00.002 [INFO] [backend/session/session.c:117] Successfully loaded libseat session
+00:00:00.003 [INFO] [backend/backend.c:248] Found 1 GPUs
+00:00:00.003 [INFO] [backend/drm/backend.c:225] Initializing DRM backend for /dev/dri/card0 (bochs-drm)
+00:00:00.004 [INFO] [backend/drm/drm.c:312] Found 1 DRM CRTCs
+00:00:00.004 [INFO] [backend/drm/drm.c:270] Found 1 DRM planes
+00:00:00.004 [INFO] [util/env.c:25] Loading WLR_RENDERER option: pixman
+00:00:00.004 [INFO] [render/pixman/renderer.c:328] Creating pixman renderer
+00:00:00.023 [INFO] [backend/drm/drm.c:1781] Scanning DRM connectors on /dev/dri/card0
+00:00:00.027 [INFO] [backend/drm/drm.c:1836] Found connector 'Virtual-1'
+00:00:00.027 [INFO] [backend/drm/drm.c:1861] 'Virtual-1' connected
+00:00:00.027 [INFO] [backend/drm/drm.c:1646] Detected modes:
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1280x800 @ 74.994 Hz (preferred)
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1920x1440 @ 60.000 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   2560x1080 @ 50.000 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1856x1392 @ 59.995 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1792x1344 @ 60.000 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   2048x1152 @ 60.000 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1920x1200 @ 59.885 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1920x1080 @ 60.000 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1920x1080 @ 50.000 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1600x1200 @ 60.000 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1680x1050 @ 59.954 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1400x1050 @ 59.978 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1280x1024 @ 60.020 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1440x900 @ 59.887 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1280x960 @ 60.000 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1360x768 @ 60.015 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1280x768 @ 59.870 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   1024x768 @ 60.004 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   800x600 @ 60.317 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   640x480 @ 60.000 Hz 
+00:00:00.027 [INFO] [backend/drm/drm.c:1670]   640x480 @ 59.940 Hz 
+00:00:00.027 [INFO] [util/env.c:9] Loading WLR_NO_HARDWARE_CURSORS option: 1
+00:00:00.027 [INFO] [backend/drm/drm.c:1707] Physical size: 320x200
+00:00:00.027 [INFO] [backend/drm/drm.c:1895] connector Virtual-1: Requesting modeset
+00:00:00.032 [INFO] [backend/drm/drm.c:980] connector Virtual-1: Modesetting with 1280x800 @ 74.994 Hz
+00:00:00.037 [INFO] [xlin-comp.c:1150] output Virtual-1 1280x800 scale 1.00
+00:00:00.042 [INFO] [xlin-comp.c:1248] XlinOS compositor 0.3 running on wayland-0 (63 shortcuts)
+
+(python3:1007): Gtk-WARNING **: 07:21:36.103: Theme parser error: <data>:21:103-111: No property named "overflow"
+/usr/local/lib/xlinos/xlinos-terminal:31: DeprecationWarning: Vte.Terminal.get_window_title is deprecated
+  term.connect("window-title-changed", lambda t: win.set_title("Quickshell  -  " + t.get_window_title() if t.get_window_title() else "Quickshell"))
+
+(python3:1027): Gtk-WARNING **: 07:21:44.808: GtkGizmo 0x56234e8aa280 (highlight) reported min height -2, but sizes must be >= 0
+
+(python3:1027): Gtk-WARNING **: 07:21:44.808: GtkGizmo 0x56234e84f210 (highlight) reported min height -2, but sizes must be >= 0
+
+(python3:1027): Gtk-WARNING **: 07:21:44.808: GtkGizmo 0x56234e8aa280 (highlight) reported min width -2, but sizes must be >= 0
+
+(python3:1027): Gtk-WARNING **: 07:21:44.808: GtkGizmo 0x56234e84f210 (highlight) reported min width -2, but sizes must be >= 0
+00:02:07.346 [INFO] [xlin-comp.c:552] lock: client asked to lock
+00:02:07.346 [INFO] [xlin-comp.c:528] lock: new lock surface
+00:02:07.347 [INFO] [xlin-comp.c:1117] lock: sent locked
+00:02:07.386 [INFO] [wayland] error in client communication (pid 1071)
+00:02:07.386 [INFO] [xlin-comp.c:546] lock: lock object destroyed

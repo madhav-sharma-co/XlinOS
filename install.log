@@ -1,0 +1,36 @@
+wayland=wayland-0 sock=/run/user/1000/xlin-comp.sock
+{"page": "welcome", "err": "", "locale": "en_US.UTF-8", "country": "US", "tz": "America/New_York", "kb": "us", "agreed": false, "method": "", "disk": "", "efi": "", "next_sensitive": true, "title": "Thanks for Choosing XlinOS", "pct": "0%", "stage": "", "note": "", "running": false, "test_text": ""}
+agreement blocks:
+{"page": "about", "err": "Please accept the installation agreement to continue.", "locale": "en_US.UTF-8", "country": "US", "tz": "America/New_York", "kb": "us", "agreed": false, "method": "", "disk": "", "efi": "", "next_sensitive": false, "title": "Thanks for Choosing XlinOS", "pct": "0%", "stage": "", "note": "", "running": false, "test_text": ""}
+review without loss box:
+{"page": "review", "err": "", "locale": "en_US.UTF-8", "country": "US", "tz": "America/New_York", "kb": "us", "agreed": true, "method": "erase", "disk": "/dev/vda", "efi": "", "next_sensitive": true, "title": "Thanks for Choosing XlinOS", "pct": "0%", "stage": "", "note": "", "running": false, "test_text": ""}
+{"page": "review", "err": "", "locale": "en_US.UTF-8", "country": "US", "tz": "America/New_York", "kb": "us", "agreed": true, "method": "erase", "disk": "/dev/vda", "efi": "", "next_sensitive": true, "title": "Thanks for Choosing XlinOS", "pct": "0%", "stage": "", "note": "", "running": false, "test_text": ""}
+pct=11
+pct=11
+pct=11
+pct=11
+pct=32
+after cancel:
+{"page": "install", "err": "", "locale": "en_US.UTF-8", "country": "US", "tz": "America/New_York", "kb": "us", "agreed": true, "method": "erase", "disk": "/dev/vda", "efi": "", "next_sensitive": true, "title": "Installation cancelled", "pct": "38%", "stage": "", "note": "The installation was stopped after the disk had already been changed. XlinOS is NOT installed on it and the part that was written is unusable. Run the installer again to install XlinOS, or restart and use your other system if the disk was not erased completely.", "running": false, "test_text": ""}
+0
+{"page": "install", "err": "", "locale": "en_US.UTF-8", "country": "US", "tz": "America/New_York", "kb": "us", "agreed": true, "method": "erase", "disk": "/dev/vda", "efi": "", "next_sensitive": true, "title": "XlinOS is Ready!", "pct": "100%", "stage": "Finalizing installation", "note": "Remove the installation disc or media if there is one, then restart. You will create your user on the first start.", "running": false, "test_text": ""}
+++ opt diag_log false
+++ python3 -c 'import json,sys; v=json.load(open(sys.argv[1])).get(sys.argv[2],sys.argv[3]); print(str(v).lower() if isinstance(v,bool) else v)' /tmp/xlinos-install-options.json diag_log false
++ [[ false == true ]]
++ cleanup_mounts
++ sync
++ for _ in 1 2 3 4 5 6
++ findmnt -rn -R /mnt
++ umount -R /mnt
++ return 0
++ rm -f /run/xlinos-install.state /run/xlinos-install.pct
++ pct 100
++ local c=0
++ [[ -f /run/xlinos-install.pct ]]
++ ((  100 > c  ))
++ echo 100
++ say 'PCT 100'
++ echo 'PCT 100'
++ return 0
++ say DONE
++ echo DONE

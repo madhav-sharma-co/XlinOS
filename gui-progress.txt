@@ -1,0 +1,12 @@
+{"page": "install", "err": "", "locale": "en_US.UTF-8", "country": "US", "tz": "America/New_York", "kb": "us", "agreed": true, "method": "erase", "disk": "/dev/vda", "efi": "", "next_sensitive": true, "title": "Thanks for Choosing XlinOS", "pct": "35%", "stage": "Installing the base system", "note": "", "running": true, "test_text": ""}
+{"page": "install", "err": "", "locale": "en_US.UTF-8", "country": "US", "tz": "America/New_York", "kb": "us", "agreed": true, "method": "erase", "disk": "/dev/vda", "efi": "", "next_sensitive": true, "title": "Installation cancelled", "pct": "38%", "stage": "", "note": "The installation was stopped after the disk had already been changed. XlinOS is NOT installed on it and the part that was written is unusable. Run the installer again to install XlinOS, or restart and use your other system if the disk was not erased completely.", "running": false, "test_text": ""}
+0
+Thanks for Choosing XlinOS | 11% | Installing the base system
+Thanks for Choosing XlinOS | 11% | Installing the base system
+Thanks for Choosing XlinOS | 31% | Installing the base system
+Thanks for Choosing XlinOS | 38% | Installing the base system
+Thanks for Choosing XlinOS | 86% | Installing the desktop and system packages
+Thanks for Choosing XlinOS | 86% | Installing the desktop and system packages
+Thanks for Choosing XlinOS | 86% | Installing the desktop and system packages
+Thanks for Choosing XlinOS | 86% | Installing the desktop and system packages
+XlinOS is Ready! | 100% | Finalizing installation
