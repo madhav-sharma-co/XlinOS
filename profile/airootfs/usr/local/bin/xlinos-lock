@@ -1,4 +1,5 @@
 #!/bin/sh
 # Lock the screen. Does nothing if already locked.
 pgrep -f lib/xlinos/xlinos-lock >/dev/null && exit 0
-exec /usr/local/lib/xlinos/xlinos-lock
+mkdir -p "$HOME/.cache" 2>/dev/null
+exec /usr/local/lib/xlinos/xlinos-lock 2>>"$HOME/.cache/xlinos-lock.log"

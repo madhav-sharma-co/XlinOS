@@ -15,5 +15,6 @@ LOG="${XDG_RUNTIME_DIR:-/tmp}/xlinos-compositor.log"
 if [ -d /run/archiso ]; then
   exec xlin-comp -c /usr/share/xlinos/installer.conf >"$LOG" 2>&1
 else
+  mkdir -p "$HOME/.cache" 2>/dev/null && LOG="$HOME/.cache/xlinos-compositor.log"   # kept on disk so problems can be read later
   exec xlin-comp -c /usr/share/xlinos/xlin.conf >"$LOG" 2>&1
 fi

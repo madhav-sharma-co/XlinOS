@@ -49,7 +49,7 @@ jobs:
         if: always()
         run: |
           mkdir -p save; cp -r work/out/shots/* save/ 2>/dev/null || true
-          cp work/out/install.log work/out/*serial.log save/ 2>/dev/null || true
+          cp work/out/install.log work/out/*serial.log save/ 2>/dev/null || true; cp -r work/out/guest-logs save/ 2>/dev/null || true
           cp work/failed save/ 2>/dev/null || true
           cp work/out/xlinos-install.mp4 save/ 2>/dev/null || true
           cp out/dual-check.txt out/xlinos-install.log save/ 2>/dev/null || true
