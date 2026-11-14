@@ -8,6 +8,9 @@ LIBS = $(shell pkg-config --libs $(PKGS))
 XDG = $(shell pkg-config --variable=pkgdatadir wayland-protocols)/stable/xdg-shell/xdg-shell.xml
 LAYER = /usr/share/wlr-protocols/unstable/wlr-layer-shell-unstable-v1.xml
 
+all: xlin-comp
+.PHONY: all clean
+
 xlin-comp: xlin-comp.c xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h cursor-shape-v1-protocol.h
 	$(CC) $(CFLAGS) -o $@ xlin-comp.c $(LIBS)
 
