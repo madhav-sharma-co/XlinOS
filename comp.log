@@ -1,0 +1,48 @@
+00:00:00.000 [INFO] [backend/backend.c:342] Loading user-specified backends due to WLR_BACKENDS: headless
+00:00:00.000 [INFO] [backend/headless/backend.c:60] Creating headless backend
+00:00:00.000 [INFO] [util/env.c:25] Loading WLR_RENDERER option: pixman
+00:00:00.000 [INFO] [render/pixman/renderer.c:328] Creating pixman renderer
+00:00:00.000 [INFO] [backend/headless/backend.c:17] Starting headless backend
+00:00:00.002 [INFO] [xlin-comp.c:1150] output HEADLESS-1 1280x720 scale 1.00
+00:00:00.002 [INFO] [xlin-comp.c:1248] XlinOS compositor 0.3 running on wayland-0 (12 shortcuts)
+warn: wayland.c:1888: compositor does not implement the xdg-toplevel-icon protocol
+warn: wayland.c:1893: text input interface not implemented by compositor; IME will be disabled
+warn: wayland.c:2191: no decoration manager available - using CSDs unconditionally
+warn: wayland.c:1888: compositor does not implement the xdg-toplevel-icon protocol
+warn: wayland.c:1893: text input interface not implemented by compositor; IME will be disabled
+warn: wayland.c:2191: no decoration manager available - using CSDs unconditionally
+ok
+ok
+warn: wayland.c:1888: compositor does not implement the xdg-toplevel-icon protocol
+warn: wayland.c:1893: text input interface not implemented by compositor; IME will be disabled
+warn: wayland.c:2191: no decoration manager available - using CSDs unconditionally
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+00:00:17.397 [INFO] [xlin-comp.c:552] lock: client asked to lock
+00:00:17.397 [INFO] [xlin-comp.c:1117] lock: sent locked
+00:00:17.397 [INFO] [xlin-comp.c:528] lock: new lock surface
+ok
+ err: wayland.c:1769: failed to read events from the Wayland socket: Broken pipe
+ err: wayland.c:2477: failed to roundtrip Wayland display: Broken pipe
+ err: wayland.c:2477: failed to roundtrip Wayland display: Broken pipe
+ err: wayland.c:1769: failed to read events from the Wayland socket: Broken pipe
+ err: wayland.c:2477: failed to roundtrip Wayland display: Broken pipe
+ err: wayland.c:2477: failed to roundtrip Wayland display: Broken pipe
+00:00:21.442 [INFO] [xlin-comp.c:546] lock: lock object destroyed
+ err: wayland.c:2477: failed to roundtrip Wayland display: Broken pipe
+ err: wayland.c:2477: failed to roundtrip Wayland display: Broken pipe
+ err: wayland.c:1769: failed to read events from the Wayland socket: Broken pipe
+ err: wayland.c:2477: failed to roundtrip Wayland display: Broken pipe
+ err: wayland.c:2477: failed to roundtrip Wayland display: Broken pipe
+ err: wayland.c:2477: failed to roundtrip Wayland display: Broken pipe
+warn: terminal.c:2034: slave exited with signal 1 (Hangup)
+ err: warn: wayland.c:2442: terminal.c:2034: failed to flush wayland socketslave exited with signal 1 (Hangup): Broken pipe
+
+ err: wayland.c:2442: failed to flush wayland socket: Broken pipe
+warn: terminal.c:2034: slave exited with signal 1 (Hangup)
+ err: wayland.c:2442: failed to flush wayland socket: Broken pipe

@@ -1,0 +1,15 @@
+PASS two windows listed (2)
+PASS version
+snap left -> 8 624 1
+PASS snap left puts it at the left edge (gap allowed)
+PASS workspace 2 active
+PASS new window opens on the current desktop
+max width 1260
+PASS maximise fills the width
+PASS minimise hides a window
+PASS unhide restores minimised window
+PASS getoption layout works
+refresh 60.0
+PASS monitors reports a refresh rate
+PASS screen locks
+done
