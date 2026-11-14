@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Runs INSIDE the live ISO (started by ci-archinstall.py): partitions /dev/vda, runs archinstall with the XlinOS config, powers off.
 exec > >(tee /r/out/install.log) 2>&1
+echo "== live compositor log"; cat /run/user/*/xlinos-compositor.log 2>&1 | head -120
+echo "== compositor env"; tr '\0' '\n' </proc/$(pgrep -x xlin-comp | head -1)/environ 2>&1 | grep -E "WLR|XLIN|MESA|LIBGL" 
+echo "== gpu"; ls /dev/dri; lspci 2>/dev/null | grep -i vga
 set -x
 if [ -f /r/out/dual ]; then
   echo '{"target":"partition","efi":"/dev/vda1","hostname":"xlin","fs":"ext4"}' >/tmp/o.json
