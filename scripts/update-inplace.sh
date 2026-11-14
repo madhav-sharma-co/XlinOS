@@ -8,9 +8,11 @@ R="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 BK=/var/backups/xlinos-before-update.tar.gz
 
 echo "1/4 Installing build tools (needs internet)..."
-pacman -S --needed --noconfirm base-devel git wlroots wayland-protocols libinput pkgconf 2>&1 | tail -3 || true
-# the compositor needs the newest wlroots package that exists
-W=$(pacman -Ssq '^wlroots' | sort -V | tail -1); [[ -n "$W" ]] && pacman -S --needed --noconfirm "$W" 2>&1 | tail -1 || true
+# wlroots has the version in its package name (for example wlroots0.20): pick the newest one
+W=$(pacman -Ssq '^wlroots[0-9.]*$' | sort -V | tail -1)
+[[ -n "$W" ]] || { echo "Could not find the wlroots package. Run: sudo pacman -Sy   and try again."; exit 1; }
+echo "   using $W"
+pacman -S --needed --noconfirm base-devel git "$W" wayland-protocols libinput pkgconf || { echo "Could not install the build tools. Nothing was changed. Send this output to Claude."; exit 1; }
 
 echo "2/4 Building the new desktop (nothing is changed yet)..."
 make -C "$R/compositor" clean all || { echo "Build failed. Nothing was changed. Send this output to Claude."; exit 1; }
