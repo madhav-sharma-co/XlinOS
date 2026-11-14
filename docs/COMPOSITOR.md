@@ -1,21 +1,17 @@
 # XlinOS compositor (xlin-comp)
 
-The window compositor is XlinOS's own program, written in C on the wlroots library. It replaces the
-third-party desktop engine step by step. The old engine stays as the fallback until this one has parity.
+The window compositor is XlinOS's own C program on wlroots (`compositor/xlin-comp.c`).
+XlinOS now runs directly on `xlin-comp` and `/usr/share/xlinos/xlin.conf` (with `~/.config/xlin/xlin.conf`
+for user overrides) — no third-party window manager or Lua engine is used.
 
-## Phase 1 (done, tested headless in CI)
-Floating windows (move/resize with Super + mouse), focus, popups, bars/dock/wallpaper/launcher
-(layer shell), shortcuts from a plain file (`compositor/default.conf`), clipboard, screenshots,
-keyboard layouts, startup command (`-s`).
-
-## Phase 2 (needed before it can replace the old engine)
-Lock screen (ext-session-lock), idle/lock timer, fullscreen/maximize, snapping (halves, corners),
-workspaces and overview, our own control socket + `xlinctl` (replaces `hyprctl`), multi-monitor
-and scale, touchpad gestures, cursor shape, XWayland, notification/clipboard-manager protocols,
-the greeter and session start script switch to it.
-
-## Phase 3
-Move shell settings (window rules, animations, blur) out of the old Lua config into one XlinOS
-config, remove the old engine from the ISO, test on real hardware.
+## Features (v0.3)
+- Floating windows with cascade placement, Super + mouse move/resize, and live edge/corner snap preview
+- Windows/KDE-style quick tiling (`snap left|right|top|bottom|tl|tr|bl|br|max|restore|center`), directional focus, relative resize
+- macOS-style shortcuts, hot corners (`hotcorner_tl|tr|bl|br`), 3-finger trackpad gestures, natural scroll & tap-to-click
+- Virtual desktops (`workspaces`), window overview (`xlinos-overview`), Show Desktop (`showdesktop`) and `unhide`
+- Window rules (`rule CLASS-GLOB [workspace=N] [size=WxH] [snap=MODE] [center] [fullscreen] [maximize]`)
+- Built-in idle lock & sleep timer (`idle_lock_minutes`, `idle_sleep_minutes`)
+- Screen lock (`ext-session-lock-v1`), clipboard (`wl-clipboard` + `cliphist`), screenshots (`grim` + `slurp`), Night Light (`wlsunset` via `wlr-gamma-control-v1`)
+- Unix control socket & CLI (`xlinctl`) for shell, settings, installer keyboard preview, and live config reload (`xlinctl reload`)
 
 Build: `make -C compositor`. CI: `.github/workflows/compositor-test.yml`.

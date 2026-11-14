@@ -27,24 +27,19 @@ window { background: rgba(3,8,28,0.90); }
 .mini { color: #9db4e6; font-size: 11px; }
 """ + xlinos_ui.css().encode())
 
-def hc(*a):
-    return subprocess.run(["hyprctl", *a], capture_output=True, text=True, timeout=4).stdout
-def lua(code):
-    subprocess.run(["hyprctl", "eval", code], capture_output=True, text=True, timeout=4)
+def xc(*a):
+    return subprocess.run(["xlinctl", *a], capture_output=True, text=True, timeout=4).stdout
 
 def windows():
     out = []
-    for c in json.loads(hc("-j", "clients") or "[]"):
-        if not c.get("mapped", True) or (c.get("class") or "").startswith("xlinos-"): continue
+    for c in json.loads(xc("clients") or "[]"):
+        cls = c.get("class") or ""
+        if cls.startswith("xlinos-") or cls.startswith("os.xlin.shell"): continue
         out.append(c)
     return out
 
 def bring(c):
-    ws = json.loads(hc("-j", "activeworkspace") or "{}").get("id", 1)
-    if c["workspace"]["name"].startswith("special:"):
-        lua('hl.dispatch(hl.dsp.window.move({ workspace = %d, follow = true, window = "address:%s" }))' % (ws, c["address"]))
-    lua('hl.dispatch(hl.dsp.focus({ window = "address:%s" }))' % c["address"])
-    lua('hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:%s" }))' % c["address"])
+    xc("focus", c["address"])
 
 def activate(app):
     p = Gtk.CssProvider(); p.load_from_data(CSS)
@@ -70,7 +65,7 @@ def activate(app):
         nm = Gtk.Label(label=xlinos_ui.friendly(c.get("class") or "")); nm.add_css_class("name")
         tt = Gtk.Label(label=c.get("title") or "", ellipsize=3, max_width_chars=24); tt.add_css_class("win")
         for x in (tile, nm, tt): box.append(x)
-        if c["workspace"]["name"].startswith("special:"):
+        if c.get("hidden"):
             m = Gtk.Label(label="minimised"); m.add_css_class("mini"); box.append(m)
         b.set_child(box); b.connect("clicked", lambda _b, c=c: (bring(c), app.quit())); flow.append(b)
     if ws: root.append(flow)

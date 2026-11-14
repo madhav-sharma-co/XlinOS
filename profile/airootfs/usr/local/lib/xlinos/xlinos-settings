@@ -81,7 +81,7 @@ def p_sound():
 
 def p_display():
     b = page("Display")
-    mon = run("hyprctl -j monitors")
+    mon = run("xlinctl monitors")
     try:
         import json; m = json.loads(mon)[0]; info = "%dx%d @ %.0f Hz" % (m["width"], m["height"], m["refreshRate"])
     except Exception: info = "Unknown"

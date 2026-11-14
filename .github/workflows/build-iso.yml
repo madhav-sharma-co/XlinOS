@@ -1,8 +1,10 @@
 name: Build ISO
+
 on:
   workflow_dispatch:
   push:
     tags: ['v*']
+
 jobs:
   iso:
     runs-on: ubuntu-latest
@@ -11,7 +13,10 @@ jobs:
       options: --privileged
     steps:
       - name: Install build tools
-        run: pacman -Syu --noconfirm archiso git base-devel sudo python
+        run: |
+          pacman -Syu --noconfirm archiso git base-devel sudo python wayland wayland-protocols wlr-protocols libxkbcommon libinput pkgconf
+          W=$(pacman -Ssq '^wlroots' | sort -V | tail -1)
+          pacman -S --noconfirm "$W"
       - uses: actions/checkout@v4
       - name: Build
         run: |

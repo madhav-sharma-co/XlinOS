@@ -74,7 +74,7 @@ def activate(app):
         for x in base:
             if x.startswith("xlinos-"): return "XlinOS " + x[7:].replace("-", " ").title()
         first = base[0] if base else args
-        if first.lower() in ("hyprland", "start-hyprland"): return "XlinOS desktop"
+        if first.lower() in ("xlin-comp", "hyprland", "start-hyprland"): return "XlinOS desktop"
         if first.startswith("python") and len(base) > 1: first = base[1]
         for bad, good in (("pacman", "package manager"), ("archinstall", "installer")):
             if first == bad: return good

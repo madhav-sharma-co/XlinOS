@@ -1,5 +1,4 @@
 #!/bin/sh
 # Lock the screen. Does nothing if already locked.
 pgrep -f lib/xlinos/xlinos-lock >/dev/null && exit 0
-pgrep -x hyprlock >/dev/null && exit 0
 exec /usr/local/lib/xlinos/xlinos-lock

@@ -46,32 +46,45 @@ def bg(cmd):
 
 def have(c): return shutil.which(c) is not None
 
-# ---------------------------------------------------------------- Hyprland live settings (Lua config: hyprctl eval)
-def hypr_eval(lua):
-    bg(["hyprctl", "eval", lua])
+# ---------------------------------------------------------------- XlinOS compositor live settings (xlinctl + ~/.config/xlin/xlin.conf)
+def comp_set(k, v):
+    if have("xlinctl"): bg(["xlinctl", "set", str(k), str(v)])
+
+def write_user_xlin_conf():
+    d = os.path.expanduser("~/.config/xlin"); os.makedirs(d, exist_ok=True)
+    lines = [
+        "# Managed by XlinOS Settings (~/.config/xlin/xlin.conf)",
+        "set animations %s" % ("0" if get("animations") == "off" else "1"),
+        "set pointer_speed %.2f" % float(get("pointer_speed")),
+        "set natural_scroll %d" % (1 if get("natural_scroll") else 0),
+        "set tap_to_click %d" % (1 if get("tap_to_click") else 0),
+        "set idle_lock_minutes %d" % int(get("lock_minutes")),
+        "set idle_sleep_minutes %d" % int(get("sleep_minutes")),
+    ]
+    open(d + "/xlin.conf", "w").write("\n".join(lines) + "\n")
 
 def apply_animations():
     mode = get("animations")
-    hypr_eval("hl.config({ animations = { enabled = %s } })" % ("false" if mode == "off" else "true"))
+    comp_set("animations", "0" if mode == "off" else "1")
+    write_user_xlin_conf()
 
 def apply_input():
-    hypr_eval("hl.config({ input = { sensitivity = %s, touchpad = { natural_scroll = %s, tap_to_click = %s } } })" % (
-        float(get("pointer_speed")), str(bool(get("natural_scroll"))).lower(), str(bool(get("tap_to_click"))).lower()))
+    comp_set("pointer_speed", "%.2f" % float(get("pointer_speed")))
+    comp_set("natural_scroll", "1" if get("natural_scroll") else "0")
+    comp_set("tap_to_click", "1" if get("tap_to_click") else "0")
+    write_user_xlin_conf()
 
 def apply_all():
+    write_user_xlin_conf()
     apply_animations(); apply_input(); apply_idle()
     set_night_light(get("night_light")); power_mode(get("power_mode"))
 
-# ---------------------------------------------------------------- lock and sleep (hypridle)
+# ---------------------------------------------------------------- lock and sleep (built into xlin-comp)
 def apply_idle():
     lock, sleep = int(get("lock_minutes")), int(get("sleep_minutes"))
-    d = os.path.expanduser("~/.config/hypr"); os.makedirs(d, exist_ok=True)
-    txt = "general {\n    lock_cmd = xlinos-lock\n    before_sleep_cmd = xlinos-lock\n}\n"
-    if lock > 0: txt += "listener {\n    timeout = %d\n    on-timeout = xlinos-lock\n}\n" % (lock * 60)
-    if sleep > 0: txt += "listener {\n    timeout = %d\n    on-timeout = systemctl suspend\n}\n" % (sleep * 60)
-    open(d + "/hypridle.conf", "w").write(txt)
-    run("pkill hypridle")
-    if have("hypridle"): bg("hypridle")
+    comp_set("idle_lock_minutes", lock)
+    comp_set("idle_sleep_minutes", sleep)
+    write_user_xlin_conf()
 
 # ---------------------------------------------------------------- quick toggles
 def wifi_on(): return "enabled" in run("nmcli radio wifi")
@@ -82,8 +95,8 @@ def set_airplane(on):
     if not on: bg("nmcli radio wifi on")
 def set_dnd(on): set("dnd", bool(on))
 def set_night_light(on):
-    set("night_light", bool(on)); run("pkill hyprsunset")
-    if on and have("hyprsunset"): bg("hyprsunset -t 4000")
+    set("night_light", bool(on)); run("pkill wlsunset")
+    if on and have("wlsunset"): bg("wlsunset -t 4000 -T 4001")
 def power_modes():
     out = run("powerprofilesctl list")
     return [m for m in ("power-saver", "balanced", "performance") if m in out] if out else []

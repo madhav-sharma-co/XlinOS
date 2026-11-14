@@ -31,6 +31,12 @@ chk "maximise fills the width" '[ "$mx" -ge 1200 ]'
 $C minimize; sleep 1
 hid=$($C clients | python3 -c 'import json,sys;print(sum(1 for x in json.load(sys.stdin) if x["hidden"]))')
 chk "minimise hides a window" '[ "$hid" = 1 ]'
+$C unhide; sleep 1
+hid2=$($C clients | python3 -c 'import json,sys;print(sum(1 for x in json.load(sys.stdin) if x["hidden"]))')
+chk "unhide restores minimised window" '[ "$hid2" = 0 ]'
+$C resize 40 20; sleep 1
+chk "getoption layout works" '$C getoption workspaces | grep -q 4'
+chk "monitors reports refreshRate" '$C monitors | python3 -c "import json,sys;m=json.load(sys.stdin);assert m and m[0]["refreshRate"]>0"'
 $C showdesktop; sleep 1; $C showdesktop; sleep 1
 swaylock -c 224466 --indicator-idle-visible >/dev/null 2>&1 & sleep 4
 chk "screen locks" '[ "$($C locked)" = true ]'

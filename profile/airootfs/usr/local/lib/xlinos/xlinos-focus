@@ -2,22 +2,14 @@
 """xlinos-focus CLASS COMMAND: bring the app's window to the front (restoring it if minimised), else start it."""
 import json, subprocess, sys
 
-def hc(*a):
-    return subprocess.run(["hyprctl", *a], capture_output=True, text=True, timeout=4).stdout
-
-def lua(code):
-    return subprocess.run(["hyprctl", "eval", code], capture_output=True, text=True, timeout=4).stdout
+def xc(*a):
+    return subprocess.run(["xlinctl", *a], capture_output=True, text=True, timeout=4).stdout
 
 cls, cmd = (sys.argv[1] if len(sys.argv) > 1 else ""), sys.argv[2:]
 if not cls:
     sys.exit(0)
-wins = [c for c in json.loads(hc("-j", "clients") or "[]") if (c.get("class") or "").lower() == cls.lower()]
+wins = [c for c in json.loads(xc("clients") or "[]") if (c.get("class") or "").lower() == cls.lower()]
 if not wins:
     subprocess.Popen(cmd, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     sys.exit(0)
-w = wins[0]
-ws = json.loads(hc("-j", "activeworkspace") or "{}").get("id", 1)
-if w["workspace"]["name"].startswith("special:"):
-    lua('hl.dispatch(hl.dsp.window.move({ workspace = %d, follow = true, window = "address:%s" }))' % (ws, w["address"]))
-lua('hl.dispatch(hl.dsp.focus({ window = "address:%s" }))' % w["address"])
-lua('hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:%s" }))' % w["address"])
+xc("focus", wins[0]["address"])

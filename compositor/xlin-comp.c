@@ -1,11 +1,13 @@
-// xlin-comp: the XlinOS window compositor (v0.2).
-// Floating windows with snapping, virtual desktops, bars/dock (layer shell), screen lock, shortcuts and
-// gestures from xlin.conf, a small control socket (xlinctl), clipboard, screenshots, HiDPI.
+// XlinOS Wayland compositor (v0.3).
+// Floating windows with snapping & edge preview, virtual desktops, bars/dock (layer shell),
+// screen lock (ext-session-lock), built-in idle lock/sleep, night light (gamma control),
+// macOS/KDE shortcuts, gestures, hot corners, window rules from xlin.conf, and xlinctl IPC.
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <stdint.h>
 #include <time.h>
 #include <unistd.h>
 #include <signal.h>
@@ -18,6 +20,10 @@
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#ifdef HAVE_LIBINPUT
+#include <wlr/backend/libinput.h>
+#include <libinput.h>
+#endif
 #include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_compositor.h>
@@ -26,6 +32,7 @@
 #include <wlr/types/wlr_data_control_v1.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_fractional_scale_v1.h>
+#include <wlr/types/wlr_gamma_control_v1.h>
 #include <wlr/types/wlr_idle_notify_v1.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
@@ -50,17 +57,19 @@
 #include <xkbcommon/xkbcommon.h>
 #include <linux/input-event-codes.h>
 
-#define VERSION "0.2"
+#define VERSION "0.3"
 enum grab { GRAB_NONE, GRAB_MOVE, GRAB_RESIZE };
 enum snap { SN_NONE, SN_LEFT, SN_RIGHT, SN_MAX, SN_TL, SN_TR, SN_BL, SN_BR, SN_TOP, SN_BOTTOM, SN_CENTER };
-enum act { A_EXEC, A_CLOSE, A_EXIT, A_NEXT, A_SNAP, A_FULL, A_WS, A_MOVEWS, A_MINIMIZE, A_SHOWDESKTOP, A_RELOAD, A_WSNEXT, A_WSPREV };
-
+enum act {
+	A_EXEC, A_CLOSE, A_EXIT, A_NEXT, A_SNAP, A_FULL, A_MAX, A_WS, A_MOVEWS,
+	A_MINIMIZE, A_UNHIDE, A_SHOWDESKTOP, A_RELOAD, A_WSNEXT, A_WSPREV, A_FOCUS_DIR, A_RESIZE_REL
+};
 struct bind { uint32_t mods; xkb_keysym_t sym; enum act act; char *arg; };
 struct gesture { int fingers; char dir; char *cmd; };
-struct rule { char *cls; int ws; int w, h; int snap; };
-
+struct rule { char *cls; int ws; int w, h; int snap; bool center, full, max; };
 struct output {
 	struct wl_list link; struct wlr_output *wlr; struct wlr_scene_output *so;
+	struct wlr_scene_rect *bg;
 	struct wlr_box usable;
 	struct wl_listener frame, state, destroy;
 };
@@ -71,46 +80,75 @@ struct toplevel {
 };
 struct popup { struct wlr_xdg_popup *xp; struct wl_listener commit, destroy; };
 struct keyboard { struct wl_list link; struct wlr_keyboard *kb; struct wl_listener mod, key, destroy; };
+struct pointer_dev { struct wl_list link; struct wlr_input_device *dev; struct wl_listener destroy; };
 struct layer_surface {
 	struct wl_list link; struct wlr_scene_layer_surface_v1 *sl; struct wlr_layer_surface_v1 *ls;
 	struct wl_listener map, unmap, commit, destroy;
 };
-
 enum { L_BG, L_BOTTOM, L_TOP, L_OVERLAY };
+
 static struct {
-	struct wl_display *display; struct wl_event_loop *loop;
-	struct wlr_backend *backend; struct wlr_session *session;
-	struct wlr_renderer *renderer; struct wlr_allocator *allocator;
-	struct wlr_scene *scene; struct wlr_scene_output_layout *scene_layout;
+	struct wl_display *display; struct wl_event_loop *loop; struct wlr_backend *backend;
+	struct wlr_session *session; struct wlr_renderer *renderer; struct wlr_allocator *allocator;
+	struct wlr_scene *scene; struct wlr_scene_output_layout *scene_layout; struct wlr_output_layout *out_layout;
 	struct wlr_scene_tree *layer[4], *windows, *fs, *lock_tree;
-	struct wlr_output_layout *out_layout;
-	struct wlr_xdg_shell *xdg; struct wlr_layer_shell_v1 *layer_shell;
-	struct wlr_cursor *cursor; struct wlr_xcursor_manager *xcur; struct wlr_seat *seat;
-	struct wlr_idle_notifier_v1 *idle;
-	struct wlr_session_lock_manager_v1 *lockmgr; struct wlr_session_lock_v1 *lock;
-	struct wlr_cursor_shape_manager_v1 *shape;
-	struct wlr_xdg_activation_v1 *activation;
-	struct wl_list outputs, toplevels, keyboards, layers;
+	struct wlr_scene_rect *snap_preview;
+	struct wlr_xdg_shell *xdg; struct wlr_layer_shell_v1 *layer_shell; struct wlr_session_lock_manager_v1 *lockmgr;
+	struct wlr_session_lock_v1 *lock; struct wlr_seat *seat; struct wlr_cursor *cursor; struct wlr_xcursor_manager *xcur;
+	struct wlr_cursor_shape_manager_v1 *shape; struct wlr_idle_notifier_v1 *idle; struct wlr_xdg_activation_v1 *activation;
+	struct wl_list outputs, toplevels, keyboards, pointers, layers;
 	struct wl_listener new_output, new_toplevel, new_popup, new_layer, new_input, new_lock, lock_surf, lock_unlock, lock_destroy;
 	struct wl_listener cur_motion, cur_abs, cur_button, cur_axis, cur_frame, sw_begin, sw_update, sw_end;
 	struct wl_listener req_cursor, req_sel, req_psel, req_shape, req_activate;
 	enum grab grab; struct toplevel *grab_tl; double gx, gy; struct wlr_box gbox;
 	struct bind *binds; int nbinds; struct gesture *gest; int ngest;
 	struct rule *rules; int nrules; char **autostart; int nauto;
-	char *hot[4];                         // hot corners: tl tr bl br
+	char *hot[4];
 	bool corner_armed; double sw_dx, sw_dy; int sw_fingers;
 	struct layer_surface *kb_layer; struct toplevel *cur_focus;
 	bool locked, lock_pending;
 	int cur_ws, nws; unsigned next_id;
 	int snap_edge, gap, repeat_rate, repeat_delay, cursor_size; float scale;
+	bool animations, natural_scroll, tap_to_click;
+	double pointer_speed;
+	float bg_color[4];
+	int idle_lock_min, idle_sleep_min;
+	char idle_lock_cmd[256], idle_sleep_cmd[256];
+	uint64_t last_act_ms;
+	bool idle_lock_fired, idle_sleep_fired;
+	struct wl_event_source *idle_timer;
 	char layout[64], variant[64];
 	char sockpath[256];
 } S;
 static const char *main_conf, *user_conf;
 
 // ---------------------------------------------------------------- small helpers
+static uint64_t now_ms(void) {
+	struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
+	return (uint64_t)ts.tv_sec * 1000ULL + (uint64_t)ts.tv_nsec / 1000000ULL;
+}
+static void bump_idle(void) {
+	S.last_act_ms = now_ms();
+	S.idle_lock_fired = false;
+	S.idle_sleep_fired = false;
+	if (S.idle && S.seat) wlr_idle_notifier_v1_notify_activity(S.idle, S.seat);
+}
 static void run(const char *cmd) {
+	if (!cmd || !*cmd) return;
 	if (fork() == 0) { setsid(); execl("/bin/sh", "sh", "-c", cmd, (char *)NULL); _exit(1); }
+}
+static bool parse_hex_color(const char *s, float out[4]) {
+	if (!s) return false;
+	if (*s == '#') s++;
+	unsigned r = 0, g = 0, b = 0, a = 255;
+	size_t n = strlen(s);
+	if (n == 6 && sscanf(s, "%02x%02x%02x", &r, &g, &b) == 3) {
+		out[0] = r / 255.0f; out[1] = g / 255.0f; out[2] = b / 255.0f; out[3] = 1.0f; return true;
+	}
+	if (n == 8 && sscanf(s, "%02x%02x%02x%02x", &r, &g, &b, &a) == 4) {
+		out[0] = r / 255.0f; out[1] = g / 255.0f; out[2] = b / 255.0f; out[3] = a / 255.0f; return true;
+	}
+	return false;
 }
 static struct output *first_output(void) {
 	struct output *o; wl_list_for_each(o, &S.outputs, link) return o; return NULL;
@@ -120,7 +158,7 @@ static struct output *output_at(double x, double y) {
 	struct output *o; wl_list_for_each(o, &S.outputs, link) if (o->wlr == w) return o;
 	return first_output();
 }
-static void geo(struct toplevel *t, struct wlr_box *b) {   // visible window box in layout coordinates
+static void geo(struct toplevel *t, struct wlr_box *b) {
 	struct wlr_box g = t->xt->base->geometry;
 	b->x = t->tree->node.x + g.x; b->y = t->tree->node.y + g.y; b->width = g.width; b->height = g.height;
 }
@@ -136,7 +174,7 @@ static struct toplevel *focused(void) {
 	struct toplevel *t = S.cur_focus;
 	return t && t->mapped && !t->hidden && t->ws == S.cur_ws ? t : NULL;
 }
-static void place(struct toplevel *t, struct wlr_box b) {   // put the visible box at b
+static void place(struct toplevel *t, struct wlr_box b) {
 	struct wlr_box g = t->xt->base->geometry;
 	wlr_scene_node_set_position(&t->tree->node, b.x - g.x, b.y - g.y);
 	wlr_xdg_toplevel_set_size(t->xt, b.width, b.height);
@@ -167,6 +205,30 @@ static void focus_best(void) {
 	struct toplevel *t = top_visible();
 	if (t) focus_toplevel(t); else { S.cur_focus = NULL; wlr_seat_keyboard_notify_clear_focus(S.seat); }
 }
+static void focus_dir(const char *dir) {
+	struct toplevel *cur = focused();
+	if (!cur || !dir) { focus_best(); return; }
+	struct wlr_box cb; geo(cur, &cb);
+	double cx = cb.x + cb.width / 2.0, cy = cb.y + cb.height / 2.0;
+	struct toplevel *best = NULL, *t; double best_score = 1e18;
+	wl_list_for_each(t, &S.toplevels, link) {
+		if (t == cur || !visible(t)) continue;
+		struct wlr_box tb; geo(t, &tb);
+		double tx = tb.x + tb.width / 2.0, ty = tb.y + tb.height / 2.0;
+		double dx = tx - cx, dy = ty - cy;
+		bool ok = false;
+		if (!strcmp(dir, "left")) ok = dx < -10;
+		else if (!strcmp(dir, "right")) ok = dx > 10;
+		else if (!strcmp(dir, "up")) ok = dy < -10;
+		else if (!strcmp(dir, "down")) ok = dy > 10;
+		if (!ok) continue;
+		double primary = (!strcmp(dir, "left") || !strcmp(dir, "right")) ? (dx < 0 ? -dx : dx) : (dy < 0 ? -dy : dy);
+		double ortho = (!strcmp(dir, "left") || !strcmp(dir, "right")) ? (dy < 0 ? -dy : dy) : (dx < 0 ? -dx : dx);
+		double sc = primary + ortho * 2.0;
+		if (sc < best_score) { best_score = sc; best = t; }
+	}
+	if (best) focus_toplevel(best);
+}
 static void switch_ws(int n) {
 	if (n < 1 || n > S.nws || n == S.cur_ws) return;
 	S.cur_ws = n;
@@ -189,15 +251,8 @@ static struct wlr_box area_of(struct toplevel *t, bool full) {
 	if (full) wlr_output_layout_get_box(S.out_layout, o->wlr, &a); else a = o->usable;
 	return a;
 }
-static void snap_to(struct toplevel *t, enum snap m) {
-	if (!t || !t->mapped) return;
-	if (t->full) { t->full = false; wlr_xdg_toplevel_set_fullscreen(t->xt, false); wlr_scene_node_reparent(&t->tree->node, S.windows); }
-	struct wlr_box cur; geo(t, &cur);
-	if (m == SN_NONE) {
-		if (t->has_restore) { place(t, t->restore); t->has_restore = false; }
-		t->snap = SN_NONE; return;
-	}
-	if (t->snap == SN_NONE) { t->restore = cur; t->has_restore = true; }
+static bool snap_rect(struct toplevel *t, enum snap m, struct wlr_box *out) {
+	if (!t || m == SN_NONE || m == SN_CENTER) return false;
 	struct wlr_box a = area_of(t, false), b = a; int g = S.gap;
 	int hw = a.width / 2, hh = a.height / 2;
 	switch (m) {
@@ -209,14 +264,32 @@ static void snap_to(struct toplevel *t, enum snap m) {
 	case SN_TR: b.x = a.x + hw; b.width = a.width - hw; b.height = hh; break;
 	case SN_BL: b.width = hw; b.y = a.y + hh; b.height = a.height - hh; break;
 	case SN_BR: b.x = a.x + hw; b.width = a.width - hw; b.y = a.y + hh; b.height = a.height - hh; break;
-	case SN_CENTER: b = cur; b.x = a.x + (a.width - cur.width) / 2; b.y = a.y + (a.height - cur.height) / 2;
-		t->snap = SN_NONE; t->has_restore = false; place(t, b); return;
-	default: break;
+	case SN_MAX: break;
+	default: return false;
 	}
 	b.x += g; b.y += g; b.width -= 2 * g; b.height -= 2 * g;
+	*out = b;
+	return true;
+}
+static void snap_to(struct toplevel *t, enum snap m) {
+	if (!t || !t->mapped) return;
+	if (t->full) { t->full = false; wlr_xdg_toplevel_set_fullscreen(t->xt, false); wlr_scene_node_reparent(&t->tree->node, S.windows); }
+	struct wlr_box cur; geo(t, &cur);
+	if (m == SN_NONE) {
+		if (t->has_restore) { place(t, t->restore); t->has_restore = false; }
+		t->snap = SN_NONE; return;
+	}
+	if (t->snap == SN_NONE) { t->restore = cur; t->has_restore = true; }
+	if (m == SN_CENTER) {
+		struct wlr_box a = area_of(t, false), b = cur;
+		b.x = a.x + (a.width - cur.width) / 2; b.y = a.y + (a.height - cur.height) / 2;
+		t->snap = SN_NONE; t->has_restore = false; place(t, b); return;
+	}
+	struct wlr_box b;
+	if (!snap_rect(t, m, &b)) return;
 	place(t, b); t->snap = m; wlr_scene_node_raise_to_top(&t->tree->node);
 }
-static void snap_dir(struct toplevel *t, const char *d) {   // arrows: Windows-style halves, quarters, maximize, restore
+static void snap_dir(struct toplevel *t, const char *d) {
 	enum snap c = t->snap, n = c;
 	if (!strcmp(d, "left")) n = c == SN_RIGHT ? SN_NONE : c == SN_TR ? SN_TL : c == SN_BR ? SN_BL : SN_LEFT;
 	else if (!strcmp(d, "right")) n = c == SN_LEFT ? SN_NONE : c == SN_TL ? SN_TR : c == SN_BL ? SN_BR : SN_RIGHT;
@@ -254,18 +327,24 @@ static void minimize(struct toplevel *t) {
 	t->hidden = true; update_vis(t);
 	if (had) { S.cur_focus = NULL; wlr_seat_keyboard_notify_clear_focus(S.seat); focus_best(); }
 }
-static void show_desktop(void) {   // minimise everything here; run again to bring it back
+static void unhide_all(void) {
+	struct toplevel *t, *last = NULL;
+	wl_list_for_each(t, &S.toplevels, link) if (t->mapped && t->ws == S.cur_ws && t->hidden) { t->hidden = false; update_vis(t); last = t; }
+	if (last) focus_toplevel(last);
+}
+static void show_desktop(void) {
 	bool any = false; struct toplevel *t;
 	wl_list_for_each(t, &S.toplevels, link) if (t->mapped && t->ws == S.cur_ws && !t->hidden) any = true;
 	wl_list_for_each(t, &S.toplevels, link) if (t->mapped && t->ws == S.cur_ws) { t->hidden = any; update_vis(t); }
-	if (any) { S.cur_focus = NULL; wlr_seat_keyboard_notify_clear_focus(S.seat); } else focus_best();
+	if (any) { S.cur_focus = NULL; wlr_seat_keyboard_notify_clear_focus(S.seat); }
+	else focus_best();
 }
 
-// ---------------------------------------------------------------- layer shell (bars, dock, wallpaper, launcher)
+// ---------------------------------------------------------------- layer shell
 static void arrange_layers(struct output *o) {
-	struct wlr_box full = {0}, usable;
-	wlr_output_layout_get_box(S.out_layout, o->wlr, &full);
-	usable = full;
+	struct wlr_box full = {0}; wlr_output_layout_get_box(S.out_layout, o->wlr, &full);
+	if (o->bg) { wlr_scene_node_set_position(&o->bg->node, full.x, full.y); wlr_scene_rect_set_size(o->bg, full.width, full.height); }
+	struct wlr_box usable = full;
 	struct layer_surface *l;
 	for (int pass = 0; pass < 2; pass++)
 		wl_list_for_each(l, &S.layers, link)
@@ -316,8 +395,19 @@ static void apply_rules(struct toplevel *t) {
 		struct rule *r = &S.rules[i];
 		if (fnmatch(r->cls, cls, FNM_CASEFOLD)) continue;
 		if (r->ws > 0 && r->ws <= S.nws) t->ws = r->ws;
+		if (r->w > 0 && r->h > 0) {
+			struct wlr_box b; geo(t, &b); b.width = r->w; b.height = r->h;
+			if (r->center) {
+				struct wlr_box a = area_of(t, false);
+				b.x = a.x + (a.width - b.width) / 2; b.y = a.y + (a.height - b.height) / 2;
+			}
+			place(t, b);
+		} else if (r->center) {
+			snap_to(t, SN_CENTER);
+		}
 		if (r->snap) snap_to(t, r->snap);
-		else if (r->w > 0) { struct wlr_box b; geo(t, &b); b.width = r->w; b.height = r->h; place(t, b); }
+		if (r->max) snap_to(t, SN_MAX);
+		if (r->full) set_fullscreen(t, true);
 	}
 }
 static void tl_map(struct wl_listener *li, void *d) {
@@ -336,7 +426,10 @@ static void tl_map(struct wl_listener *li, void *d) {
 }
 static void tl_unmap(struct wl_listener *li, void *d) {
 	struct toplevel *t = wl_container_of(li, t, unmap);
-	if (S.grab_tl == t) { S.grab = GRAB_NONE; S.grab_tl = NULL; }
+	if (S.grab_tl == t) {
+		S.grab = GRAB_NONE; S.grab_tl = NULL;
+		if (S.snap_preview) wlr_scene_node_set_enabled(&S.snap_preview->node, false);
+	}
 	bool had = S.cur_focus == t;
 	t->mapped = false;
 	if (had) { S.cur_focus = NULL; wlr_seat_keyboard_notify_clear_focus(S.seat); focus_best(); }
@@ -347,7 +440,10 @@ static void tl_commit(struct wl_listener *li, void *d) {
 }
 static void tl_destroy(struct wl_listener *li, void *d) {
 	struct toplevel *t = wl_container_of(li, t, destroy);
-	if (S.grab_tl == t) { S.grab = GRAB_NONE; S.grab_tl = NULL; }
+	if (S.grab_tl == t) {
+		S.grab = GRAB_NONE; S.grab_tl = NULL;
+		if (S.snap_preview) wlr_scene_node_set_enabled(&S.snap_preview->node, false);
+	}
 	if (S.cur_focus == t) S.cur_focus = NULL;
 	wl_list_remove(&t->map.link); wl_list_remove(&t->unmap.link); wl_list_remove(&t->commit.link);
 	wl_list_remove(&t->destroy.link); wl_list_remove(&t->req_move.link); wl_list_remove(&t->req_resize.link);
@@ -356,7 +452,7 @@ static void tl_destroy(struct wl_listener *li, void *d) {
 }
 static void begin_grab(struct toplevel *t, enum grab g) {
 	if (S.locked || !t) return;
-	if (g == GRAB_MOVE && t->snap != SN_NONE && t->has_restore) {   // dragging a snapped window gives it its old size back
+	if (g == GRAB_MOVE && t->snap != SN_NONE && t->has_restore) {
 		struct wlr_box cur; geo(t, &cur);
 		double fx = (S.cursor->x - cur.x) / (double)(cur.width ? cur.width : 1);
 		struct wlr_box r = t->restore;
@@ -387,7 +483,7 @@ static void new_toplevel(struct wl_listener *li, void *d) {
 	wl_list_insert(&S.toplevels, &t->link);
 	t->tree = wlr_scene_xdg_surface_create(S.windows, xt->base);
 	t->tree->node.data = t; xt->base->data = t->tree;
-	wlr_scene_node_set_enabled(&t->tree->node, false);   // shown when mapped
+	wlr_scene_node_set_enabled(&t->tree->node, false);
 	t->map.notify = tl_map; wl_signal_add(&xt->base->surface->events.map, &t->map);
 	t->unmap.notify = tl_unmap; wl_signal_add(&xt->base->surface->events.unmap, &t->unmap);
 	t->commit.notify = tl_commit; wl_signal_add(&xt->base->surface->events.commit, &t->commit);
@@ -445,7 +541,7 @@ static void lock_unlock(struct wl_listener *li, void *d) {
 	S.locked = false; end_lock_tree(); S.kb_layer = NULL;
 	wlr_seat_keyboard_notify_clear_focus(S.seat); focus_best();
 }
-static void lock_destroy(struct wl_listener *li, void *d) {   // a lock client that dies leaves the screen locked
+static void lock_destroy(struct wl_listener *li, void *d) {
 	wl_list_remove(&S.lock_surf.link); wl_list_remove(&S.lock_unlock.link); wl_list_remove(&S.lock_destroy.link);
 	S.lock = NULL;
 }
@@ -454,7 +550,7 @@ static void new_lock(struct wl_listener *li, void *d) {
 	if (S.lock) { wlr_session_lock_v1_destroy(lock); return; }
 	S.lock = lock; S.locked = true;
 	end_lock_tree();
-	S.lock_tree = wlr_scene_tree_create(&S.scene->tree);   // created last: above everything
+	S.lock_tree = wlr_scene_tree_create(&S.scene->tree);
 	struct output *o;
 	wl_list_for_each(o, &S.outputs, link) {
 		struct wlr_box b = {0}; wlr_output_layout_get_box(S.out_layout, o->wlr, &b);
@@ -464,13 +560,42 @@ static void new_lock(struct wl_listener *li, void *d) {
 	}
 	S.cur_focus = NULL; wlr_seat_keyboard_notify_clear_focus(S.seat); wlr_seat_pointer_notify_clear_focus(S.seat);
 	S.kb_layer = NULL; S.grab = GRAB_NONE;
+	if (S.snap_preview) wlr_scene_node_set_enabled(&S.snap_preview->node, false);
 	S.lock_surf.notify = lock_new_surface; wl_signal_add(&lock->events.new_surface, &S.lock_surf);
 	S.lock_unlock.notify = lock_unlock; wl_signal_add(&lock->events.unlock, &S.lock_unlock);
 	S.lock_destroy.notify = lock_destroy; wl_signal_add(&lock->events.destroy, &S.lock_destroy);
 	if (wl_list_empty(&S.outputs)) wlr_session_lock_v1_send_locked(lock); else S.lock_pending = true;
 }
 
-// ---------------------------------------------------------------- pointer, gestures
+// ---------------------------------------------------------------- pointer, edge snap preview, gestures
+static enum snap edge_snap_at(double cx, double cy) {
+	if (S.snap_edge <= 0) return SN_NONE;
+	struct output *o = output_at(cx, cy); if (!o) return SN_NONE;
+	struct wlr_box b = {0}; wlr_output_layout_get_box(S.out_layout, o->wlr, &b);
+	double x = cx - b.x, y = cy - b.y; int e = S.snap_edge, c = 90;
+	bool L = x <= e, R = x >= b.width - 1 - e, T = y <= e;
+	if (L && y <= c) return SN_TL;
+	if (R && y <= c) return SN_TR;
+	if (L && y >= b.height - c) return SN_BL;
+	if (R && y >= b.height - c) return SN_BR;
+	if (L) return SN_LEFT;
+	if (R) return SN_RIGHT;
+	if (T) return SN_MAX;
+	return SN_NONE;
+}
+static void update_snap_preview(void) {
+	if (!S.snap_preview) return;
+	if (S.grab != GRAB_MOVE || !S.grab_tl) { wlr_scene_node_set_enabled(&S.snap_preview->node, false); return; }
+	enum snap sn = edge_snap_at(S.cursor->x, S.cursor->y);
+	struct wlr_box sb;
+	if (sn != SN_NONE && snap_rect(S.grab_tl, sn, &sb) && sb.width > 0 && sb.height > 0) {
+		wlr_scene_node_set_position(&S.snap_preview->node, sb.x, sb.y);
+		wlr_scene_rect_set_size(S.snap_preview, sb.width, sb.height);
+		wlr_scene_node_set_enabled(&S.snap_preview->node, true);
+	} else {
+		wlr_scene_node_set_enabled(&S.snap_preview->node, false);
+	}
+}
 static void corner_check(void) {
 	struct output *o = output_at(S.cursor->x, S.cursor->y); if (!o) return;
 	struct wlr_box b = {0}; wlr_output_layout_get_box(S.out_layout, o->wlr, &b);
@@ -481,10 +606,11 @@ static void corner_check(void) {
 	if (S.corner_armed && S.hot[c] && !S.locked) { S.corner_armed = false; run(S.hot[c]); }
 }
 static void pointer_motion(uint32_t time) {
-	wlr_idle_notifier_v1_notify_activity(S.idle, S.seat);
+	bump_idle();
 	if (S.grab == GRAB_MOVE && S.grab_tl) {
 		struct wlr_box g = S.grab_tl->xt->base->geometry;
 		wlr_scene_node_set_position(&S.grab_tl->tree->node, S.gbox.x + (int)(S.cursor->x - S.gx) - g.x, S.gbox.y + (int)(S.cursor->y - S.gy) - g.y);
+		update_snap_preview();
 		return;
 	}
 	if (S.grab == GRAB_RESIZE && S.grab_tl) {
@@ -500,9 +626,8 @@ static void pointer_motion(uint32_t time) {
 		struct wlr_scene_surface *ss = wlr_scene_surface_try_from_buffer(wlr_scene_buffer_from_node(n));
 		if (ss) s = ss->surface;
 	}
-	if (!s) { wlr_cursor_set_xcursor(S.cursor, S.xcur, "default"); wlr_seat_pointer_clear_focus(S.seat); return; }
-	wlr_seat_pointer_notify_enter(S.seat, s, sx, sy);
-	wlr_seat_pointer_notify_motion(S.seat, time, sx, sy);
+	if (s) { wlr_seat_pointer_notify_enter(S.seat, s, sx, sy); wlr_seat_pointer_notify_motion(S.seat, time, sx, sy); }
+	else { wlr_seat_pointer_notify_clear_focus(S.seat); wlr_cursor_set_xcursor(S.cursor, S.xcur, "default"); }
 }
 static void cur_motion(struct wl_listener *li, void *d) {
 	struct wlr_pointer_motion_event *e = d;
@@ -520,21 +645,17 @@ static struct toplevel *toplevel_under_cursor(void) {
 	while (t && !t->node.data) t = t->node.parent;
 	return t ? t->node.data : NULL;
 }
-static void drop_snap(void) {   // drag a window to a screen edge: halves, quarters, maximize
-	struct toplevel *t = S.grab_tl; if (!t || S.snap_edge <= 0) return;
-	struct output *o = output_at(S.cursor->x, S.cursor->y); if (!o) return;
-	struct wlr_box b = {0}; wlr_output_layout_get_box(S.out_layout, o->wlr, &b);
-	double x = S.cursor->x - b.x, y = S.cursor->y - b.y; int e = S.snap_edge, c = 90;
-	bool L = x <= e, R = x >= b.width - 1 - e, T = y <= e;
-	if (L && y <= c) snap_to(t, SN_TL); else if (R && y <= c) snap_to(t, SN_TR);
-	else if (L && y >= b.height - c) snap_to(t, SN_BL); else if (R && y >= b.height - c) snap_to(t, SN_BR);
-	else if (L) snap_to(t, SN_LEFT); else if (R) snap_to(t, SN_RIGHT); else if (T) snap_to(t, SN_MAX);
+static void drop_snap(void) {
+	struct toplevel *t = S.grab_tl; if (!t) return;
+	enum snap sn = edge_snap_at(S.cursor->x, S.cursor->y);
+	if (sn != SN_NONE) snap_to(t, sn);
 }
 static void cur_button(struct wl_listener *li, void *d) {
 	struct wlr_pointer_button_event *e = d;
-	wlr_idle_notifier_v1_notify_activity(S.idle, S.seat);
+	bump_idle();
 	if (e->state == WL_POINTER_BUTTON_STATE_RELEASED) {
 		if (S.grab != GRAB_NONE) {
+			if (S.snap_preview) wlr_scene_node_set_enabled(&S.snap_preview->node, false);
 			if (S.grab == GRAB_MOVE) drop_snap();
 			S.grab = GRAB_NONE; wlr_cursor_set_xcursor(S.cursor, S.xcur, "default"); return;
 		}
@@ -552,16 +673,16 @@ static void cur_button(struct wl_listener *li, void *d) {
 }
 static void cur_axis(struct wl_listener *li, void *d) {
 	struct wlr_pointer_axis_event *e = d;
-	wlr_idle_notifier_v1_notify_activity(S.idle, S.seat);
+	bump_idle();
 	struct wlr_keyboard *kb = wlr_seat_get_keyboard(S.seat);
 	if (!S.locked && kb && (wlr_keyboard_get_modifiers(kb) & WLR_MODIFIER_LOGO) && e->orientation == WL_POINTER_AXIS_VERTICAL_SCROLL) {
-		switch_ws(S.cur_ws + (e->delta > 0 ? 1 : -1)); return;   // Super + scroll changes desktop
+		switch_ws(S.cur_ws + (e->delta > 0 ? 1 : -1)); return;
 	}
 	wlr_seat_pointer_notify_axis(S.seat, e->time_msec, e->orientation, e->delta, e->delta_discrete, e->source, e->relative_direction);
 }
 static void cur_frame(struct wl_listener *li, void *d) { wlr_seat_pointer_notify_frame(S.seat); }
-static void sw_begin(struct wl_listener *li, void *d) { struct wlr_pointer_swipe_begin_event *e = d; S.sw_dx = S.sw_dy = 0; S.sw_fingers = e->fingers; }
-static void sw_update(struct wl_listener *li, void *d) { struct wlr_pointer_swipe_update_event *e = d; S.sw_dx += e->dx; S.sw_dy += e->dy; }
+static void sw_begin(struct wl_listener *li, void *d) { struct wlr_pointer_swipe_begin_event *e = d; bump_idle(); S.sw_dx = S.sw_dy = 0; S.sw_fingers = e->fingers; }
+static void sw_update(struct wl_listener *li, void *d) { struct wlr_pointer_swipe_update_event *e = d; bump_idle(); S.sw_dx += e->dx; S.sw_dy += e->dy; }
 static void sw_end(struct wl_listener *li, void *d) {
 	struct wlr_pointer_swipe_end_event *e = d;
 	if (e->cancelled || S.locked) return;
@@ -570,7 +691,7 @@ static void sw_end(struct wl_listener *li, void *d) {
 	if (ax > ay) dir = S.sw_dx < 0 ? 'l' : 'r'; else dir = S.sw_dy < 0 ? 'u' : 'd';
 	for (int i = 0; i < S.ngest; i++)
 		if (S.gest[i].fingers == S.sw_fingers && S.gest[i].dir == dir) {
-			if (!strncmp(S.gest[i].cmd, "@ws", 3)) switch_ws(S.cur_ws + (dir == 'l' ? 1 : -1));   // swipe left = next desktop
+			if (!strncmp(S.gest[i].cmd, "@ws", 3)) switch_ws(S.cur_ws + (dir == 'l' ? 1 : -1));
 			else run(S.gest[i].cmd);
 		}
 }
@@ -586,6 +707,32 @@ static void req_shape(struct wl_listener *li, void *d) {
 }
 static void req_sel(struct wl_listener *li, void *d) { struct wlr_seat_request_set_selection_event *e = d; wlr_seat_set_selection(S.seat, e->source, e->serial); }
 static void req_psel(struct wl_listener *li, void *d) { struct wlr_seat_request_set_primary_selection_event *e = d; wlr_seat_set_primary_selection(S.seat, e->source, e->serial); }
+
+// ---------------------------------------------------------------- input devices & libinput
+static void apply_pointer(struct wlr_input_device *dev) {
+#ifdef HAVE_LIBINPUT
+	if (!wlr_input_device_is_libinput(dev)) return;
+	struct libinput_device *ld = wlr_libinput_get_device_handle(dev);
+	if (!ld) return;
+	if (libinput_device_config_tap_get_finger_count(ld) > 0)
+		libinput_device_config_tap_set_enabled(ld, S.tap_to_click ? LIBINPUT_CONFIG_TAP_ENABLED : LIBINPUT_CONFIG_TAP_DISABLED);
+	if (libinput_device_config_scroll_has_natural_scroll(ld))
+		libinput_device_config_scroll_set_natural_scroll_enabled(ld, S.natural_scroll ? 1 : 0);
+	if (libinput_device_config_accel_is_available(ld)) {
+		double sp = S.pointer_speed;
+		if (sp < -1.0) sp = -1.0; else if (sp > 1.0) sp = 1.0;
+		libinput_device_config_accel_set_speed(ld, sp);
+	}
+#endif
+}
+static void apply_pointers_all(void) {
+	struct pointer_dev *p;
+	wl_list_for_each(p, &S.pointers, link) apply_pointer(p->dev);
+}
+static void ptr_destroy(struct wl_listener *li, void *d) {
+	struct pointer_dev *p = wl_container_of(li, p, destroy);
+	wl_list_remove(&p->destroy.link); wl_list_remove(&p->link); free(p);
+}
 
 // ---------------------------------------------------------------- keyboard and shortcuts
 static void apply_keymap(struct wlr_keyboard *kb) {
@@ -606,17 +753,27 @@ static void do_act(enum act a, const char *arg) {
 	case A_EXEC: run(arg); break;
 	case A_CLOSE: if (t) wlr_xdg_toplevel_send_close(t->xt); break;
 	case A_EXIT: wl_display_terminate(S.display); break;
-	case A_NEXT: {   // bring the window at the back to the front
+	case A_NEXT: {
 		struct toplevel *x, *last = NULL; wl_list_for_each(x, &S.toplevels, link) if (visible(x)) last = x;
 		if (last && last != t) focus_toplevel(last); break; }
 	case A_SNAP: if (t && arg) snap_dir(t, arg); break;
+	case A_MAX: if (t) snap_dir(t, "max"); break;
 	case A_FULL: if (t) set_fullscreen(t, !t->full); break;
 	case A_WS: if (arg) switch_ws(atoi(arg)); break;
 	case A_WSNEXT: switch_ws(S.cur_ws + 1); break;
 	case A_WSPREV: switch_ws(S.cur_ws - 1); break;
 	case A_MOVEWS: if (t && arg) { int n = atoi(arg); if (n >= 1 && n <= S.nws) { t->ws = n; update_vis(t); focus_best(); } } break;
 	case A_MINIMIZE: minimize(t); break;
+	case A_UNHIDE: unhide_all(); break;
 	case A_SHOWDESKTOP: show_desktop(); break;
+	case A_FOCUS_DIR: focus_dir(arg); break;
+	case A_RESIZE_REL: if (t && arg) {
+		int dx = 0, dy = 0; sscanf(arg, "%d %d", &dx, &dy);
+		struct wlr_box b; geo(t, &b); t->snap = SN_NONE;
+		b.width += dx; b.height += dy;
+		if (b.width < 160) b.width = 160; if (b.height < 100) b.height = 100;
+		place(t, b);
+	} break;
 	case A_RELOAD: reload_config(); break;
 	}
 }
@@ -626,7 +783,7 @@ static bool handle_bind(uint32_t mods, xkb_keysym_t sym) {
 	for (int i = 0; i < S.nbinds; i++) {
 		struct bind *b = &S.binds[i];
 		if (b->mods != mods || b->sym != sym) continue;
-		if (S.locked && sym < 0x1008FF00) continue;   // while locked only media keys work
+		if (S.locked && sym < 0x1008FF00) continue;
 		do_act(b->act, b->arg);
 		return true;
 	}
@@ -639,7 +796,7 @@ static void kb_mod(struct wl_listener *li, void *d) {
 static void kb_key(struct wl_listener *li, void *d) {
 	struct keyboard *k = wl_container_of(li, k, key);
 	struct wlr_keyboard_key_event *e = d;
-	wlr_idle_notifier_v1_notify_activity(S.idle, S.seat);
+	bump_idle();
 	const xkb_keysym_t *syms; int n = xkb_state_key_get_syms(k->kb->xkb_state, e->keycode + 8, &syms);
 	bool handled = false;
 	if (e->state == WL_KEYBOARD_KEY_STATE_PRESSED)
@@ -665,10 +822,31 @@ static void new_input(struct wl_listener *li, void *d) {
 		k->key.notify = kb_key; wl_signal_add(&kb->events.key, &k->key);
 		k->destroy.notify = kb_destroy; wl_signal_add(&dev->events.destroy, &k->destroy);
 		wlr_seat_set_keyboard(S.seat, kb); wl_list_insert(&S.keyboards, &k->link);
-	} else if (dev->type == WLR_INPUT_DEVICE_POINTER) wlr_cursor_attach_input_device(S.cursor, dev);
+	} else if (dev->type == WLR_INPUT_DEVICE_POINTER) {
+		wlr_cursor_attach_input_device(S.cursor, dev);
+		struct pointer_dev *p = calloc(1, sizeof *p); p->dev = dev;
+		p->destroy.notify = ptr_destroy; wl_signal_add(&dev->events.destroy, &p->destroy);
+		wl_list_insert(&S.pointers, &p->link);
+		apply_pointer(dev);
+	}
 	uint32_t caps = WL_SEAT_CAPABILITY_POINTER;
 	if (!wl_list_empty(&S.keyboards)) caps |= WL_SEAT_CAPABILITY_KEYBOARD;
 	wlr_seat_set_capabilities(S.seat, caps);
+}
+
+// ---------------------------------------------------------------- idle timer
+static int idle_tick(void *data) {
+	uint64_t elapsed = now_ms() - S.last_act_ms;
+	if (S.idle_lock_min > 0 && !S.locked && !S.idle_lock_fired && elapsed >= (uint64_t)S.idle_lock_min * 60000ULL) {
+		S.idle_lock_fired = true;
+		run(S.idle_lock_cmd[0] ? S.idle_lock_cmd : "xlinos-lock");
+	}
+	if (S.idle_sleep_min > 0 && !S.idle_sleep_fired && elapsed >= (uint64_t)S.idle_sleep_min * 60000ULL) {
+		S.idle_sleep_fired = true;
+		run(S.idle_sleep_cmd[0] ? S.idle_sleep_cmd : "systemctl suspend");
+	}
+	wl_event_source_timer_update(S.idle_timer, 5000);
+	return 0;
 }
 
 // ---------------------------------------------------------------- xlin.conf
@@ -694,6 +872,9 @@ static int snap_by_name(const char *n) {
 	for (int i = 1; i < 11; i++) if (!strcmp(names[i], n)) return i;
 	return 0;
 }
+static bool truthy(const char *v) {
+	return v && (!strcasecmp(v, "1") || !strcasecmp(v, "true") || !strcasecmp(v, "on") || !strcasecmp(v, "yes"));
+}
 static void add_bind(struct bind b) {
 	for (int i = 0; i < S.nbinds; i++) if (S.binds[i].mods == b.mods && S.binds[i].sym == b.sym) { free(S.binds[i].arg); S.binds[i] = b; return; }
 	S.binds = realloc(S.binds, sizeof(struct bind) * (S.nbinds + 1)); S.binds[S.nbinds++] = b;
@@ -706,8 +887,21 @@ static void cfg_set(const char *k, const char *v) {
 	else if (!strcmp(k, "cursor_size")) S.cursor_size = atoi(v);
 	else if (!strcmp(k, "repeat_rate")) S.repeat_rate = atoi(v);
 	else if (!strcmp(k, "repeat_delay")) S.repeat_delay = atoi(v);
-	else if (!strcmp(k, "layout")) snprintf(S.layout, sizeof S.layout, "%s", v);
-	else if (!strcmp(k, "variant")) snprintf(S.variant, sizeof S.variant, "%s", v);
+	else if (!strcmp(k, "layout")) { snprintf(S.layout, sizeof S.layout, "%s", v); struct keyboard *kb; wl_list_for_each(kb, &S.keyboards, link) apply_keymap(kb->kb); }
+	else if (!strcmp(k, "variant")) { snprintf(S.variant, sizeof S.variant, "%s", v); struct keyboard *kb; wl_list_for_each(kb, &S.keyboards, link) apply_keymap(kb->kb); }
+	else if (!strcmp(k, "animations")) S.animations = truthy(v);
+	else if (!strcmp(k, "natural_scroll")) { S.natural_scroll = truthy(v); apply_pointers_all(); }
+	else if (!strcmp(k, "tap_to_click")) { S.tap_to_click = truthy(v); apply_pointers_all(); }
+	else if (!strcmp(k, "pointer_speed")) { S.pointer_speed = atof(v); apply_pointers_all(); }
+	else if (!strcmp(k, "bg_color")) {
+		if (parse_hex_color(v, S.bg_color)) {
+			struct output *o; wl_list_for_each(o, &S.outputs, link) if (o->bg) wlr_scene_rect_set_color(o->bg, S.bg_color);
+		}
+	}
+	else if (!strcmp(k, "idle_lock_minutes")) { S.idle_lock_min = atoi(v); S.idle_lock_fired = false; }
+	else if (!strcmp(k, "idle_sleep_minutes")) { S.idle_sleep_min = atoi(v); S.idle_sleep_fired = false; }
+	else if (!strcmp(k, "idle_lock_cmd")) snprintf(S.idle_lock_cmd, sizeof S.idle_lock_cmd, "%s", v);
+	else if (!strcmp(k, "idle_sleep_cmd")) snprintf(S.idle_sleep_cmd, sizeof S.idle_sleep_cmd, "%s", v);
 	else if (!strncmp(k, "hotcorner_", 10)) {
 		int c = !strcmp(k + 10, "tl") ? 0 : !strcmp(k + 10, "tr") ? 1 : !strcmp(k + 10, "bl") ? 2 : !strcmp(k + 10, "br") ? 3 : -1;
 		if (c >= 0) { free(S.hot[c]); S.hot[c] = *v ? strdup(v) : NULL; }
@@ -735,13 +929,17 @@ static void load_config(const char *path, bool first) {
 			else if (!strcmp(act, "exit")) b.act = A_EXIT;
 			else if (!strcmp(act, "next")) b.act = A_NEXT;
 			else if (!strcmp(act, "snap") && arg) { b.act = A_SNAP; b.arg = strdup(arg); }
+			else if (!strcmp(act, "maximize")) b.act = A_MAX;
 			else if (!strcmp(act, "fullscreen")) b.act = A_FULL;
 			else if (!strcmp(act, "workspace") && arg) { b.act = A_WS; b.arg = strdup(arg); }
 			else if (!strcmp(act, "movetoworkspace") && arg) { b.act = A_MOVEWS; b.arg = strdup(arg); }
 			else if (!strcmp(act, "workspace-next")) b.act = A_WSNEXT;
 			else if (!strcmp(act, "workspace-prev")) b.act = A_WSPREV;
 			else if (!strcmp(act, "minimize")) b.act = A_MINIMIZE;
+			else if (!strcmp(act, "unhide")) b.act = A_UNHIDE;
 			else if (!strcmp(act, "showdesktop")) b.act = A_SHOWDESKTOP;
+			else if (!strcmp(act, "focus") && arg) { b.act = A_FOCUS_DIR; b.arg = strdup(arg); }
+			else if (!strcmp(act, "resize") && arg) { b.act = A_RESIZE_REL; b.arg = strdup(arg); }
 			else if (!strcmp(act, "reload")) b.act = A_RELOAD;
 			else continue;
 			add_bind(b);
@@ -750,22 +948,37 @@ static void load_config(const char *path, bool first) {
 			uint32_t m; xkb_keysym_t s; if (!parse_combo(rest, &m, &s)) continue;
 			for (int i = 0; i < S.nbinds; i++) if (S.binds[i].mods == m && S.binds[i].sym == s) { free(S.binds[i].arg); S.binds[i] = S.binds[--S.nbinds]; break; }
 		}
-		else if (!strcmp(cmd, "gesture") && rest) {   // gesture 3 left @ws   |   gesture 3 up xlinos-launcher
+		else if (!strcmp(cmd, "gesture") && rest) {
 			char *fg = strtok(rest, " \t"), *dir = strtok(NULL, " \t"), *c = strtok(NULL, "");
 			if (!fg || !dir || !c) continue;
 			S.gest = realloc(S.gest, sizeof(struct gesture) * (S.ngest + 1));
 			S.gest[S.ngest++] = (struct gesture){ atoi(fg), dir[0], strdup(c + strspn(c, " \t")) };
 		}
-		else if (!strcmp(cmd, "rule") && rest) {   // rule CLASS-GLOB [workspace=N] [size=WxH] [snap=MODE]
+		else if (!strcmp(cmd, "rule") && rest) {
 			char *cls = strtok(rest, " \t"); if (!cls) continue;
-			struct rule r = { strdup(cls), 0, 0, 0, 0 }; char *o;
+			struct rule r = { strdup(cls), 0, 0, 0, 0, false, false, false }; char *o;
 			while ((o = strtok(NULL, " \t"))) {
 				if (!strncmp(o, "workspace=", 10)) r.ws = atoi(o + 10);
 				else if (!strncmp(o, "size=", 5)) sscanf(o + 5, "%dx%d", &r.w, &r.h);
 				else if (!strncmp(o, "snap=", 5)) r.snap = snap_by_name(o + 5);
+				else if (!strcmp(o, "center")) r.center = true;
+				else if (!strcmp(o, "fullscreen")) r.full = true;
+				else if (!strcmp(o, "maximize")) r.max = true;
 			}
 			S.rules = realloc(S.rules, sizeof(struct rule) * (S.nrules + 1)); S.rules[S.nrules++] = r;
 		}
+	}
+	fclose(f);
+}
+static void load_system_keyboard(void) {
+	FILE *f = fopen("/etc/xlinos-keyboard", "r");
+	if (!f) return;
+	char line[128];
+	if (fgets(line, sizeof line, f)) {
+		line[strcspn(line, "\n")] = 0;
+		char *l = strtok(line, " \t"), *v = strtok(NULL, " \t");
+		if (l) snprintf(S.layout, sizeof S.layout, "%s", l);
+		if (v) snprintf(S.variant, sizeof S.variant, "%s", v);
 	}
 	fclose(f);
 }
@@ -817,10 +1030,13 @@ static void ctl(char *line, FILE *o) {
 		fputc('[', o); bool first = true; struct output *m; int id = 0;
 		wl_list_for_each(m, &S.outputs, link) {
 			struct wlr_box b = {0}; wlr_output_layout_get_box(S.out_layout, m->wlr, &b);
+			int rl = m->usable.x - b.x, rt = m->usable.y - b.y;
+			int rr = (b.x + b.width) - (m->usable.x + m->usable.width), rb = (b.y + b.height) - (m->usable.y + m->usable.height);
+			double hz = m->wlr->refresh > 0 ? m->wlr->refresh / 1000.0 : 60.0;
 			if (!first) fputc(',', o); first = false;
 			fprintf(o, "{\"id\":%d,\"name\":", id++); jstr(o, m->wlr->name);
-			fprintf(o, ",\"x\":%d,\"y\":%d,\"width\":%d,\"height\":%d,\"scale\":%.2f,\"usable\":[%d,%d,%d,%d]}",
-				b.x, b.y, m->wlr->width, m->wlr->height, m->wlr->scale, m->usable.x, m->usable.y, m->usable.width, m->usable.height);
+			fprintf(o, ",\"x\":%d,\"y\":%d,\"width\":%d,\"height\":%d,\"refreshRate\":%.2f,\"scale\":%.2f,\"reserved\":[%d,%d,%d,%d],\"usable\":[%d,%d,%d,%d]}",
+				b.x, b.y, m->wlr->width, m->wlr->height, hz, m->wlr->scale, rl, rt, rr, rb, m->usable.x, m->usable.y, m->usable.width, m->usable.height);
 		}
 		fputs("]\n", o);
 	} else if (!strcmp(c, "workspaces")) {
@@ -833,13 +1049,30 @@ static void ctl(char *line, FILE *o) {
 	} else if (!strcmp(c, "activeworkspace")) fprintf(o, "{\"id\":%d}\n", S.cur_ws);
 	else if (!strcmp(c, "cursor")) fprintf(o, "{\"x\":%d,\"y\":%d}\n", (int)S.cursor->x, (int)S.cursor->y);
 	else if (!strcmp(c, "locked")) fprintf(o, "%s\n", S.locked ? "true" : "false");
+	else if (!strcmp(c, "getoption") && a1) {
+		if (!strcmp(a1, "layout")) fprintf(o, "%s\n", S.layout);
+		else if (!strcmp(a1, "variant")) fprintf(o, "%s\n", S.variant);
+		else if (!strcmp(a1, "workspaces")) fprintf(o, "%d\n", S.nws);
+		else if (!strcmp(a1, "gap")) fprintf(o, "%d\n", S.gap);
+		else if (!strcmp(a1, "animations")) fprintf(o, "%d\n", S.animations ? 1 : 0);
+		else if (!strcmp(a1, "natural_scroll")) fprintf(o, "%d\n", S.natural_scroll ? 1 : 0);
+		else if (!strcmp(a1, "tap_to_click")) fprintf(o, "%d\n", S.tap_to_click ? 1 : 0);
+		else if (!strcmp(a1, "pointer_speed")) fprintf(o, "%.2f\n", S.pointer_speed);
+		else if (!strcmp(a1, "idle_lock_minutes")) fprintf(o, "%d\n", S.idle_lock_min);
+		else if (!strcmp(a1, "idle_sleep_minutes")) fprintf(o, "%d\n", S.idle_sleep_min);
+		else fputs("error: unknown option\n", o);
+	}
 	else if (!strcmp(c, "focus")) { struct toplevel *t = parse_addr(a1); if (t) { focus_toplevel(t); fputs("ok\n", o); } else fputs("error: no such window\n", o); }
+	else if (!strcmp(c, "focusdir") && a1) { focus_dir(a1); fputs("ok\n", o); }
 	else if (!strcmp(c, "close")) { struct toplevel *t = parse_addr(a1); if (t) wlr_xdg_toplevel_send_close(t->xt); fputs("ok\n", o); }
 	else if (!strcmp(c, "closeclass") && a1) { struct toplevel *t; wl_list_for_each(t, &S.toplevels, link) if (t->mapped && t->xt->app_id && !strcasecmp(t->xt->app_id, a1)) wlr_xdg_toplevel_send_close(t->xt); fputs("ok\n", o); }
 	else if (!strcmp(c, "snap") && a1) { struct toplevel *t = parse_addr(a2); if (t) snap_dir(t, a1); fputs("ok\n", o); }
+	else if (!strcmp(c, "maximize")) { struct toplevel *t = parse_addr(a1); if (t) snap_dir(t, "max"); fputs("ok\n", o); }
 	else if (!strcmp(c, "move") && a1 && a2 && a3) { struct toplevel *t = by_id((unsigned)strtoul(a1, NULL, 0)); if (t) { struct wlr_box b; geo(t, &b); t->snap = SN_NONE; b.x = atoi(a2); b.y = atoi(a3); place(t, b); } fputs("ok\n", o); }
 	else if (!strcmp(c, "size") && a1 && a2 && a3) { struct toplevel *t = by_id((unsigned)strtoul(a1, NULL, 0)); if (t) { struct wlr_box b; geo(t, &b); t->snap = SN_NONE; b.width = atoi(a2); b.height = atoi(a3); place(t, b); } fputs("ok\n", o); }
+	else if (!strcmp(c, "resize") && a1 && a2) { struct toplevel *t = parse_addr(a3); if (t) { struct wlr_box b; geo(t, &b); t->snap = SN_NONE; b.width += atoi(a1); b.height += atoi(a2); if (b.width < 160) b.width = 160; if (b.height < 100) b.height = 100; place(t, b); } fputs("ok\n", o); }
 	else if (!strcmp(c, "minimize")) { minimize(parse_addr(a1)); fputs("ok\n", o); }
+	else if (!strcmp(c, "unhide")) { unhide_all(); fputs("ok\n", o); }
 	else if (!strcmp(c, "fullscreen")) { struct toplevel *t = parse_addr(a1); if (t) set_fullscreen(t, !t->full); fputs("ok\n", o); }
 	else if (!strcmp(c, "showdesktop")) { show_desktop(); fputs("ok\n", o); }
 	else if (!strcmp(c, "workspace") && a1) { switch_ws(atoi(a1)); fputs("ok\n", o); }
@@ -878,7 +1111,6 @@ static void out_frame(struct wl_listener *li, void *d) {
 	wlr_scene_output_commit(o->so, NULL);
 	struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);
 	wlr_scene_output_send_frame_done(o->so, &now);
-	if (S.lock_pending && S.lock) { S.lock_pending = false; wlr_session_lock_v1_send_locked(S.lock); }
 }
 static void out_state(struct wl_listener *li, void *d) {
 	struct output *o = wl_container_of(li, o, state);
@@ -887,6 +1119,7 @@ static void out_state(struct wl_listener *li, void *d) {
 }
 static void out_destroy(struct wl_listener *li, void *d) {
 	struct output *o = wl_container_of(li, o, destroy);
+	if (o->bg) wlr_scene_node_destroy(&o->bg->node);
 	wl_list_remove(&o->frame.link); wl_list_remove(&o->state.link); wl_list_remove(&o->destroy.link); wl_list_remove(&o->link); free(o);
 }
 static void new_output(struct wl_listener *li, void *d) {
@@ -899,6 +1132,7 @@ static void new_output(struct wl_listener *li, void *d) {
 	if (S.scale > 0) wlr_output_state_set_scale(&st, S.scale);
 	wlr_output_commit_state(wo, &st); wlr_output_state_finish(&st);
 	struct output *o = calloc(1, sizeof *o); o->wlr = wo;
+	o->bg = wlr_scene_rect_create(S.layer[L_BG], wo->width > 0 ? wo->width : 1280, wo->height > 0 ? wo->height : 720, S.bg_color);
 	o->frame.notify = out_frame; wl_signal_add(&wo->events.frame, &o->frame);
 	o->state.notify = out_state; wl_signal_add(&wo->events.request_state, &o->state);
 	o->destroy.notify = out_destroy; wl_signal_add(&wo->events.destroy, &o->destroy);
@@ -920,15 +1154,19 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[i], "-c") && i + 1 < argc) main_conf = argv[++i];
 		else if (!strcmp(argv[i], "-v")) { puts("xlin-comp " VERSION); return 0; }
 	}
-	S.cur_ws = 1; S.nws = 4; S.snap_edge = 24; S.repeat_rate = 25; S.repeat_delay = 600; S.cursor_size = 24; S.corner_armed = true;
+	S.cur_ws = 1; S.nws = 4; S.snap_edge = 24; S.gap = 8; S.repeat_rate = 25; S.repeat_delay = 600; S.cursor_size = 24; S.corner_armed = true;
+	S.animations = true; S.natural_scroll = true; S.tap_to_click = true; S.pointer_speed = 0.0;
+	S.bg_color[0] = 3 / 255.0f; S.bg_color[1] = 8 / 255.0f; S.bg_color[2] = 28 / 255.0f; S.bg_color[3] = 1.0f;
+	snprintf(S.idle_lock_cmd, sizeof S.idle_lock_cmd, "xlinos-lock");
+	snprintf(S.idle_sleep_cmd, sizeof S.idle_sleep_cmd, "systemctl suspend");
 	if (!main_conf) main_conf = "/usr/share/xlinos/xlin.conf";
 	static char upath[512]; const char *h = getenv("HOME");
 	if (h) { snprintf(upath, sizeof upath, "%s/.config/xlin/xlin.conf", h); user_conf = upath; }
-	wl_list_init(&S.outputs); wl_list_init(&S.toplevels); wl_list_init(&S.keyboards); wl_list_init(&S.layers);
+	wl_list_init(&S.outputs); wl_list_init(&S.toplevels); wl_list_init(&S.keyboards); wl_list_init(&S.pointers); wl_list_init(&S.layers);
+	load_system_keyboard();
 	load_config(main_conf, true);
 	if (user_conf) load_config(user_conf, true);
 	char sz[16]; snprintf(sz, sizeof sz, "%d", S.cursor_size); setenv("XCURSOR_SIZE", sz, 0);
-
 	S.display = wl_display_create(); S.loop = wl_display_get_event_loop(S.display);
 	S.backend = wlr_backend_autocreate(S.loop, &S.session);
 	if (!S.backend) { wlr_log(WLR_ERROR, "no display backend"); return 1; }
@@ -944,6 +1182,7 @@ int main(int argc, char **argv) {
 	wlr_single_pixel_buffer_manager_v1_create(S.display);
 	wlr_screencopy_manager_v1_create(S.display);
 	wlr_fractional_scale_manager_v1_create(S.display, 1);
+	wlr_gamma_control_manager_v1_create(S.display);
 	S.idle = wlr_idle_notifier_v1_create(S.display);
 	S.out_layout = wlr_output_layout_create(S.display);
 	wlr_xdg_output_manager_v1_create(S.display, S.out_layout);
@@ -955,6 +1194,9 @@ int main(int argc, char **argv) {
 	S.layer[L_TOP] = wlr_scene_tree_create(&S.scene->tree);
 	S.fs = wlr_scene_tree_create(&S.scene->tree);
 	S.layer[L_OVERLAY] = wlr_scene_tree_create(&S.scene->tree);
+	float prev_col[4] = {79 / 255.0f * 0.28f, 147 / 255.0f * 0.28f, 1.0f * 0.28f, 0.28f};
+	S.snap_preview = wlr_scene_rect_create(S.layer[L_OVERLAY], 100, 100, prev_col);
+	wlr_scene_node_set_enabled(&S.snap_preview->node, false);
 	S.new_output.notify = new_output; wl_signal_add(&S.backend->events.new_output, &S.new_output);
 	S.xdg = wlr_xdg_shell_create(S.display, 3);
 	S.new_toplevel.notify = new_toplevel; wl_signal_add(&S.xdg->events.new_toplevel, &S.new_toplevel);
@@ -982,14 +1224,17 @@ int main(int argc, char **argv) {
 	S.req_cursor.notify = req_cursor; wl_signal_add(&S.seat->events.request_set_cursor, &S.req_cursor);
 	S.req_sel.notify = req_sel; wl_signal_add(&S.seat->events.request_set_selection, &S.req_sel);
 	S.req_psel.notify = req_psel; wl_signal_add(&S.seat->events.request_set_primary_selection, &S.req_psel);
-
 	const char *sock = wl_display_add_socket_auto(S.display);
 	if (!sock) { wlr_backend_destroy(S.backend); return 1; }
 	if (!wlr_backend_start(S.backend)) { wlr_backend_destroy(S.backend); wl_display_destroy(S.display); return 1; }
 	setenv("WAYLAND_DISPLAY", sock, 1);
 	setenv("XDG_CURRENT_DESKTOP", "XlinOS", 1);
+	setenv("XDG_SESSION_DESKTOP", "XlinOS", 1);
 	setenv("XDG_SESSION_TYPE", "wayland", 1);
 	ipc_start();
+	S.last_act_ms = now_ms();
+	S.idle_timer = wl_event_loop_add_timer(S.loop, idle_tick, NULL);
+	wl_event_source_timer_update(S.idle_timer, 5000);
 	signal(SIGCHLD, SIG_IGN); signal(SIGPIPE, SIG_IGN);
 	for (int i = 0; i < S.nauto; i++) run(S.autostart[i]);
 	if (startup) run(startup);
@@ -997,5 +1242,5 @@ int main(int argc, char **argv) {
 	wl_display_run(S.display);
 	unlink(S.sockpath);
 	wl_display_destroy_clients(S.display);
-	return 0;   // the system frees the rest
+	return 0;
 }

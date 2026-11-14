@@ -31,10 +31,15 @@ sed -i \
 # Layer 1: boot menus (names, splash picture, quiet start)
 "$ROOT/scripts/brand-boot.sh" "$PROFILE"
 
-# --- packages
+# --- packages & XlinOS compositor
 say "Packages"
+WLR_PKG="$(pacman -Ssq '^wlroots' | sort -V | tail -1)"
+[[ -n "$WLR_PKG" ]] || { echo "No wlroots package found in pacman sync db."; exit 1; }
 grep -vE '^\s*(#|$)' "$ROOT/profile/packages.extra" >>"$PROFILE/packages.x86_64"
+echo "$WLR_PKG" >>"$PROFILE/packages.x86_64"
 sort -u -o "$PROFILE/packages.x86_64" "$PROFILE/packages.x86_64"
+say "Building xlin-comp ($WLR_PKG)"
+make -C "$ROOT/compositor" clean all
 
 # --- boot logo: plymouth hook in the live initramfs (after udev)
 for f in "$PROFILE"/airootfs/etc/mkinitcpio.conf.d/*.conf; do
@@ -44,6 +49,7 @@ grep -h '^HOOKS' "$PROFILE"/airootfs/etc/mkinitcpio.conf.d/*.conf || true
 
 # --- our files on top of releng's airootfs
 cp -r "$ROOT/profile/airootfs/." "$PROFILE/airootfs/"
+install -D -m 755 "$ROOT/compositor/xlin-comp" "$PROFILE/airootfs/usr/local/bin/xlin-comp"
 sed -i "s/@VERSION@/$version/g" "$PROFILE/airootfs/etc/os-release" "$PROFILE/airootfs/etc/issue" "$PROFILE/airootfs/etc/motd"
 install -D -m 644 "$ROOT/LICENSE" "$PROFILE/airootfs/usr/share/xlinos/LICENSE"
 echo "$version" >"$PROFILE/airootfs/usr/share/xlinos/VERSION"
@@ -51,7 +57,7 @@ sed -i "s/@VERSION@/$version/g; s|@XLINOS_REF@|${XLINOS_REF:-}|g" "$PROFILE/airo
 # archinstall config: embed the post-install script (base64 has no "|", so it is a safe sed delimiter)
 x="$PROFILE/airootfs/usr/share/xlinos"
 b64="$(base64 -w0 "$x/post-install.sh")"
-sed "s|@POST_B64@|$b64|" "$x/archinstall-config.json.in" >"$x/archinstall-config.json"
+sed "s|@POST_B64@|$b64|; s|@WLROOTS_PKG@|$WLR_PKG|" "$x/archinstall-config.json.in" >"$x/archinstall-config.json"
 rm -f "$x/archinstall-config.json.in"
 python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$x/archinstall-config.json"
 
@@ -76,6 +82,8 @@ file_permissions+=(
   ["/etc/gshadow"]="0:0:400"
   ["/etc/sudoers.d/xlin-live"]="0:0:440"
   ["/home/xlin"]="1000:1000:750"
+  ["/usr/local/bin/xlin-comp"]="0:0:755"
+  ["/usr/local/bin/xlinctl"]="0:0:755"
   ["/usr/local/bin/xlinos-session"]="0:0:755"
   ["/usr/local/bin/xlinos-install"]="0:0:755"
   ["/usr/local/bin/xlinos-installer"]="0:0:755"
@@ -145,17 +153,6 @@ file_permissions+=(
   ["/usr/share/xlinos/post-install.sh"]="0:0:755"
 )
 EOT
-
-# --- AUR-only packages (the Run Bar) go into a local repository that is used while building
-if ((USE_AUR)); then
-  say "AUR packages"
-  "$ROOT/scripts/build-aur.sh" "$WORK/aur-repo"
-  if [[ -f "$WORK/aur-repo/xlinos-aur.db.tar.gz" ]]; then
-    printf '\n[xlinos-aur]\nSigLevel = Optional TrustAll\nServer = file://%s\n' "$WORK/aur-repo" >>"$PROFILE/pacman.conf"
-    echo "nwg-dock-hyprland" >>"$PROFILE/packages.x86_64"
-    sort -u -o "$PROFILE/packages.x86_64" "$PROFILE/packages.x86_64"
-  fi
-fi
 
 say "Building the ISO (this takes a while)"
 mkarchiso -v -w "$WORK/tmp" -o "$OUT" "$PROFILE"

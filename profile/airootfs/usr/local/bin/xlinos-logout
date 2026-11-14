@@ -6,4 +6,4 @@ sid="${XDG_SESSION_ID:-}"
 if [ -n "$sid" ] && loginctl terminate-session "$sid" 2>/dev/null; then sleep 5; fi
 loginctl terminate-user "$(id -un)" 2>/dev/null
 sleep 3
-exec hyprctl dispatch exit
+exec xlinctl exit

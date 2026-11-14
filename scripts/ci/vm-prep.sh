@@ -8,6 +8,7 @@ echo 't ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/t-ci; chmod 440 /etc/sudoers.d/
 cp -a $A/usr/local/lib/xlinos/. /usr/local/lib/xlinos/ 2>/dev/null
 cp -a $A/usr/local/bin/. /usr/local/bin/ 2>/dev/null
 cp -a $A/usr/share/xlinos/. /usr/share/xlinos/ 2>/dev/null
+if [ -f "$R/compositor/xlin-comp.c" ] && command -v make >/dev/null; then make -C "$R/compositor" clean all && install -m 755 "$R/compositor/xlin-comp" /usr/local/bin/xlin-comp; fi
 for f in $A/usr/share/applications/xlinos-*.desktop; do case $f in *xlinos-install.desktop) ;; *) cp $f /usr/share/applications/;; esac; done
 cp $A/usr/share/xlinos/quickshell.bashrc /usr/share/xlinos/
 cat >/etc/greetd/config.toml <<EOT

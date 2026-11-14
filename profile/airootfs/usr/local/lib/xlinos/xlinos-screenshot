@@ -19,7 +19,7 @@ def take(mode, delay=0):
     elif mode == "window":
         import json
         try:
-            a = json.loads(out(["hyprctl", "-j", "activewindow"]).stdout)
+            a = json.loads(out(["xlinctl", "activewindow"]).stdout)
             region = "%d,%d %dx%d" % (a["at"][0], a["at"][1], a["size"][0], a["size"][1])
         except Exception:
             return None

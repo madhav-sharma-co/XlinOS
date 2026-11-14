@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""xlinctl: talk to the XlinOS compositor.  xlinctl clients | activewindow | monitors | workspaces |
-snap left|right|up|down|max|restore|center [ADDR] | focus ADDR | close [ADDR] | workspace N | movetoworkspace N [ADDR]
-minimize [ADDR] | fullscreen [ADDR] | showdesktop | move ADDR X Y | size ADDR W H | layout CODE [VARIANT] | reload | exit"""
+"""xlinctl: talk to the XlinOS compositor (xlin-comp).
+  xlinctl clients | activewindow | monitors | workspaces | activeworkspace | cursor | locked | getoption KEY |
+  snap left|right|up|down|max|restore|center [ADDR] | maximize [ADDR] | focus ADDR | focusdir DIR |
+  close [ADDR] | closeclass CLASS | workspace N | movetoworkspace N [ADDR] | minimize [ADDR] | unhide |
+  fullscreen [ADDR] | showdesktop | move ADDR X Y | size ADDR W H | resize DX DY [ADDR] |
+  set KEY VALUE | layout CODE [VARIANT] | reload | exit
+"""
 import os, socket, sys
 
 def call(*args, timeout=3):

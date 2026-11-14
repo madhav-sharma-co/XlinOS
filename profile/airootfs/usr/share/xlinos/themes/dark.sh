@@ -33,7 +33,7 @@ C_T_4="#6aa8f0";  C_T_5="#d98aa8";  C_T_6="#5fc8de";  C_T_7="#c5cee0"
 C_T_8="#44506b";  C_T_9="#ff8fa1";  C_T_10="#8fe0b8"; C_T_11="#ffd98f"
 C_T_12="#8fbfff"; C_T_13="#eaa3bc"; C_T_14="#86dcec"; C_T_15="#ffffff"
 
-# lock screen (hyprlock): text colours, field glass, and a dark veil over the blurred wallpaper
+# lock screen: text colours, field glass, and a dark veil over the blurred wallpaper
 C_LOCK_INK="rgba(255,255,255,1.0)"; C_LOCK_MUTED="rgba(157,180,230,0.9)"
 C_LOCK_FIELD="rgba(12,20,56,0.55)"; C_LOCK_RING="rgba(79,147,255,0.55)"
 C_LOCK_TINT="rgba(3,8,28,0.35)"; C_LOCK_FAIL="rgba(240,120,140,1.0)"

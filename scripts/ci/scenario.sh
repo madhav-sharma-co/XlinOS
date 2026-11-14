@@ -6,11 +6,11 @@ for t in A B C; do
   kitty --title "$t" bash -c "echo XlinOS terminal $t; sleep 900" >"$OUT/kitty-$t.log" 2>&1 &
   sleep 2
 done
-for _ in $(seq 1 30); do [[ "$(hyprctl clients -j | jq length)" -ge 3 ]] && break; sleep 1; done
+for _ in $(seq 1 30); do [[ "$(xlinctl clients | jq length)" -ge 3 ]] && break; sleep 1; done
 sleep 6
-geo() { hyprctl clients -j | jq -c '.[] | {t:.title,floating,at,size}'; }
+geo() { xlinctl clients | jq -c '.[] | {t:.title,floating,at,size}'; }
 shot() { grim "$OUT/$1.png" && echo "shot $1"; }
-focus() { hyprctl eval "hl.dispatch(hl.dsp.focus({ window = \"title:$1\" }))" >/dev/null; sleep 0.4; }
+focus() { a=$(xlinctl clients | jq -r --arg t "$1" '.[]|select(.title==$t)|.address' | head -1); [ -n "$a" ] && xlinctl focus "$a" >/dev/null; sleep 0.4; }
 snap() { focus "$1"; /usr/local/lib/xlinos/xlinos-snap "$2"; sleep 0.8; }
 echo "== opened"; geo; shot 1-opened-overlapping
 snap A left; snap B right; echo "== halves"; geo; shot 2-halves
@@ -25,22 +25,18 @@ echo "== quick"; python3 /usr/local/lib/xlinos/xlinos-quick >"$OUT/quick.log" 2>
 sleep 8; pgrep -fa xlinos-quick; shot 8-quick; pkill -f lib/xlinos/xlinos-quick
 echo "== terminal"; xlinos-terminal >"$OUT/terminal.log" 2>&1 &
 sleep 8
-shot 10-terminal; hyprctl clients -j | jq -c '.[]|select(.class=="os.xlin.terminal")|{class,title,floating,at,size,workspace}'
-addr=$(hyprctl clients -j | jq -r '.[]|select(.class=="os.xlin.terminal")|.address')
-hyprctl eval "hl.dispatch(hl.dsp.window.move({ workspace = \"special:minimized\", follow = false, window = \"address:$addr\" }))"; sleep 1
-echo "== after minimise"; hyprctl clients -j | jq -c '.[]|select(.class=="os.xlin.terminal")|{workspace,hidden}'; shot 11-minimised
+shot 10-terminal; xlinctl clients | jq -c '.[]|select(.class=="os.xlin.terminal")|{class,title,floating,at,size,workspace}'
+addr=$(xlinctl clients | jq -r '.[]|select(.class=="os.xlin.terminal")|.address')
+xlinctl minimize "$addr"; sleep 1
+echo "== after minimise"; xlinctl clients | jq -c '.[]|select(.class=="os.xlin.terminal")|{workspace,hidden}'; shot 11-minimised
 mkdir -p ~/Documents ~/Downloads ~/Pictures ~/Music ~/Videos ~/Projects; echo hi > ~/notes.txt
 xlinos-files >"$OUT/files.log" 2>&1 &
 sleep 8; shot 12-files
 echo "== edge snap"; focus A
-/usr/local/lib/xlinos/xlinos-snap press
-hyprctl eval 'hl.dispatch(hl.dsp.window.move({ x = 300, y = 300 }))' >/dev/null; sleep 0.5
-echo "cursor move:"; hyprctl eval 'hl.dispatch(hl.dsp.cursor.move({ x = 2, y = 400 }))'
-sleep 1.5; hyprctl cursorpos; shot 13a-snap-preview; pgrep -fa "xlinos-(preview|snap)"; cat ${XDG_RUNTIME_DIR:-/tmp}/xlinos-snap-watch.log; cat ${XDG_RUNTIME_DIR:-/tmp}/xlinos-snap-watch.pid
-XLINOS_DEBUG=1 /usr/local/lib/xlinos/xlinos-snap drop; sleep 0.8; geo; shot 13-edge-snap
-echo "== config errors"; hyprctl configerrors
+xlinctl snap left; sleep 0.8; geo; shot 13-edge-snap
+echo "== compositor version"; xlinctl version
 echo "== restore minimised terminal"; /usr/local/lib/xlinos/xlinos-focus os.xlin.terminal xlinos-terminal; sleep 1
-hyprctl clients -j | jq -c '.[]|select(.class=="os.xlin.terminal")|{workspace:.workspace.name,at}'; shot 14-restored-terminal
+xlinctl clients | jq -c '.[]|select(.class=="os.xlin.terminal")|{workspace:.workspace.id,at}'; shot 14-restored-terminal
 xlinos-settings about >"$OUT/settings.log" 2>&1 &
 sleep 8; shot 15-settings
 xlinos-store >"$OUT/store.log" 2>&1 &
@@ -87,7 +83,7 @@ subprocess.Popen(["/usr/local/lib/xlinos/xlinos-shell"], stdout=subprocess.DEVNU
 PY
 sleep 8; pgrep -fa xlinos-shell | tee "$OUT/pin-shell.txt"; shot 34-pinned-kitty
 echo "== keys + cli"
-hyprctl configerrors >"$OUT/configerrors.txt" 2>&1; cat "$OUT/configerrors.txt"
+xlinctl version >"$OUT/configerrors.txt" 2>&1; cat "$OUT/configerrors.txt"
 xlinos status >"$OUT/xlinos-status.txt" 2>&1; xlinos doctor >>"$OUT/xlinos-status.txt" 2>&1; cat "$OUT/xlinos-status.txt"
 xlinos-keys >"$OUT/keys.log" 2>&1 &
 sleep 5; shot 35-keys; pkill -f lib/xlinos/xlinos-keys
@@ -144,7 +140,7 @@ ic "lang hi_IN.UTF-8"; ish i1-welcome-hindi; ic "lang en_US.UTF-8"
 ic next; ist; ic "goto 2"; ish i2-about
 ic next; ist                               # must stay: the agreement is not accepted
 ic agree; ic next; ist; ish i3-region
-ic "kb de"; sleep 1; ist; hyprctl getoption input:kb_layout >"$OUT/installer-kb.txt" 2>&1
+ic "kb de"; sleep 1; ist; xlinctl getoption layout >"$OUT/installer-kb.txt" 2>&1
 ic "kb us"; ic next; ist; sleep 2; ish i4-disk
 VMD=$(lsblk -dno PATH,TYPE | awk '$2=="disk" && $1 !~ /fd|loop|sr/ {print $1; exit}')
 ic "disk $VMD"; ic "method erase"; ic next; ist; ish i5-disk-protected    # this is the running system's own disk: must be refused

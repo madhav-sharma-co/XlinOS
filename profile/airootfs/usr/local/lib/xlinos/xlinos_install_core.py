@@ -375,6 +375,7 @@ def disconnect_wifi():
 
 # ------------------------------------------------------------------ keyboard preview (applies to the running installer session)
 def apply_keyboard(layout, variant=""):
-    lua = 'hl.config({ input = { kb_layout = "%s", kb_variant = "%s" } })' % (re.sub(r"[^a-z0-9_]", "", layout), re.sub(r"[^a-zA-Z0-9_-]", "", variant))
-    try: return subprocess.run(["hyprctl", "eval", lua], capture_output=True, timeout=5).returncode == 0
+    cmd = ["xlinctl", "layout", re.sub(r"[^a-z0-9_]", "", layout)]
+    if variant: cmd.append(re.sub(r"[^a-zA-Z0-9_-]", "", variant))
+    try: return subprocess.run(cmd, capture_output=True, timeout=5).returncode == 0
     except Exception: return False

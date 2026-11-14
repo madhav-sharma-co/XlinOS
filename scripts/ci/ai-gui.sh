@@ -7,10 +7,10 @@ UID_=$(id -u xlin); export XDG_RUNTIME_DIR=/run/user/$UID_
 for _ in $(seq 1 90); do pgrep -u xlin -f 'lib/xlinos/xlinos-installer' >/dev/null && ls $XDG_RUNTIME_DIR/wayland-[0-9] >/dev/null 2>&1 && break; sleep 2; done   # wait for the live session's own installer
 sleep 3
 WL="$(basename "$(ls $XDG_RUNTIME_DIR/wayland-[0-9] | head -1)")"
-SIG="$(ls -t $XDG_RUNTIME_DIR/hypr | head -1)"
-echo "wayland=$WL sig=$SIG"
+SOCK="$XDG_RUNTIME_DIR/xlin-comp.sock"
+echo "wayland=$WL sock=$SOCK"
 for try in 1 2 3 4 5; do
-  runuser -u xlin -- env XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR WAYLAND_DISPLAY=$WL HYPRLAND_INSTANCE_SIGNATURE=$SIG XLINOS_INSTALLER_TEST=$XI \
+  runuser -u xlin -- env XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR WAYLAND_DISPLAY=$WL XLIN_COMP_SOCK=$SOCK XLINOS_INSTALLER_TEST=$XI \
     /usr/local/lib/xlinos/xlinos-installer >$OUT/gui-app.log 2>&1 &
   APP=$!
   for _ in $(seq 1 20); do [ -f $XI/state.json ] && break 2; printf 'state\n' >$XI/cmd; chmod 666 $XI/cmd; sleep 2; done
