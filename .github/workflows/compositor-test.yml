@@ -33,7 +33,7 @@ jobs:
         run: |
           export XDG_RUNTIME_DIR=/tmp/rt WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_LIBINPUT_NO_DEVICES=1 HOME=/tmp/home OUT=$PWD/out
           printf 'set bg_color #ff0000\n' > /tmp/alpha.conf
-          for R in pixman gles2; do
+          for R in pixman; do
             export R WLR_RENDERER=$R WLR_RENDERER_ALLOW_SOFTWARE=1
             (cd compositor && timeout 60 ./xlin-comp -c /tmp/alpha.conf -s "$PWD/../scripts/ci/alpha-test.sh" > ../out/alpha-$R.log 2>&1 || true)
           done

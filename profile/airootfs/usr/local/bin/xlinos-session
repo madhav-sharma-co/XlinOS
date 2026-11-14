@@ -4,7 +4,7 @@ export XDG_CURRENT_DESKTOP=XlinOS XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=X
 
 # Virtual machines and old graphics: draw in software when there is no GPU driver
 if command -v systemd-detect-virt >/dev/null && systemd-detect-virt -q; then
-  export WLR_RENDERER_ALLOW_SOFTWARE=1 WLR_NO_HARDWARE_CURSORS=1 XLIN_FULL_REPAINT=1
+  export WLR_RENDERER=pixman WLR_NO_HARDWARE_CURSORS=1 GSK_RENDERER=cairo   # plain software drawing: reliable on virtual screens
 fi
 
 # Text size chosen in Settings
