@@ -71,7 +71,8 @@ def unlock():
     Gtk.main_quit()
 
 def build(monitor, primary):
-    win = Gtk.Window()
+    win = Gtk.Window(decorated=False)   # no title bar or shadow: the surface must be exactly the size the compositor asked for
+    win.set_default_size(monitor.get_geometry().width, monitor.get_geometry().height)
     ov = Gtk.Overlay()
     try:
         from gi.repository import GdkPixbuf
