@@ -12,7 +12,7 @@ echo "1/4 Installing build tools (needs internet)..."
 W=$(pacman -Ssq '^wlroots[0-9.]*$' | sort -V | tail -1)
 [[ -n "$W" ]] || { echo "Could not find the wlroots package. Run: sudo pacman -Sy   and try again."; exit 1; }
 echo "   using $W"
-pacman -S --needed --noconfirm base-devel git "$W" wayland-protocols libinput pkgconf || { echo "Could not install the build tools. Nothing was changed. Send this output to Claude."; exit 1; }
+pacman -S --needed --noconfirm base-devel git "$W" wayland wayland-protocols wlr-protocols libxkbcommon libinput pkgconf xorg-xwayland || { echo "Could not install the build tools. Nothing was changed. Send this output to Claude."; exit 1; }
 
 echo "2/4 Building the new desktop (nothing is changed yet)..."
 make -C "$R/compositor" clean all || { echo "Build failed. Nothing was changed. Send this output to Claude."; exit 1; }
