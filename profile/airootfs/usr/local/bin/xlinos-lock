@@ -2,4 +2,4 @@
 # Lock the screen. Does nothing if already locked.
 pgrep -f lib/xlinos/xlinos-lock >/dev/null && exit 0
 mkdir -p "$HOME/.cache" 2>/dev/null
-exec /usr/local/lib/xlinos/xlinos-lock 2>>"$HOME/.cache/xlinos-lock.log"
+L="$HOME/.cache/xlinos-lock.log"; WAYLAND_DEBUG=1 python3 -X faulthandler /usr/local/lib/xlinos/xlinos-lock 2>>"$L"; echo "lock program exited: $?" >>"$L"; tail -n 400 "$L" > "$L.t" && mv "$L.t" "$L"

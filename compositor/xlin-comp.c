@@ -525,6 +525,7 @@ static bool in_lock(struct wlr_scene_node *n) {
 }
 static void lock_new_surface(struct wl_listener *li, void *d) {
 	struct wlr_session_lock_surface_v1 *ls = d;
+	wlr_log(WLR_INFO, "lock: new lock surface");
 	struct output *o = NULL, *it;
 	wl_list_for_each(it, &S.outputs, link) if (it->wlr == ls->output) o = it;
 	if (!o || !S.lock_tree) return;
@@ -542,11 +543,13 @@ static void lock_unlock(struct wl_listener *li, void *d) {
 	wlr_seat_keyboard_notify_clear_focus(S.seat); focus_best();
 }
 static void lock_destroy(struct wl_listener *li, void *d) {
+	wlr_log(WLR_INFO, "lock: lock object destroyed");
 	wl_list_remove(&S.lock_surf.link); wl_list_remove(&S.lock_unlock.link); wl_list_remove(&S.lock_destroy.link);
 	S.lock = NULL; S.lock_pending = false;
 }
 static void new_lock(struct wl_listener *li, void *d) {
 	struct wlr_session_lock_v1 *lock = d;
+	wlr_log(WLR_INFO, "lock: client asked to lock");
 	if (S.lock) { wlr_session_lock_v1_destroy(lock); return; }
 	S.lock = lock; S.locked = true;
 	end_lock_tree();
@@ -1111,7 +1114,7 @@ static void out_frame(struct wl_listener *li, void *d) {
 	struct output *o = wl_container_of(li, o, frame);
 	if (S.full_repaint) wlr_damage_ring_add_whole(&o->so->damage_ring);   // virtual machines / software drawing: never leave a stale region
 	if (!wlr_scene_output_commit(o->so, NULL)) wlr_log(WLR_ERROR, "frame commit failed on %s", o->wlr->name);
-	if (S.lock_pending && S.lock) { wlr_session_lock_v1_send_locked(S.lock); S.lock_pending = false; }   // the black cover has been drawn: tell the lock program, it then shows its window
+	if (S.lock_pending && S.lock) { wlr_log(WLR_INFO, "lock: sent locked"); wlr_session_lock_v1_send_locked(S.lock); S.lock_pending = false; }   // the black cover has been drawn: tell the lock program, it then shows its window
 	struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);
 	wlr_scene_output_send_frame_done(o->so, &now);
 }
