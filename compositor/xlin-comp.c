@@ -108,7 +108,7 @@ static struct {
 	struct layer_surface *kb_layer; struct toplevel *cur_focus;
 	bool locked, lock_pending;
 	int cur_ws, nws; unsigned next_id;
-	int snap_edge, gap, repeat_rate, repeat_delay, cursor_size; float scale;
+	int snap_edge, gap, repeat_rate, repeat_delay, cursor_size, full_repaint; float scale;
 	bool animations, natural_scroll, tap_to_click;
 	double pointer_speed;
 	float bg_color[4];
@@ -884,6 +884,7 @@ static void cfg_set(const char *k, const char *v) {
 	else if (!strcmp(k, "gap")) S.gap = atoi(v);
 	else if (!strcmp(k, "workspaces")) { S.nws = atoi(v); if (S.nws < 1) S.nws = 1; if (S.nws > 9) S.nws = 9; }
 	else if (!strcmp(k, "scale")) S.scale = (float)atof(v);
+	else if (!strcmp(k, "full_repaint")) S.full_repaint = atoi(v);
 	else if (!strcmp(k, "cursor_size")) S.cursor_size = atoi(v);
 	else if (!strcmp(k, "repeat_rate")) S.repeat_rate = atoi(v);
 	else if (!strcmp(k, "repeat_delay")) S.repeat_delay = atoi(v);
@@ -1108,7 +1109,8 @@ static void ipc_start(void) {
 // ---------------------------------------------------------------- outputs
 static void out_frame(struct wl_listener *li, void *d) {
 	struct output *o = wl_container_of(li, o, frame);
-	wlr_scene_output_commit(o->so, NULL);
+	if (S.full_repaint) wlr_damage_ring_add_whole(&o->so->damage_ring);   // virtual machines / software drawing: never leave a stale region
+	if (!wlr_scene_output_commit(o->so, NULL)) wlr_log(WLR_ERROR, "frame commit failed on %s", o->wlr->name);
 	struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);
 	wlr_scene_output_send_frame_done(o->so, &now);
 }
@@ -1156,6 +1158,7 @@ int main(int argc, char **argv) {
 	}
 	S.cur_ws = 1; S.nws = 4; S.snap_edge = 24; S.gap = 8; S.repeat_rate = 25; S.repeat_delay = 600; S.cursor_size = 24; S.corner_armed = true;
 	S.animations = true; S.natural_scroll = true; S.tap_to_click = true; S.pointer_speed = 0.0;
+	if (getenv("XLIN_FULL_REPAINT")) S.full_repaint = atoi(getenv("XLIN_FULL_REPAINT"));
 	S.bg_color[0] = 3 / 255.0f; S.bg_color[1] = 8 / 255.0f; S.bg_color[2] = 28 / 255.0f; S.bg_color[3] = 1.0f;
 	snprintf(S.idle_lock_cmd, sizeof S.idle_lock_cmd, "xlinos-lock");
 	snprintf(S.idle_sleep_cmd, sizeof S.idle_sleep_cmd, "systemctl suspend");

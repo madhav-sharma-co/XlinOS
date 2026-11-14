@@ -152,3 +152,4 @@ scan="$(sudo -n python3 /usr/local/lib/xlinos/xlinos_disks.py scan --fast 2>&1 |
 pkill -f lib/xlinos/xlinos-installer
 echo "== lock"; xlinos-lock >"$OUT/lock.log" 2>&1 &
 sleep 8; shot 9-lock
+cp "${XDG_RUNTIME_DIR:-/tmp}/xlinos-compositor.log" "$OUT/compositor.log" 2>/dev/null
