@@ -1,0 +1,4 @@
+NAME      FSTYPE FSVER LABEL UUID FSAVAIL FSUSE% MOUNTPOINTS
+loop0                                            
+├─loop0p1                                        
+└─loop0p2                                        

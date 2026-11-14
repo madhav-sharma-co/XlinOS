@@ -1,0 +1,11 @@
+== /dev/loop0p1
+mount: /tmp/gx: wrong fs type, bad option, bad superblock on /dev/loop0p1, missing codepage or helper program, or other error.
+       dmesg(1) may have more information after failed mount system call.
+== /dev/loop0p2
+total 28
+drwxr-xr-x 4 packer packer 4096 Nov 14 13:13 .
+drwx------ 5 packer packer 4096 Nov 14 13:11 ..
+drwx------ 2 packer packer 4096 Nov 14 13:11 cliphist
+drwxr-xr-x 3 packer packer 4096 Nov 14 13:13 glycin
+-rw-r--r-- 1 packer packer 4236 Nov 14 13:13 xlinos-compositor.log
+-rw-r--r-- 1 packer packer   23 Nov 14 13:13 xlinos-lock.log

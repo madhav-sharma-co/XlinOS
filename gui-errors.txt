@@ -1,0 +1,7 @@
+shot /tmp/xi/g1-welcome-german.png: TypeError('Argument 1 does not allow None as a value')
+shot /tmp/xi/g2-disk.png: TypeError('Argument 1 does not allow None as a value')
+shot /tmp/xi/g3-review.png: TypeError('Argument 1 does not allow None as a value')
+shot /tmp/xi/g4-installing-0.png: TypeError('Argument 1 does not allow None as a value')
+shot /tmp/xi/g5-installing-25.png: TypeError('Argument 1 does not allow None as a value')
+shot /tmp/xi/g6-cancelled.png: TypeError('Argument 1 does not allow None as a value')
+shot /tmp/xi/g7-final.png: TypeError('Argument 1 does not allow None as a value')
