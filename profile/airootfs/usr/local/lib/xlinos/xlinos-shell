@@ -66,9 +66,9 @@ def toggle(pattern, cmd):
     if subprocess.run(["pkill", "-f", pattern], capture_output=True).returncode != 0:
         sh(cmd)
 
-def hypr(*a):
+def comp(*a):
     try:
-        return json.loads(subprocess.run(["hyprctl", "-j", *a], capture_output=True, text=True, timeout=2).stdout or "null")
+        return json.loads(subprocess.run(["xlinctl", *a], capture_output=True, text=True, timeout=2).stdout or "null")
     except Exception:
         return None
 
@@ -123,7 +123,7 @@ def make_bar(app):
         b = battery(); bat.set_text(("%d%%" % b) if b is not None else "")
         return True
     def active():
-        a = hypr("activewindow")
+        a = comp("activewindow")
         name = (a or {}).get("class") or ""
         appname.set_text(xlinos_ui.friendly(name))
         return True
@@ -166,7 +166,7 @@ def make_dock(app):
             it = Gtk.Button(label=text); it.add_css_class("sec"); it.set_halign(Gtk.Align.FILL)
             it.connect("clicked", lambda _b: (pop.popdown(), fn())); v.append(it)
         item("Open " + label, lambda: sh(cmd))
-        if wmclass: item("Close", lambda: sh("hyprctl dispatch closewindow class:%s" % wmclass))
+        if wmclass: item("Close", lambda: sh("xlinctl closeclass %s" % wmclass))
         if can_pin:
             now = pins is None or cid in (pins or [])
             item("Remove from the run bar" if now else "Keep on the run bar", lambda: (setpin(cid, not now)))
@@ -206,7 +206,7 @@ def make_dock(app):
         add("apps", "Apps", "view-app-grid-symbolic", "/usr/local/lib/xlinos/xlinos-launcher", "", can_pin=False)
 
     def running():
-        clients = hypr("clients") or []
+        clients = comp("clients") or []
         cl = {(c.get("class") or "").lower() for c in clients}
         extra = []
         for c in sorted(cl):

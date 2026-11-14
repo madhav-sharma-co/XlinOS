@@ -81,7 +81,7 @@ def p_sound():
 
 def p_display():
     b = page("Display")
-    mon = run("hyprctl -j monitors")
+    mon = run("xlinctl monitors")
     try:
         import json; m = json.loads(mon)[0]; info = "%dx%d @ %.0f Hz" % (m["width"], m["height"], m["refreshRate"])
     except Exception: info = "Unknown"
@@ -110,7 +110,7 @@ def p_users():
         if 1000 <= u.pw_uid < 60000:
             items.append(row(u.pw_gecos.split(",")[0] or u.pw_name, u.pw_name + (" (you)" if u.pw_name == os.environ.get("USER") else "")))
     b.append(card(*items))
-    out = Gtk.Button(label="Log out"); out.connect("clicked", lambda _b: bg("hyprctl dispatch exit")); b.append(out)
+    out = Gtk.Button(label="Log out"); out.connect("clicked", lambda _b: bg("xlinos-logout")); b.append(out)
     return b
 
 OV = {"ov": None, "pw": None}

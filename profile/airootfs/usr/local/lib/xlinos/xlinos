@@ -44,8 +44,8 @@ def spawn(cmd):
 def restart_shell():
     subprocess.run(["pkill", "-f", "lib/xlinos/xlinos-shell"], capture_output=True); time.sleep(0.5); spawn([LIB + "xlinos-shell"])
 def onoff(v): return v in ("on", "1", "yes", "true")
-def hypr(*a):
-    r = subprocess.run(["hyprctl", "-j"] + list(a), capture_output=True, text=True)
+def comp(*a):
+    r = subprocess.run(["xlinctl"] + list(a), capture_output=True, text=True)
     try: return json.loads(r.stdout)
     except Exception: return []
 
@@ -64,30 +64,18 @@ def status():
     if bat: out("Battery      %s%%" % open(bat[0]).read().strip())
 
 def unhide():
-    ws = (hypr("activeworkspace") or {}).get("id", 1)
-    for c in hypr("clients"):
-        if c.get("workspace", {}).get("name") == "special:minimized":
-            cfg.hypr_eval('hl.dispatch(hl.dsp.window.move({ workspace = %d, follow = false, window = "address:%s" }))' % (ws, c["address"]))
+    subprocess.run(["xlinctl", "unhide"], capture_output=True)
 
 def showdesktop():
-    f = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "xlinos-showdesktop.json")
-    if os.path.exists(f):
-        try: addrs = json.load(open(f))
-        except Exception: addrs = []
-        os.remove(f); ws = (hypr("activeworkspace") or {}).get("id", 1)
-        for a in addrs: cfg.hypr_eval('hl.dispatch(hl.dsp.window.move({ workspace = %d, follow = false, window = "address:%s" }))' % (ws, a))
-        return
-    ws = (hypr("activeworkspace") or {}).get("id", 1); addrs = [c["address"] for c in hypr("clients") if c.get("workspace", {}).get("id") == ws and not c.get("class", "").startswith("os.xlin.shell")]
-    json.dump(addrs, open(f, "w"))
-    for a in addrs: cfg.hypr_eval('hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = "address:%s" }))' % a)
+    subprocess.run(["xlinctl", "showdesktop"], capture_output=True)
 
 def doctor():
     bad = 0
     def chk(name, ok, fix=""):
         nonlocal bad
         out("  %-28s %s" % (name, "ok" if ok else "MISSING  " + fix)); bad += (not ok)
-    for c in ("nmcli", "bluetoothctl", "wpctl", "brightnessctl", "grim", "slurp", "wl-copy", "powerprofilesctl", "hyprctl"):
-        chk({"hyprctl": "desktop engine"}.get(c, c), shutil.which(c) is not None)
+    for c in ("nmcli", "bluetoothctl", "wpctl", "brightnessctl", "grim", "slurp", "wl-copy", "powerprofilesctl", "xlinctl", "xlin-comp"):
+        chk({"xlin-comp": "desktop engine", "xlinctl": "desktop control"}.get(c, c), shutil.which(c) is not None)
     for a in ("xlinos-shell", "xlinos-launcher", "xlinos-quick", "xlinos-settings", "xlinos-notify"):
         chk(a, os.path.exists(LIB + a))
     chk("settings file", os.path.exists(os.path.expanduser("~/.config/xlinos/settings.json")) or True)

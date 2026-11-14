@@ -1,30 +1,11 @@
 #!/usr/bin/env bash
-# XlinOS window snapping: puts the active window into a half, a corner, full size, or back to a centred normal size.
-# usage: xlinos-snap left|right|top|bottom|tl|tr|bl|br|max|restore
+# XlinOS window snapping via xlin-comp (left|right|top|bottom|tl|tr|bl|br|max|restore|center).
 set -u
 act="${1:-}"
-win="$(hyprctl activewindow -j 2>/dev/null)" || exit 0
-addr="$(jq -r '.address // empty' <<<"$win")"; [[ -n "$addr" ]] || exit 0
-mon="$(jq -r '.monitor' <<<"$win")"
-read -r mx my mw mh rt rb rl rr < <(hyprctl monitors -j | jq -r --argjson m "$mon" '.[] | select(.id==$m) | "\(.x) \(.y) \(.width/.scale|floor) \(.height/.scale|floor) \(.reserved[1]) \(.reserved[3]) \(.reserved[0]) \(.reserved[2])"')
-[[ -n "${mw:-}" ]] || exit 0
-g=8                                                   # gap between windows and the screen edge
-x0=$((mx + rl + g)); y0=$((my + rt + g))
-W=$((mw - rl - rr - 2*g)); H=$((mh - rt - rb - 2*g))
-hw=$(((W - g) / 2)); hh=$(((H - g) / 2))
-fl="$(jq -r '.floating' <<<"$win")"
-[[ "$fl" == "true" ]] || hyprctl dispatch setfloating "address:$addr" >/dev/null
 case "$act" in
-  left)    x=$x0;            y=$y0;            w=$hw; h=$H ;;
-  right)   x=$((x0+hw+g));   y=$y0;            w=$hw; h=$H ;;
-  top)     x=$x0;            y=$y0;            w=$W;  h=$hh ;;
-  bottom)  x=$x0;            y=$((y0+hh+g));   w=$W;  h=$hh ;;
-  tl)      x=$x0;            y=$y0;            w=$hw; h=$hh ;;
-  tr)      x=$((x0+hw+g));   y=$y0;            w=$hw; h=$hh ;;
-  bl)      x=$x0;            y=$((y0+hh+g));   w=$hw; h=$hh ;;
-  br)      x=$((x0+hw+g));   y=$((y0+hh+g));   w=$hw; h=$hh ;;
-  max)     x=$x0;            y=$y0;            w=$W;  h=$H ;;
-  restore) w=$((W*62/100)); h=$((H*70/100)); x=$((x0+(W-w)/2)); y=$((y0+(H-h)/2)) ;;
-  *) echo "usage: xlinos-snap left|right|top|bottom|tl|tr|bl|br|max|restore"; exit 1 ;;
+  left|right|top|bottom|tl|tr|bl|br|max|restore|center)
+    exec xlinctl snap "$act" ;;
+  *)
+    echo "usage: xlinos-snap left|right|top|bottom|tl|tr|bl|br|max|restore|center" >&2
+    exit 1 ;;
 esac
-hyprctl --batch "dispatch resizewindowpixel exact $w $h,address:$addr ; dispatch movewindowpixel exact $x $y,address:$addr" >/dev/null

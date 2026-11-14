@@ -87,7 +87,7 @@ def window_css():
 
 def make_window(app, title, width=900, height=560):
     """A frameless XlinOS window with close / minimise / maximise at the top-left. Returns (window, content_box)."""
-    import subprocess, json
+    import subprocess
     from gi.repository import Gtk, Gdk
     win = Gtk.ApplicationWindow(application=app)
     win.set_decorated(False); win.set_default_size(width, height); win.set_title(title)
@@ -95,23 +95,12 @@ def make_window(app, title, width=900, height=560):
     head = Gtk.CenterBox(); head.add_css_class("xhead")
     lights = Gtk.Box(spacing=8, valign=Gtk.Align.CENTER)
 
-    def active_address():
-        try:
-            return json.loads(subprocess.run(["hyprctl", "-j", "activewindow"], capture_output=True, text=True, timeout=2).stdout)["address"]
-        except Exception:
-            return None
-
     def light(cls, tip, fn):
         b = Gtk.Button(); b.add_css_class("tl"); b.add_css_class(cls); b.set_tooltip_text(tip)
         b.set_valign(Gtk.Align.CENTER); b.connect("clicked", lambda _b: fn()); lights.append(b)
-
-    def minimise():
-        a = active_address()
-        if a:
-            subprocess.Popen(["hyprctl", "eval", 'hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = "address:%s" }))' % a])
     light("tl-close", "Close", win.close)
-    light("tl-min", "Minimise", minimise)
-    light("tl-max", "Maximise", lambda: subprocess.Popen(["/usr/local/lib/xlinos/xlinos-snap", "max"]))
+    light("tl-min", "Minimise", lambda: subprocess.Popen(["xlinctl", "minimize"]))
+    light("tl-max", "Maximise", lambda: subprocess.Popen(["xlinctl", "snap", "max"]))
     head.set_start_widget(lights)
     t = Gtk.Label(label=title); t.add_css_class("xtitle"); head.set_center_widget(t)
     win.bind_property("title", t, "label")

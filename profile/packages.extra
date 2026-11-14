@@ -1,7 +1,12 @@
 # Packages added to archiso's releng list. One per line. Lines starting with # are ignored.
-# --- desktop (the list Xlin-soft needs; see scripts/deps.sh in Xlin-soft)
-hyprland
-hyprlock
+# --- XlinOS compositor (xlin-comp) and desktop runtime
+wayland
+wayland-protocols
+wlr-protocols
+libxkbcommon
+libinput
+wlsunset
+polkit-gnome
 jq
 socat
 libnotify
@@ -14,6 +19,7 @@ wireplumber
 bluez
 bluez-utils
 inter-font
+noto-fonts
 ttf-nerd-fonts-symbols
 ttf-jetbrains-mono-nerd
 gtk3
@@ -21,12 +27,8 @@ gtk4
 python-gobject
 gtk4-layer-shell
 power-profiles-daemon
-hyprlock
-hypridle
-hyprsunset
 vte4
 polkit
-hyprpolkitagent
 udisks2
 gvfs
 gvfs-smb
@@ -34,7 +36,6 @@ grim
 slurp
 wl-clipboard
 playerctl
-xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
 gst-plugins-base
 gst-plugins-good
