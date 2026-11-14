@@ -121,7 +121,7 @@ try:
 finally:
     time.sleep(3); REC["on"] = False; time.sleep(3); p.terminate(); p.wait()
     try:   # read the desktop's own logs from the installed disk
-        subprocess.run(f"G={out}/guest-logs; mkdir -p $G /tmp/gx; L=$(sudo losetup -fP --show {disk}); lsblk -f $L > $G/lsblk.txt 2>&1; for q in ${{L}}p*; do echo == $q >> $G/mount.txt; sudo mount -o ro,noload $q /tmp/gx >> $G/mount.txt 2>&1 && {{ sudo ls -la /tmp/gx/home /tmp/gx/home/*/.cache >> $G/mount.txt 2>&1; sudo cp /tmp/gx/home/*/.cache/xlinos-*.log $G/ 2>/dev/null; sudo umount /tmp/gx; }}; done; sudo losetup -d $L; sudo chmod -R a+r $G", shell=True)
+        subprocess.run(f"G={out}/guest-logs; mkdir -p $G /tmp/gx; L=$(sudo losetup -fP --show {disk}); lsblk -f $L > $G/lsblk.txt 2>&1; for q in ${{L}}p*; do echo == $q >> $G/mount.txt; sudo mount -o ro,noload $q /tmp/gx >> $G/mount.txt 2>&1 && {{ sudo sh -c 'ls -la /tmp/gx/home/*/.cache >> $0/mount.txt 2>&1; cp /tmp/gx/home/*/.cache/xlinos-*.log $0/' $G; sudo umount /tmp/gx; }}; done; sudo losetup -d $L; sudo chmod -R a+r $G", shell=True)
     except Exception as e: print("guest logs:", e)
 subprocess.run(f"cd {out} && ffmpeg -y -loglevel error -framerate 6 -i frames/%05d.ppm -vf \"scale=1280:800:force_original_aspect_ratio=decrease,pad=1280:800:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1\" -c:v libx264 -preset veryfast -crf 29 -pix_fmt yuv420p xlinos-install.mp4", shell=True)
 if fails: print("FAILED:", fails); sys.exit(1)
