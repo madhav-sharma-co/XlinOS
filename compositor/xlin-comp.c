@@ -543,7 +543,7 @@ static void lock_unlock(struct wl_listener *li, void *d) {
 }
 static void lock_destroy(struct wl_listener *li, void *d) {
 	wl_list_remove(&S.lock_surf.link); wl_list_remove(&S.lock_unlock.link); wl_list_remove(&S.lock_destroy.link);
-	S.lock = NULL;
+	S.lock = NULL; S.lock_pending = false;
 }
 static void new_lock(struct wl_listener *li, void *d) {
 	struct wlr_session_lock_v1 *lock = d;
@@ -1111,6 +1111,7 @@ static void out_frame(struct wl_listener *li, void *d) {
 	struct output *o = wl_container_of(li, o, frame);
 	if (S.full_repaint) wlr_damage_ring_add_whole(&o->so->damage_ring);   // virtual machines / software drawing: never leave a stale region
 	if (!wlr_scene_output_commit(o->so, NULL)) wlr_log(WLR_ERROR, "frame commit failed on %s", o->wlr->name);
+	if (S.lock_pending && S.lock) { wlr_session_lock_v1_send_locked(S.lock); S.lock_pending = false; }   // the black cover has been drawn: tell the lock program, it then shows its window
 	struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);
 	wlr_scene_output_send_frame_done(o->so, &now);
 }
