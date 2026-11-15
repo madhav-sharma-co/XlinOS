@@ -17,7 +17,12 @@
 #include <sys/utsname.h>
 #include <sys/wait.h>
 
-#define XLIN_VERSION "0.0.1"
+#ifndef XLIN_VERSION
+#define XLIN_VERSION "dev"
+#endif
+
+#define OK   "\033[1;32m[  OK  ]\033[0m "
+#define FAIL "\033[1;31m[FAILED]\033[0m "
 
 static int is_init;
 
@@ -31,18 +36,22 @@ static void banner(void)
 	       "  XlinOS %s\n  Type 'help' for commands.\n\n", XLIN_VERSION);
 }
 
+static void step(const char *what, int rc)
+{
+	printf("%s%s\n", rc ? FAIL : OK, what);
+}
+
 static void setup_system(void)
 {
 	mkdir("/proc", 0555);
 	mkdir("/sys", 0555);
 	mkdir("/dev", 0755);
 	mkdir("/tmp", 01777);
-	mount("proc", "/proc", "proc", 0, NULL);
-	mount("sysfs", "/sys", "sysfs", 0, NULL);
-	mount("devtmpfs", "/dev", "devtmpfs", 0, NULL);
-	mount("tmpfs", "/tmp", "tmpfs", 0, NULL);
-	if (sethostname("xlin", 4))
-		perror("sethostname");
+	step("Mounted /proc", mount("proc", "/proc", "proc", 0, NULL));
+	step("Mounted /sys", mount("sysfs", "/sys", "sysfs", 0, NULL));
+	step("Mounted /dev", mount("devtmpfs", "/dev", "devtmpfs", 0, NULL));
+	step("Mounted /tmp", mount("tmpfs", "/tmp", "tmpfs", 0, NULL));
+	step("Set hostname to xlin", sethostname("xlin", 4));
 }
 
 static void cmd_cat(const char *path)
@@ -140,7 +149,7 @@ int main(void)
 	setvbuf(stdout, NULL, _IONBF, 0);
 	banner();
 	for (;;) {
-		fputs("root@xlin:~# ", stdout);
+		fputs("\033[1;36mroot@xlin\033[0m:\033[1;34m~\033[0m# ", stdout);
 		if (!fgets(line, sizeof line, stdin)) {
 			if (!is_init)
 				break;

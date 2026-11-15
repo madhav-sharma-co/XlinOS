@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 mkdir -p build/rootfs/sbin
-gcc -static -O2 -Wall -Wextra -o build/rootfs/init src/init/init.c
+gcc -static -O2 -Wall -Wextra -DXLIN_VERSION="\"$(cat VERSION)\"" -o build/rootfs/init src/init/init.c
 strip build/rootfs/init
 python3 scripts/mkinitramfs.py build/rootfs build/initramfs.cpio.gz
 echo "initramfs ready: build/initramfs.cpio.gz"
