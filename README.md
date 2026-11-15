@@ -32,7 +32,7 @@ The initial release will reuse mature Linux components. XlinOS will differentiat
 
 Before the desktop work begins, XlinOS 0.1 is a terminal-only system: power on -> XlinOS boot -> Linux initialization -> terminal login -> Bash shell. No desktop or graphical interface. The tracked archiso profile is in `archiso/`.
 
-> Status: source complete, but the ISO has **not yet been built or boot-tested**. See [docs/TESTING.md](docs/TESTING.md).
+> Status: the ISO builds in CI and its kernel boots to `multi-user.target` as XlinOS (automated test). The boot loaders, first-boot login and networking are **not yet tested**. See [docs/TESTING.md](docs/TESTING.md).
 
 Build on Arch Linux (or an Arch container, see [docs/BUILD.md](docs/BUILD.md)):
 

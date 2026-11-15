@@ -15,8 +15,9 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 ## M0.1 — Minimal Foundation (terminal only)
 
 - [x] Tracked archiso profile in `archiso/` with build, clean, verify and QEMU scripts.
-- [ ] ISO builds successfully.
-- [ ] Boots in QEMU (BIOS and UEFI) to the XlinOS login after first-boot user creation.
+- [x] ISO builds successfully (GitHub Actions).
+- [x] Kernel + initramfs from the ISO boot in QEMU to `multi-user.target` with XlinOS identity (CI smoke test).
+- [ ] Boots in QEMU through the real boot loaders (BIOS and UEFI) to the XlinOS login after first-boot user creation.
 - [ ] Networking, `multi-user.target` and identity checks pass (see `docs/TESTING.md`).
 
 **Exit criteria:** the checklist in `docs/TESTING.md` is completed and recorded.

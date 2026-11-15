@@ -2,17 +2,23 @@
 
 ## Test report (2026-11-15)
 
+Automated in GitHub Actions (workflow "Build ISO"), run 994746d:
+
 | Check | Result |
 |---|---|
-| Profile validation (`build-iso.sh --check`): files present, profile variables, packages, no graphical packages, symlinks | **Verified** |
-| Shell scripts pass `bash -n` | **Verified** |
-| ISO builds | **Not tested** (no Arch tools in the authoring environment) |
-| ISO boots in a VM (BIOS and UEFI) | **Not tested** |
-| Kernel loads, systemd reaches `multi-user.target` | **Not tested** |
-| First-boot user creation and terminal login | **Not tested** |
-| Networking (DHCP, DNS, Wi-Fi) | **Not tested** |
-| System identifies itself as XlinOS | **Not tested** (configured in `os-release`, `issue`, `motd`, `hostname`) |
-| No graphical session starts | **Not tested** (no graphical packages are installed) |
+| Profile validation (`build-iso.sh --check`) | **Verified** |
+| ISO builds with `mkarchiso` (873 MB), valid ISO 9660, `XLINOS_0_1` label, BIOS and UEFI boot entries present | **Verified** (CI) |
+| Kernel and initramfs from the ISO boot in QEMU (KVM) and find the root image | **Verified** (CI, serial log) |
+| System identifies itself as XlinOS (`Welcome to XlinOS 0.1`, hostname `xlin`) | **Verified** (CI) |
+| systemd reaches `multi-user.target`; no kernel panic or emergency mode | **Verified** (CI) |
+| No graphical target reached | **Verified** (CI); no graphical packages are installed |
+| syslinux (BIOS) and systemd-boot (UEFI) menus start the system | **Not tested** (CI boots the kernel directly with `-kernel`) |
+| First-boot user creation and terminal login on tty1 | **Not tested** |
+| Networking (DHCP, DNS, Wi-Fi) and time sync | **Not tested** |
+| `systemctl --failed` and `journalctl -p err` reviewed | **Not tested** |
+| Real hardware | **Not tested** |
+
+Not claimed as complete until the untested rows are checked by a person (checklist below).
 
 ## How to verify (milestone checklist)
 

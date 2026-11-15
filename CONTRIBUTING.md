@@ -28,4 +28,4 @@ Thanks for helping build XlinOS. The project is early-stage; small, reviewable, 
 
 ## Current development status
 
-The project is in its foundation phase. A terminal-only archiso profile (milestone 0.1) and build scripts exist in `archiso/` and `scripts/` but have not yet been build- or boot-tested. Do not assume an installable or production-ready operating system exists until the M1 acceptance criteria are met.
+The project is in its foundation phase. A terminal-only archiso profile (milestone 0.1) and build scripts exist in `archiso/` and `scripts/`; CI builds the ISO and boot-tests its kernel, but the boot loaders and login flow are not yet tested. Do not assume an installable or production-ready operating system exists until the M1 acceptance criteria are met.
