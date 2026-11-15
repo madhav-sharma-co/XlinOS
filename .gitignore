@@ -1,7 +1,0 @@
-*.iso
-*.pyc
-*.qcow2
-__pycache__/
-aur-repo/
-out/
-work/

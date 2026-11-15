@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-# Text-mode XlinOS installer: erases one disk and installs XlinOS. (The graphical one is "Install XlinOS".)
-[[ $EUID -eq 0 ]] || exec sudo "$0" "$@"
-echo "XlinOS installer"; echo
-lsblk -d -o NAME,SIZE,MODEL | grep -Ev "^(loop|sr|zram)"
-read -rp "Install on which disk (for example sda)? " d; [[ -b "/dev/$d" ]] || { echo "No such disk."; exit 1; }
-read -rp "Everything on /dev/$d will be erased. Type yes to continue: " a; [[ "$a" == yes ]] || exit 0
-/usr/local/lib/xlinos/xlinos-install-run "/dev/$d" | while read -r l; do echo "${l#STEP }"; done
-echo; echo "Remove the USB stick and restart: sudo reboot"
