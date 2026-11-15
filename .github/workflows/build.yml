@@ -24,7 +24,7 @@ jobs:
         run: pacman -Syu --noconfirm archiso mtools libisoburn squashfs-tools git
       - name: Show the installed archiso reference profile (releng) for comparison
         run: |
-          pacman -Q archiso mkinitcpio mkinitcpio-archiso
+          pacman -Q archiso || true
           cd /usr/share/archiso/configs/releng
           find . -type f -size -8k ! -name '*.png' ! -name '*.bmp' | sort | while read -r f; do
             echo "##### $f"; cat "$f"
