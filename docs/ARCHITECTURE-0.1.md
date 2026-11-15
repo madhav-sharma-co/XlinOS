@@ -27,7 +27,7 @@
 ## Configuration decisions
 
 - **No default login:** root's password is locked (`!*` in `/etc/shadow`). No password is stored in the image. This differs from the stock Arch ISO, which logs in as root automatically.
-- **`/usr/lib/os-release` instead of `/etc/os-release`:** `/etc/os-release` is a symlink to it in Arch's `filesystem` package, so the identity file lives at its real location.
+- **os-release via a pacman hook:** archiso copies `airootfs` into the build root before installing packages, so shipping `/usr/lib/os-release` there makes pacman abort (the `filesystem` package owns it). The XlinOS file lives in `/usr/share/xlinos/os-release` and `etc/pacman.d/hooks/10-xlinos-identity.hook` installs it over `/usr/lib/os-release` after `filesystem` is installed or upgraded. `/etc/os-release` is a symlink to it in Arch's `filesystem` package.
 - **`ID_LIKE=arch`:** states honestly what the system is derived from, which also helps tools that detect the distribution family.
 - **`install_dir=xlinos`:** the directory inside the ISO; internal only.
 - **iso_label `XLINOS_0_1`:** fixed (not date-based) so builds are reproducible.

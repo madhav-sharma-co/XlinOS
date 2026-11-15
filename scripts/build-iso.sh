@@ -15,7 +15,7 @@ validate_profile() {
 	echo "==> Validating archiso profile"
 	local f
 	for f in profiledef.sh packages.x86_64 pacman.conf syslinux/syslinux.cfg \
-		efiboot/loader/loader.conf airootfs/usr/lib/os-release airootfs/etc/hostname; do
+		efiboot/loader/loader.conf airootfs/usr/share/xlinos/os-release airootfs/etc/hostname; do
 		[ -f "$PROFILE/$f" ] || die "missing profile file: archiso/$f"
 	done
 	bash -n "$PROFILE/profiledef.sh" || die "syntax error in profiledef.sh"
@@ -34,7 +34,7 @@ validate_profile() {
 		for p in "${!file_permissions[@]}"; do
 			[ -e "$PROFILE/airootfs$p" ] || die "file_permissions entry has no file: $p"
 		done
-		grep -q "^ID=xlinos$" "$PROFILE/airootfs/usr/lib/os-release" || die "os-release ID is not xlinos"
+		grep -q "^ID=xlinos$" "$PROFILE/airootfs/usr/share/xlinos/os-release" || die "os-release ID is not xlinos"
 	)
 
 	# Packages: not empty, and no graphical stack in the 0.1 milestone.
