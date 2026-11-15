@@ -42,6 +42,8 @@ XlinOS should feel like one coherent desktop while remaining maintainable and co
 
 Directories should be added when their first real file is ready; avoid empty placeholder trees.
 
+**Note:** the first tracked archiso profile (terminal-only milestone 0.1) lives in `archiso/`, with scripts in `scripts/`; see [ARCHITECTURE-0.1.md](ARCHITECTURE-0.1.md). It uses systemd-networkd and iwd instead of NetworkManager to stay minimal; the desktop milestones can revisit that.
+
 ## Design system direction
 
 The visual identity is a hybrid of premium minimalism, restrained futurism, and professional productivity:

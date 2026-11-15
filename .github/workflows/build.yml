@@ -1,0 +1,33 @@
+name: Build ISO
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/build-iso.sh --check
+
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+      options: --privileged
+    steps:
+      - name: Install build tools
+        run: pacman -Syu --noconfirm archiso mtools libisoburn squashfs-tools git
+      - uses: actions/checkout@v4
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - run: ./scripts/build-iso.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xlinos-iso
+          path: |
+            out/*.iso
+            out/*.sha256

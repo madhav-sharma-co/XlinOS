@@ -17,3 +17,7 @@ work/
 .vscode/
 *.swp
 *.swo
+
+# Milestone 0.1 build artifacts
+build/
+*.sha256

@@ -1,0 +1,11 @@
+
+  __  __ _ _         ___  ____
+  \ \/ /| (_)_ __   / _ \/ ___|
+   \  / | | | '_ \ | | | \___ \
+   /  \ | | | | | || |_| |___) |
+  /_/\_\|_|_|_| |_| \___/|____/
+
+  XlinOS 0.1 - Minimal Foundation
+  Wi-Fi: iwctl    Network check: ping -c 3 1.1.1.1
+  Based on Arch Linux. See /usr/share/licenses for upstream licences.
+

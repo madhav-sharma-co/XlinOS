@@ -12,6 +12,15 @@ This roadmap is milestone-based, not a promise of release dates. A milestone is 
 
 **Exit criteria:** a new contributor can follow documented steps to build the same bootable image.
 
+## M0.1 — Minimal Foundation (terminal only)
+
+- [x] Tracked archiso profile in `archiso/` with build, clean, verify and QEMU scripts.
+- [ ] ISO builds successfully.
+- [ ] Boots in QEMU (BIOS and UEFI) to the XlinOS login after first-boot user creation.
+- [ ] Networking, `multi-user.target` and identity checks pass (see `docs/TESTING.md`).
+
+**Exit criteria:** the checklist in `docs/TESTING.md` is completed and recorded.
+
 ## M1 — Bootable prototype
 
 - [ ] Produce an Archiso live image for x86_64 UEFI systems.

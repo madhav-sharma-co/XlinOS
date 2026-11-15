@@ -28,12 +28,28 @@ XlinOS is an Arch Linux-based desktop OS project focused on a coherent, polished
 
 The initial release will reuse mature Linux components. XlinOS will differentiate through integration, design, defaults, performance work, and its own applications over time.
 
+## Milestone 0.1 - Minimal Foundation (terminal only)
+
+Before the desktop work begins, XlinOS 0.1 is a terminal-only system: power on -> XlinOS boot -> Linux initialization -> terminal login -> Bash shell. No desktop or graphical interface. The tracked archiso profile is in `archiso/`.
+
+> Status: source complete, but the ISO has **not yet been built or boot-tested**. See [docs/TESTING.md](docs/TESTING.md).
+
+Build on Arch Linux (or an Arch container, see [docs/BUILD.md](docs/BUILD.md)):
+
+    sudo pacman -S archiso mtools libisoburn squashfs-tools
+    ./scripts/build-iso.sh            # writes out/xlinos-0.1-x86_64.iso
+    ./scripts/test-qemu.sh            # boot it in QEMU (--uefi for UEFI)
+
+Access model: no default password and no automatic root login. The first boot asks you to create a user (with `sudo`); root is locked. Details: [0.1 architecture](docs/ARCHITECTURE-0.1.md).
+
+Upstream notice: XlinOS is built on Arch Linux packages and tools (Archiso, pacman, systemd, the Linux kernel and more). Their licences and notices stay in the installed system under `/usr/share/licenses`. Arch Linux is a trademark of its owner; XlinOS is not affiliated with or endorsed by Arch Linux.
+
 ## Repository status
 
 This repository is at the foundation stage. The first engineering milestone is to document the product, establish build conventions, and produce a bootable Arch-based image.
 
 See:
-- [Architecture](docs/ARCHITECTURE.md)
+- [Architecture](docs/ARCHITECTURE.md) and [0.1 architecture](docs/ARCHITECTURE-0.1.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Development guide](CONTRIBUTING.md)
 
