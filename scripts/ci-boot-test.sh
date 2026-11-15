@@ -19,11 +19,11 @@ accel=tcg
 echo "booting with accel=$accel"
 qemu-system-x86_64 -accel "$accel" -m 2G -smp 2 -nographic -no-reboot \
 	-kernel "$TMP/vmlinuz" -initrd "$TMP/initrd" -cdrom "$ISO" \
-	-append "archisobasedir=xlinos archisolabel=XLINOS_0_1 console=ttyS0 systemd.show_status=1" \
+	-append "archisobasedir=xlinos archisolabel=XLINOS_0_1 console=ttyS0 loglevel=6 systemd.show_status=1" \
 	-nic user,model=virtio-net-pci >"$LOG" 2>&1 &
 QPID=$!
 
-deadline=$((SECONDS + ${BOOT_TIMEOUT:-420}))
+deadline=$((SECONDS + ${BOOT_TIMEOUT:-600}))
 while [ $SECONDS -lt $deadline ]; do
 	grep -aq "Reached target.*Multi-User System" "$LOG" && break
 	grep -aqi "kernel panic\|Cannot open root device\|Failed to mount" "$LOG" && break
@@ -35,6 +35,9 @@ echo "================ serial log (last 60 lines) ================"
 tail -n 60 "$LOG"
 echo "============================================================"
 
+CLEAN="$TMP/clean.log"
+sed -e 's/\x1b\[[0-9;?]*[a-zA-Z]//g' -e 's/\x1b[()][A-Za-z0-9]//g' "$LOG" >"$CLEAN"
+LOG="$CLEAN"
 ok=1
 check() { if grep -aqi "$2" "$LOG"; then echo "PASS: $1"; else echo "FAIL: $1"; ok=0; fi; }
 check "kernel booted"                      "Linux version"

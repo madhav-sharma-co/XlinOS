@@ -20,4 +20,5 @@ file_permissions=(
   ["/etc/shadow"]="0:0:400"
   ["/etc/sudoers.d/10-wheel"]="0:0:440"
   ["/usr/local/bin/xlin-firstboot"]="0:0:755"
+  ["/usr/local/bin/xlin-login"]="0:0:755"
 )

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# XlinOS first-boot setup: creates the first user before the login prompt appears.
+# XlinOS first-boot setup: creates the first user (called by xlin-login on tty1 before the login prompt).
 # Root login is locked; this user gets sudo via the "wheel" group. No password is stored in the image.
 set -u
 marker=/var/lib/xlin/setup-done
