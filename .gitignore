@@ -1,0 +1,19 @@
+# Build outputs
+out/
+work/
+*.iso
+*.iso.sig
+*.img
+*.qcow2
+
+# Logs and temporary files
+*.log
+*.tmp
+.cache/
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
