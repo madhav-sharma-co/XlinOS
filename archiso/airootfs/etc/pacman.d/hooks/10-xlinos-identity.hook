@@ -1,3 +1,5 @@
+# remove from airootfs!
+# ISO build step only: removed again by zzzz99-remove-iso-hooks.hook once the image is assembled.
 [Trigger]
 Operation = Install
 Operation = Upgrade

@@ -1,0 +1,17 @@
+# remove from airootfs!
+# Removes the hooks that are only needed while the ISO is built, so that pacstrap run from the
+# live system does not pick them up (they would fail in the target system).
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Removing pacman hooks that are only needed to build the XlinOS ISO...
+When = PostTransaction
+Depends = sh
+Depends = coreutils
+Depends = grep
+Exec = /bin/sh -c "rm -- $(grep -Frl 'remove from airootfs' /etc/pacman.d/hooks/)"

@@ -38,3 +38,17 @@ jobs:
           path: |
             out/*.iso
             out/*.sha256
+
+  boot-test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: xlinos-iso
+          path: out
+      - name: Install QEMU
+        run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 xorriso
+      - name: Boot the ISO and check the boot log
+        run: ./scripts/ci-boot-test.sh out/xlinos-0.1-x86_64.iso

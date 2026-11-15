@@ -1,7 +1,0 @@
-# mkinitcpio preset for the XlinOS live image (generated at ISO build time)
-ALL_config="/etc/mkinitcpio.conf"
-ALL_kver="/boot/vmlinuz-linux"
-
-PRESETS=('archiso')
-
-archiso_image="/boot/initramfs-linux.img"
