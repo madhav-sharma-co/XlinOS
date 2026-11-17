@@ -1,0 +1,53 @@
+# XlinOS 0.1 package list. Explanations are on their own lines (mkarchiso-safe).
+# No graphical packages: no Xorg, Wayland compositor, desktop, display manager or browser.
+
+# Core system: base = minimal Arch base (systemd, bash, coreutils, util-linux, pacman, iproute2)
+base
+# Official Linux kernel and firmware for common Wi-Fi, Ethernet, storage and GPU hardware
+linux
+linux-firmware
+# CPU microcode, loaded by the initramfs
+intel-ucode
+amd-ucode
+# Initramfs generator and the live-ISO boot hooks
+mkinitcpio
+mkinitcpio-archiso
+# Administration without a root login
+sudo
+
+# BIOS boot loader (systemd-boot for UEFI ships with systemd)
+syslinux
+
+# Networking: systemd-networkd + systemd-resolved (in systemd) plus iwd for Wi-Fi
+iwd
+iputils
+wireless-regdb
+ethtool
+
+# Storage and filesystems: ext4 (default for installs), FAT/EFI, Btrfs, XFS, partitioning, LUKS, LVM, RAID
+e2fsprogs
+dosfstools
+btrfs-progs
+xfsprogs
+parted
+gptfdisk
+cryptsetup
+lvm2
+mdadm
+# pacstrap, arch-chroot and genfstab: used to install XlinOS to disk
+arch-install-scripts
+
+# Hardware detection and diagnostics
+pciutils
+usbutils
+dmidecode
+smartmontools
+lsof
+strace
+htop
+
+# Terminal usability
+nano
+man-db
+man-pages
+less
