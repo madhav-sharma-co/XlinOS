@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# XlinOS first-boot setup: creates the first user (called by xlin-login on tty1 before the login prompt).
+# Root login is locked; this user gets sudo via the "wheel" group. No password is stored in the image.
+set -u
+marker=/var/lib/xlin/setup-done
+
+clear
+cat /etc/motd 2>/dev/null
+echo "Welcome to XlinOS. Create your user account."
+echo
+
+while :; do
+	read -rp "Username: " name
+	if [[ $name =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] && ! id "$name" &>/dev/null; then
+		useradd -m -G wheel -s /bin/bash "$name" && break
+	fi
+	echo "Invalid or existing username (lowercase letters, digits, - and _; max 32)."
+done
+
+until passwd "$name"; do
+	echo "Password not set, try again."
+done
+
+mkdir -p "$(dirname "$marker")" && touch "$marker"
+echo
+echo "Account '$name' created. Log in with it on the next screen."
+sleep 2

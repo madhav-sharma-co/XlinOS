@@ -1,0 +1,12 @@
+# remove from airootfs!
+# ISO build step only: removed again by zzzz99-remove-iso-hooks.hook once the image is assembled.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = filesystem
+
+[Action]
+Description = Applying XlinOS system identity (os-release)
+When = PostTransaction
+Exec = /usr/bin/install -Dm644 /usr/share/xlinos/os-release /usr/lib/os-release
