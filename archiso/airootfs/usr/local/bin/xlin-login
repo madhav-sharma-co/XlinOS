@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-# XlinOS tty1 login wrapper (started by agetty): first boot creates the first user, then normal login.
-marker=/var/lib/xlin/setup-done
-[ -e "$marker" ] || /usr/local/bin/xlin-firstboot
-exec /usr/bin/login "$@"

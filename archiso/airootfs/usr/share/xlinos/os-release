@@ -1,9 +1,0 @@
-NAME="XlinOS"
-PRETTY_NAME="XlinOS 0.1"
-ID=xlinos
-ID_LIKE=arch
-BUILD_ID=rolling
-VERSION_ID=0.1
-ANSI_COLOR="38;2;51;204;255"
-HOME_URL="https://github.com/madhav-sharma-co/XlinOS"
-LOGO=xlinos
