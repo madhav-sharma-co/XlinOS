@@ -1,0 +1,14 @@
+/build/
+/out/
+/dist/
+/artifacts/
+/rootfs/
+/initramfs/
+/images/
+/downloads/
+/sources/
+/work/
+*.log
+*.tmp
+*.swp
+.DS_Store
